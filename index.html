@@ -127,6 +127,43 @@
     .modal-error.show { display: block; }
 
     .table-action-btn { width: auto; padding: 6px 10px; font-size: 11px; }
+
+    .query-builder {
+      background: #111111;
+      border: 1px solid #1f1f1f;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .query-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .query-controls .btn { width: auto; }
+    .query-columns {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 8px;
+    }
+    .query-col-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border: 1px solid #1f1f1f;
+      border-radius: 6px;
+      background: #0d0d0d;
+      font-size: 12px;
+    }
+    .query-col-item input { accent-color: #00ff9d; }
+    .query-empty {
+      color: #8f8f8f;
+      font-size: 12px;
+      margin: 6px 0 10px;
+    }
   </style>
 </head>
 <body>
@@ -160,6 +197,7 @@
       <div id="nav" class="nav">
         <button class="nav-btn" data-tab="dashboard">Дашборд</button>
         <button class="nav-btn" data-tab="users">Пользователи</button>
+        <button class="nav-btn" data-tab="query">Запросы</button>
         <button class="nav-btn" data-tab="acid">ACID</button>
         <button class="nav-btn" data-tab="contracts">Договоры</button>
         <button class="nav-btn" data-tab="finance">Финансы</button>
@@ -195,8 +233,27 @@
       <section id="usersView" class="hidden">
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Логин</th><th>Имя</th><th>Роль</th><th>Доступ</th></tr></thead>
+            <thead><tr><th>Логин</th><th>Имя</th><th>Роль</th><th>Доступ</th><th>Действия</th></tr></thead>
             <tbody id="usersBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="queryView" class="hidden">
+        <div class="query-builder">
+          <div class="query-controls">
+            <label class="label" for="queryStoreSelect" style="margin-bottom:0">Таблица</label>
+            <select id="queryStoreSelect" class="input" style="max-width:260px"></select>
+            <button id="runQueryBtn" class="btn" type="button">Построить таблицу</button>
+          </div>
+          <div class="label" style="margin-bottom:8px">Столбцы</div>
+          <div id="queryColumnsList" class="query-columns"></div>
+        </div>
+        <div id="queryEmpty" class="query-empty">Выберите таблицу и столбцы, затем нажмите "Построить таблицу".</div>
+        <div class="table-wrap">
+          <table>
+            <thead id="queryHead"></thead>
+            <tbody id="queryBody"></tbody>
           </table>
         </div>
       </section>
@@ -266,6 +323,32 @@
     </div>
   </div>
 
+  <div id="userModal" class="modal-overlay hidden">
+    <div class="modal-box" style="width:min(520px,92vw)">
+      <h2 class="modal-title">Редактирование пользователя</h2>
+      <div class="group">
+        <label class="label" for="userModalLogin">Логин</label>
+        <input id="userModalLogin" class="input" type="text" disabled />
+      </div>
+      <div class="group">
+        <label class="label" for="userModalName">Имя</label>
+        <input id="userModalName" class="input" type="text" />
+      </div>
+      <div class="group">
+        <label class="label" for="userModalRole">Роль</label>
+        <select id="userModalRole" class="input">
+          <option value="admin">admin</option>
+          <option value="contracts">contracts</option>
+          <option value="finance">finance</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button id="userModalCancel" class="btn" type="button">Отмена</button>
+        <button id="userModalSave" class="btn" type="button">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const CONFIG = {
       DB_NAME: 'AccessWebDB',
@@ -308,7 +391,9 @@
         this.db = null;
         this.currentUser = null;
         this.currentRole = null;
+        this.currentUserName = '';
         this.recordEdit = null;
+        this.userEditLogin = null;
       }
 
       async init() {
@@ -321,6 +406,7 @@
         if (session && session.login) {
           this.currentUser = session.login;
           this.currentRole = session.role;
+          this.currentUserName = session.name || '';
           this.showApp();
         } else {
           this.showLogin();
@@ -549,6 +635,74 @@
         if (store === STORES.contracts) return CONTRACT_COLUMNS;
         if (store === STORES.finance) return FINANCE_COLUMNS;
         return [];
+      }
+
+      getStoreLabel(store) {
+        if (store === STORES.acid) return 'ACID';
+        if (store === STORES.contracts) return 'Договоры';
+        if (store === STORES.finance) return 'Финансы';
+        return store;
+      }
+
+      getAllowedStoresByRole() {
+        if (this.currentRole === 'admin') return [STORES.acid, STORES.contracts, STORES.finance];
+        if (this.currentRole === 'contracts') return [STORES.acid, STORES.contracts];
+        if (this.currentRole === 'finance') return [STORES.acid, STORES.finance];
+        return [STORES.acid];
+      }
+
+      buildQueryColumnsSelector(store) {
+        const columnsList = document.getElementById('queryColumnsList');
+        const columns = this.getColumnsByStore(store);
+        columnsList.innerHTML = '';
+        columns.forEach((col) => {
+          const label = document.createElement('label');
+          label.className = 'query-col-item';
+          label.innerHTML = `<input type="checkbox" value="${col}" checked /><span>${col}</span>`;
+          columnsList.appendChild(label);
+        });
+      }
+
+      setupQueryBuilder() {
+        const select = document.getElementById('queryStoreSelect');
+        const allowedStores = this.getAllowedStoresByRole();
+        select.innerHTML = allowedStores
+          .map((s) => `<option value="${s}">${this.getStoreLabel(s)}</option>`)
+          .join('');
+        this.buildQueryColumnsSelector(select.value || allowedStores[0]);
+      }
+
+      async runColumnQuery() {
+        const store = document.getElementById('queryStoreSelect').value;
+        const selectedColumns = Array.from(document.querySelectorAll('#queryColumnsList input[type="checkbox"]:checked'))
+          .map((el) => el.value);
+        const head = document.getElementById('queryHead');
+        const body = document.getElementById('queryBody');
+        const empty = document.getElementById('queryEmpty');
+
+        if (!store) {
+          empty.textContent = 'Таблица не выбрана.';
+          head.innerHTML = '';
+          body.innerHTML = '';
+          return;
+        }
+
+        if (!selectedColumns.length) {
+          empty.textContent = 'Выберите хотя бы один столбец.';
+          head.innerHTML = '';
+          body.innerHTML = '';
+          return;
+        }
+
+        const rows = await this.getAll(store);
+        head.innerHTML = `<tr>${selectedColumns.map((col) => `<th>${col}</th>`).join('')}</tr>`;
+        body.innerHTML = rows
+          .map((row) => `<tr>${selectedColumns.map((col) => `<td>${row[col] ?? ''}</td>`).join('')}</tr>`)
+          .join('');
+
+        empty.textContent = rows.length
+          ? `Найдено записей: ${rows.length}`
+          : 'По выбранной таблице нет данных.';
       }
 
       getDateKeyForFinance(row) {
@@ -787,6 +941,14 @@
         document.getElementById('recordModalCancel').addEventListener('click', () => this.closeRecordModal());
         document.getElementById('recordModalSave').addEventListener('click', () => this.saveRecordModal());
 
+        document.getElementById('queryStoreSelect').addEventListener('change', (e) => {
+          this.buildQueryColumnsSelector(e.target.value);
+        });
+        document.getElementById('runQueryBtn').addEventListener('click', () => this.runColumnQuery());
+
+        document.getElementById('userModalCancel').addEventListener('click', () => this.closeUserModal());
+        document.getElementById('userModalSave').addEventListener('click', () => this.saveUserModal());
+
         window.addEventListener('resize', () => {
           const dashboardVisible = !document.getElementById('dashboardView').classList.contains('hidden');
           if (dashboardVisible) this.renderDashboard();
@@ -801,18 +963,18 @@
       showApp() {
         document.getElementById('loginScreen').classList.add('hidden');
         document.getElementById('app').classList.remove('hidden');
-        const user = CONFIG.USERS[this.currentUser];
-        document.getElementById('userName').textContent = user.name;
-        document.getElementById('userRole').textContent = user.role.toUpperCase();
+        document.getElementById('userName').textContent = this.currentUserName || this.currentUser;
+        document.getElementById('userRole').textContent = String(this.currentRole || '').toUpperCase();
         this.updateRoleNav();
+        this.setupQueryBuilder();
         this.switchTab(this.currentRole === 'admin' ? 'dashboard' : (this.currentRole === 'contracts' ? 'contracts' : 'finance'));
       }
 
       updateRoleNav() {
         const map = {
-          admin: ['dashboard', 'users', 'acid', 'contracts', 'finance'],
-          contracts: ['acid', 'contracts'],
-          finance: ['acid', 'finance']
+          admin: ['dashboard', 'users', 'query', 'acid', 'contracts', 'finance'],
+          contracts: ['query', 'acid', 'contracts'],
+          finance: ['query', 'acid', 'finance']
         };
         const allowed = new Set(map[this.currentRole] || []);
         document.querySelectorAll('#nav .nav-btn').forEach((btn) => {
@@ -851,6 +1013,7 @@
 
           this.currentUser = user.login;
           this.currentRole = user.role;
+          this.currentUserName = user.name;
           await this.put(STORES.sessions, { login: user.login, role: user.role, name: user.name }, 'current');
           this.showApp();
         } finally {
@@ -863,6 +1026,7 @@
         const titles = {
           dashboard: 'Дашборд',
           users: 'Пользователи',
+          query: 'Запросы',
           acid: 'ACID',
           contracts: 'Договоры',
           finance: 'Финансы'
@@ -872,13 +1036,14 @@
 
       async switchTab(tab) {
         document.querySelectorAll('#nav .nav-btn').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
-        ['dashboard', 'users', 'acid', 'contracts', 'finance'].forEach((name) => {
+        ['dashboard', 'users', 'query', 'acid', 'contracts', 'finance'].forEach((name) => {
           document.getElementById(`${name}View`).classList.toggle('hidden', name !== tab);
         });
         this.setTitle(tab);
 
         if (tab === 'dashboard') await this.renderDashboard();
         if (tab === 'users') await this.renderUsers();
+        if (tab === 'query') await this.runColumnQuery();
         if (tab === 'acid') await this.renderAcid();
         if (tab === 'contracts') await this.renderContracts();
         if (tab === 'finance') await this.renderFinance();
@@ -904,9 +1069,72 @@
         users.forEach((u) => {
           const access = u.role === 'admin' ? 'Полный доступ' : (u.role === 'contracts' ? 'ACID, Договоры' : 'ACID, Финансы');
           const tr = document.createElement('tr');
-          tr.innerHTML = `<td>${u.login}</td><td>${u.name}</td><td>${u.role}</td><td>${access}</td>`;
+          const action = this.currentRole === 'admin'
+            ? `<button class="btn table-action-btn" data-edit-user="${u.login}">Редактировать</button>`
+            : '';
+          tr.innerHTML = `<td>${u.login}</td><td>${u.name}</td><td>${u.role}</td><td>${access}</td><td>${action}</td>`;
           body.appendChild(tr);
         });
+        body.querySelectorAll('button[data-edit-user]').forEach((btn) => {
+          btn.addEventListener('click', () => this.openUserModal(btn.dataset.editUser));
+        });
+      }
+
+      async openUserModal(login) {
+        if (this.currentRole !== 'admin') return;
+        const user = await this.get(STORES.users, login);
+        if (!user) return;
+        this.userEditLogin = login;
+        document.getElementById('userModalLogin').value = user.login;
+        document.getElementById('userModalName').value = user.name || '';
+        document.getElementById('userModalRole').value = user.role || 'finance';
+        document.getElementById('userModal').classList.remove('hidden');
+      }
+
+      closeUserModal() {
+        this.userEditLogin = null;
+        document.getElementById('userModal').classList.add('hidden');
+      }
+
+      async saveUserModal() {
+        if (!this.userEditLogin) return;
+
+        const user = await this.get(STORES.users, this.userEditLogin);
+        if (!user) {
+          this.closeUserModal();
+          return;
+        }
+
+        const newName = document.getElementById('userModalName').value.trim();
+        const newRole = document.getElementById('userModalRole').value;
+        if (!newName) {
+          alert('Введите имя пользователя');
+          return;
+        }
+
+        user.name = newName;
+        user.role = newRole;
+        await this.put(STORES.users, user);
+
+        if (CONFIG.USERS[user.login]) {
+          CONFIG.USERS[user.login].name = newName;
+          CONFIG.USERS[user.login].role = newRole;
+        }
+
+        if (this.currentUser === user.login) {
+          this.currentRole = newRole;
+          this.currentUserName = newName;
+          await this.put(STORES.sessions, { login: user.login, role: newRole, name: newName }, 'current');
+          document.getElementById('userName').textContent = this.currentUserName;
+          document.getElementById('userRole').textContent = String(this.currentRole).toUpperCase();
+          this.updateRoleNav();
+          this.setupQueryBuilder();
+          const defaultTab = this.currentRole === 'admin' ? 'dashboard' : (this.currentRole === 'contracts' ? 'contracts' : 'finance');
+          await this.switchTab(defaultTab);
+        }
+
+        this.closeUserModal();
+        await this.renderUsers();
       }
 
       async renderAcid() {
