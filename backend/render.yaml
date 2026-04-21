@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: accessweb-backend
+    env: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: DB_PATH
+        value: /opt/render/project/src/data/accessweb.db
+      - key: CORS_ORIGIN
+        value: "*"
+      - key: JWT_SECRET
+        sync: false
