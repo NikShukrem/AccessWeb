@@ -1,0 +1,12 @@
+node_modules/
+.DS_Store
+.vscode/
+dist/
+build/
+*.log
+generated-test-data.json
+.cache/
+__pycache__/
+*.pyc
+.env
+.env.local
