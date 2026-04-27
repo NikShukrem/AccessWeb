@@ -5,25 +5,46 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import sqlite3 from 'sqlite3';
 import { open } from 'sqlite';
+import { createServer } from 'http';
+import { WebSocketServer } from 'ws';
+import { v4 as uuidv4 } from 'uuid';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const PORT = Number(process.env.PORT || 8080);
 const JWT_SECRET = process.env.JWT_SECRET || 'change_me';
 const DB_PATH = process.env.DB_PATH || './data/accessweb.db';
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
+const NODE_ENV = process.env.NODE_ENV || 'development';
 
 const app = express();
+const httpServer = createServer(app);
+const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+
+// Static files - serve frontend
+app.use(express.static(join(__dirname, '../../')));
+
+// CORS Configuration
 app.use(cors({ origin: CORS_ORIGIN === '*' ? true : CORS_ORIGIN.split(',') }));
 app.use(express.json({ limit: '2mb' }));
 
 let db;
+
+// WebSocket client registry - stores connected users
+const wsClients = new Map(); // Map<userId, Set<WebSocket>>
 
 const ROLE = {
   ADMIN: 'admin',
   CONTRACTS: 'contracts',
   FINANCE: 'finance'
 };
+
+// ============== HELPERS ==============
 
 function createToken(user) {
   return jwt.sign({ id: user.id, login: user.login, role: user.role, name: user.name }, JWT_SECRET, { expiresIn: '12h' });
@@ -51,6 +72,14 @@ function allow(allowedRoles) {
   };
 }
 
+function wsAuth(token) {
+  try {
+    return jwt.verify(token, JWT_SECRET);
+  } catch {
+    return null;
+  }
+}
+
 function nowIsoDate() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -63,6 +92,21 @@ function toNum(value, fallback = 0) {
 function normalizeState(value) {
   return String(value || '').trim().toLowerCase();
 }
+
+// Broadcast update to all connected clients
+function broadcastUpdate(type, data) {
+  const message = JSON.stringify({ type, data, timestamp: new Date().toISOString() });
+  
+  for (const clientSet of wsClients.values()) {
+    for (const ws of clientSet) {
+      if (ws.readyState === 1) { // WebSocket.OPEN
+        ws.send(message);
+      }
+    }
+  }
+}
+
+// ============== DATABASE ==============
 
 async function ensureSchema() {
   await db.exec(`
@@ -245,6 +289,8 @@ async function listRows(table, mapper) {
   return rows.map(mapper);
 }
 
+// ============== REST API ==============
+
 app.get('/api/health', async (_req, res) => {
   const users = await db.get('SELECT COUNT(*) as c FROM users');
   res.json({ ok: true, service: 'accessweb-backend', users: users?.c || 0, ts: new Date().toISOString() });
@@ -293,6 +339,7 @@ app.put('/api/users/:id', auth, allow([ROLE.ADMIN]), async (req, res) => {
   res.json({ user });
 });
 
+// ACID endpoints
 app.get('/api/acid', auth, allow([ROLE.ADMIN, ROLE.CONTRACTS, ROLE.FINANCE]), async (_req, res) => {
   const records = await listRows('acid', buildAcidRecord);
   res.json({ records });
@@ -318,7 +365,12 @@ app.post('/api/acid', auth, allow([ROLE.ADMIN]), async (req, res) => {
   );
 
   const row = await db.get('SELECT * FROM acid WHERE id = ?', result.lastID);
-  res.status(201).json({ record: buildAcidRecord(row) });
+  const record = buildAcidRecord(row);
+  
+  // Broadcast to all connected clients
+  broadcastUpdate('acid_created', record);
+  
+  res.status(201).json({ record });
 });
 
 app.put('/api/acid/:id', auth, allow([ROLE.ADMIN]), async (req, res) => {
@@ -347,9 +399,28 @@ app.put('/api/acid/:id', auth, allow([ROLE.ADMIN]), async (req, res) => {
   );
 
   const row = await db.get('SELECT * FROM acid WHERE id = ?', id);
-  res.json({ record: buildAcidRecord(row) });
+  const record = buildAcidRecord(row);
+  
+  // Broadcast to all connected clients
+  broadcastUpdate('acid_updated', record);
+  
+  res.json({ record });
 });
 
+app.delete('/api/acid/:id', auth, allow([ROLE.ADMIN]), async (req, res) => {
+  const id = Number(req.params.id);
+  const current = await db.get('SELECT * FROM acid WHERE id = ?', id);
+  if (!current) return res.status(404).json({ error: 'Record not found' });
+
+  await db.run('DELETE FROM acid WHERE id = ?', id);
+  
+  // Broadcast to all connected clients
+  broadcastUpdate('acid_deleted', { id });
+  
+  res.json({ success: true });
+});
+
+// Contracts endpoints
 app.get('/api/contracts', auth, allow([ROLE.ADMIN, ROLE.CONTRACTS]), async (_req, res) => {
   const records = await listRows('contracts', buildContractRecord);
   res.json({ records });
@@ -377,7 +448,11 @@ app.post('/api/contracts', auth, allow([ROLE.ADMIN]), async (req, res) => {
   );
 
   const row = await db.get('SELECT * FROM contracts WHERE id = ?', result.lastID);
-  res.status(201).json({ record: buildContractRecord(row) });
+  const record = buildContractRecord(row);
+  
+  broadcastUpdate('contracts_created', record);
+  
+  res.status(201).json({ record });
 });
 
 app.put('/api/contracts/:id', auth, allow([ROLE.ADMIN]), async (req, res) => {
@@ -408,9 +483,26 @@ app.put('/api/contracts/:id', auth, allow([ROLE.ADMIN]), async (req, res) => {
   );
 
   const row = await db.get('SELECT * FROM contracts WHERE id = ?', id);
-  res.json({ record: buildContractRecord(row) });
+  const record = buildContractRecord(row);
+  
+  broadcastUpdate('contracts_updated', record);
+  
+  res.json({ record });
 });
 
+app.delete('/api/contracts/:id', auth, allow([ROLE.ADMIN]), async (req, res) => {
+  const id = Number(req.params.id);
+  const current = await db.get('SELECT * FROM contracts WHERE id = ?', id);
+  if (!current) return res.status(404).json({ error: 'Record not found' });
+
+  await db.run('DELETE FROM contracts WHERE id = ?', id);
+  
+  broadcastUpdate('contracts_deleted', { id });
+  
+  res.json({ success: true });
+});
+
+// Finance endpoints
 app.get('/api/finance', auth, allow([ROLE.ADMIN, ROLE.FINANCE]), async (_req, res) => {
   const records = await listRows('finance', buildFinanceRecord);
   res.json({ records });
@@ -438,7 +530,11 @@ app.post('/api/finance', auth, allow([ROLE.ADMIN]), async (req, res) => {
   );
 
   const row = await db.get('SELECT * FROM finance WHERE id = ?', result.lastID);
-  res.status(201).json({ record: buildFinanceRecord(row) });
+  const record = buildFinanceRecord(row);
+  
+  broadcastUpdate('finance_created', record);
+  
+  res.status(201).json({ record });
 });
 
 app.put('/api/finance/:id', auth, allow([ROLE.ADMIN]), async (req, res) => {
@@ -469,7 +565,23 @@ app.put('/api/finance/:id', auth, allow([ROLE.ADMIN]), async (req, res) => {
   );
 
   const row = await db.get('SELECT * FROM finance WHERE id = ?', id);
-  res.json({ record: buildFinanceRecord(row) });
+  const record = buildFinanceRecord(row);
+  
+  broadcastUpdate('finance_updated', record);
+  
+  res.json({ record });
+});
+
+app.delete('/api/finance/:id', auth, allow([ROLE.ADMIN]), async (req, res) => {
+  const id = Number(req.params.id);
+  const current = await db.get('SELECT * FROM finance WHERE id = ?', id);
+  if (!current) return res.status(404).json({ error: 'Record not found' });
+
+  await db.run('DELETE FROM finance WHERE id = ?', id);
+  
+  broadcastUpdate('finance_deleted', { id });
+  
+  res.json({ success: true });
 });
 
 app.get('/api/dashboard/stats', auth, allow([ROLE.ADMIN, ROLE.CONTRACTS, ROLE.FINANCE]), async (_req, res) => {
@@ -524,6 +636,61 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
+// ============== WEBSOCKET ==============
+
+wss.on('connection', (ws, req) => {
+  const clientId = uuidv4();
+  let user = null;
+
+  // Handle incoming messages
+  ws.on('message', (data) => {
+    try {
+      const message = JSON.parse(data);
+
+      if (message.type === 'auth') {
+        // Authenticate WebSocket connection
+        user = wsAuth(message.token);
+        if (!user) {
+          ws.send(JSON.stringify({ type: 'auth_failed', error: 'Invalid token' }));
+          ws.close();
+          return;
+        }
+
+        // Register client
+        if (!wsClients.has(user.id)) {
+          wsClients.set(user.id, new Set());
+        }
+        wsClients.get(user.id).add(ws);
+
+        ws.send(JSON.stringify({ 
+          type: 'auth_success', 
+          user: { id: user.id, login: user.login, role: user.role } 
+        }));
+
+        console.log(`✅ User ${user.login} connected via WebSocket`);
+      }
+    } catch (err) {
+      console.error('WebSocket message error:', err);
+    }
+  });
+
+  ws.on('close', () => {
+    if (user && wsClients.has(user.id)) {
+      wsClients.get(user.id).delete(ws);
+      if (wsClients.get(user.id).size === 0) {
+        wsClients.delete(user.id);
+      }
+      console.log(`🔌 User ${user?.login} disconnected`);
+    }
+  });
+
+  ws.on('error', (err) => {
+    console.error('WebSocket error:', err);
+  });
+});
+
+// ============== STARTUP ==============
+
 async function start() {
   db = await open({
     filename: DB_PATH,
@@ -534,12 +701,14 @@ async function start() {
   await ensureUsers();
   await ensureSeedData();
 
-  app.listen(PORT, () => {
-    console.log(`AccessWeb backend is running on http://localhost:${PORT}`);
+  httpServer.listen(PORT, () => {
+    console.log(`✅ AccessWeb backend running on http://localhost:${PORT}`);
+    console.log(`🔌 WebSocket server available at ws://localhost:${PORT}/ws`);
+    console.log(`📊 API documentation: http://localhost:${PORT}/api/*`);
   });
 }
 
 start().catch((e) => {
-  console.error('Failed to start backend', e);
+  console.error('❌ Failed to start backend', e);
   process.exit(1);
 });

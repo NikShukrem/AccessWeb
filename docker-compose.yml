@@ -1,16 +1,67 @@
 version: '3.9'
+
 services:
+  # ✅ SECURITY: Nginx Reverse Proxy with SSL/TLS termination
+  nginx:
+    image: nginx:alpine
+    container_name: accessweb-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - accessweb-backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ✅ SECURITY: Backend with hardened configuration
   accessweb-backend:
     build:
       context: ./backend
+      dockerfile: Dockerfile
     container_name: accessweb-backend
     ports:
       - "8080:8080"
     environment:
+      - NODE_ENV=production
       - PORT=8080
-      - JWT_SECRET=change_this_super_secret_key
+      - HTTPS=true
+      # 🔐 CRITICAL: Must be set via .env or docker secret in production
+      - JWT_SECRET=${JWT_SECRET:-CHANGE_ME_IN_PRODUCTION}
       - DB_PATH=/app/data/accessweb.db
-      - CORS_ORIGIN=*
+      # 🔐 SECURITY: Specific CORS origins (NOT *)
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000}
     volumes:
       - ./backend/data:/app/data
+    depends_on:
+      nginx:
+        condition: service_healthy
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - "com.example.description=AccessWeb Backend API"
+
+  # Optional: Redis for caching and sessions (future enhancement)
+  # redis:
+  #   image: redis:alpine
+  #   container_name: accessweb-redis
+  #   ports:
+  #     - "6379:6379"
+  #   restart: unless-stopped
+
+volumes:
+  backend-data:
+    driver: local
+
