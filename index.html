@@ -85,7 +85,7 @@
       </div>
       <button id="loginBtn" class="btn">Вход</button>
       <div class="demo">
-        <div>📌 Тестовые учетные данные:</div>
+        <div>[*] Тестовые учетные данные:</div>
         <div><strong>admin</strong> / admin123</div>
         <div><strong>contracts</strong> / contracts123</div>
         <div><strong>finance</strong> / finance123</div>
@@ -96,15 +96,15 @@
   <!-- APP SCREEN -->
   <div id="appScreen" class="app hidden">
     <div class="sidebar">
-      <div class="logo">💾 AccessWeb</div>
+      <div class="logo">[DB] AccessWeb</div>
       <div class="ws-status">
         <div id="wsIndicator" class="ws-indicator connected"></div>
         <span id="wsStatus">Подключено</span>
       </div>
       <nav class="nav">
-        <button class="nav-btn active" data-tab="acid">📦 ACID</button>
-        <button class="nav-btn" data-tab="contracts">📋 Договоры</button>
-        <button class="nav-btn" data-tab="finance">💰 Финансы</button>
+        <button class="nav-btn active" data-tab="acid">[BOX] ACID</button>
+        <button class="nav-btn" data-tab="contracts">[LIST] Договоры</button>
+        <button class="nav-btn" data-tab="finance">[USD] Финансы</button>
       </nav>
       <div class="user-box">
         <div>Пользователь:</div>
@@ -232,7 +232,7 @@
       ws = new WebSocket(WS_BASE);
       
       ws.onopen = () => {
-        console.log('🔌 WebSocket connected');
+        console.log('[WS] WebSocket connected');
         wsConnected = true;
         updateWSStatus();
         ws.send(JSON.stringify({ type: 'auth', token }));
@@ -243,7 +243,7 @@
           const msg = JSON.parse(event.data);
           
           if (msg.type === 'auth_success') {
-            console.log('✅ WebSocket authenticated');
+            console.log('[✓] WebSocket authenticated');
             loadAllData(); // Initial load
           } else if (msg.type.includes('_created') || msg.type.includes('_updated') || msg.type.includes('_deleted')) {
             handleRemoteUpdate(msg);
@@ -254,7 +254,7 @@
       };
 
       ws.onclose = () => {
-        console.log('🔌 WebSocket disconnected');
+        console.log('[WS] WebSocket disconnected');
         wsConnected = false;
         updateWSStatus();
         setTimeout(initWebSocket, 3000); // Reconnect after 3s
@@ -337,8 +337,8 @@
             <td>${record['Стоимость Груза'] || '-'}</td>
             <td>${record['Дата создания'] || '-'}</td>
             <td>
-              <button class="btn btn-secondary" onclick="editRecord('acid', ${record.id})">✏️</button>
-              <button class="btn btn-secondary" style="background:rgba(255,50,50,0.2);color:#ff6b6b;" onclick="deleteRecord('acid', ${record.id})">🗑️</button>
+              <button class="btn btn-secondary" onclick="editRecord('acid', ${record.id})">[EDIT]</button>
+              <button class="btn btn-secondary" style="background:rgba(255,50,50,0.2);color:#ff6b6b;" onclick="deleteRecord('acid', ${record.id})">[DEL]</button>
             </td>
           `;
         } else if (table === 'contracts') {
@@ -352,8 +352,8 @@
             <td>${record['Сумма оплаты'] || '-'}</td>
             <td>${record['Срок стадии'] || '-'}</td>
             <td>
-              <button class="btn btn-secondary" onclick="editRecord('contracts', ${record.id})">✏️</button>
-              <button class="btn btn-secondary" style="background:rgba(255,50,50,0.2);color:#ff6b6b;" onclick="deleteRecord('contracts', ${record.id})">🗑️</button>
+              <button class="btn btn-secondary" onclick="editRecord('contracts', ${record.id})">[EDIT]</button>
+              <button class="btn btn-secondary" style="background:rgba(255,50,50,0.2);color:#ff6b6b;" onclick="deleteRecord('contracts', ${record.id})">[DEL]</button>
             </td>
           `;
         } else if (table === 'finance') {
@@ -365,8 +365,8 @@
             <td>${record['Перевод в USD'] || '-'}</td>
             <td>${record['Состояние'] || '-'}</td>
             <td>
-              <button class="btn btn-secondary" onclick="editRecord('finance', ${record.id})">✏️</button>
-              <button class="btn btn-secondary" style="background:rgba(255,50,50,0.2);color:#ff6b6b;" onclick="deleteRecord('finance', ${record.id})">🗑️</button>
+              <button class="btn btn-secondary" onclick="editRecord('finance', ${record.id})">[EDIT]</button>
+              <button class="btn btn-secondary" style="background:rgba(255,50,50,0.2);color:#ff6b6b;" onclick="deleteRecord('finance', ${record.id})">[DEL]</button>
             </td>
           `;
         }
@@ -397,7 +397,7 @@
         const payload = { payload: json };
         await apiCall('PUT', `/api/${recordEditMode.table}/${recordEditMode.id}`, payload);
         
-        showSuccess('✅ Изменения сохранены', document.getElementById('recordModalSuccess'));
+        showSuccess('[✓] Изменения сохранены', document.getElementById('recordModalSuccess'));
         setTimeout(() => {
           document.getElementById('recordModal').classList.add('hidden');
           recordEditMode = null;
@@ -519,7 +519,7 @@
           await apiCall('PUT', `/api/${recordEditMode.table}/${recordEditMode.id}`, { payload: json });
         }
         
-        showSuccess('✅ Изменения сохранены', document.getElementById('recordModalSuccess'));
+        showSuccess('[✓] Изменения сохранены', document.getElementById('recordModalSuccess'));
         setTimeout(() => {
           document.getElementById('recordModal').classList.add('hidden');
           recordEditMode = null;
@@ -539,7 +539,7 @@
       
       try {
         await apiCall('DELETE', `/api/${recordEditMode.table}/${recordEditMode.id}`);
-        showSuccess('✅ Запись удалена', document.getElementById('recordModalSuccess'));
+        showSuccess('[✓] Запись удалена', document.getElementById('recordModalSuccess'));
         setTimeout(() => {
           document.getElementById('recordModal').classList.add('hidden');
           recordEditMode = null;
