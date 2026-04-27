@@ -85,7 +85,7 @@
       </div>
       <button id="loginBtn" class="btn">Вход</button>
       <div class="demo">
-        <div>[*] Тестовые учетные данные:</div>
+        <div>Тестовые учетные данные:</div>
         <div><strong>admin</strong> / admin123</div>
         <div><strong>contracts</strong> / contracts123</div>
         <div><strong>finance</strong> / finance123</div>
@@ -96,15 +96,15 @@
   <!-- APP SCREEN -->
   <div id="appScreen" class="app hidden">
     <div class="sidebar">
-      <div class="logo">[DB] AccessWeb</div>
+      <div class="logo">AccessWeb</div>
       <div class="ws-status">
         <div id="wsIndicator" class="ws-indicator connected"></div>
         <span id="wsStatus">Подключено</span>
       </div>
       <nav class="nav">
-        <button class="nav-btn active" data-tab="acid">[BOX] ACID</button>
-        <button class="nav-btn" data-tab="contracts">[LIST] Договоры</button>
-        <button class="nav-btn" data-tab="finance">[USD] Финансы</button>
+        <button class="nav-btn active" data-tab="acid">ACID</button>
+        <button class="nav-btn" data-tab="contracts">Договоры</button>
+        <button class="nav-btn" data-tab="finance">Финансы</button>
       </nav>
       <div class="user-box">
         <div>Пользователь:</div>
@@ -232,7 +232,7 @@
       ws = new WebSocket(WS_BASE);
       
       ws.onopen = () => {
-        console.log('[WS] WebSocket connected');
+        console.log('WebSocket connected');
         wsConnected = true;
         updateWSStatus();
         ws.send(JSON.stringify({ type: 'auth', token }));
@@ -254,7 +254,7 @@
       };
 
       ws.onclose = () => {
-        console.log('[WS] WebSocket disconnected');
+        console.log('WebSocket disconnected');
         wsConnected = false;
         updateWSStatus();
         setTimeout(initWebSocket, 3000); // Reconnect after 3s
