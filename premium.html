@@ -423,13 +423,13 @@
       <div id="alert" class="alert"></div>
 
       <div class="tabs">
-        <button class="tab-btn active" onclick="switchTab('acid_main')">ACID (Грузы)</button>
-        <button class="tab-btn" onclick="switchTab('acid_logistics')">Логистика ACID</button>
-        <button class="tab-btn" onclick="switchTab('acid_customs')">Таможня ACID</button>
-        <button class="tab-btn" onclick="switchTab('contract_main')">Договоры</button>
-        <button class="tab-btn" onclick="switchTab('contract_stages')">Этапы договора</button>
-        <button class="tab-btn" onclick="switchTab('acid_kti')">ACID-KTI</button>
-        <button class="tab-btn" onclick="switchTab('finance_ais_export')">Выгрузка АИС</button>
+        <button class="tab-btn active" onclick="switchTab(this, 'acid_main')">ACID (Грузы)</button>
+        <button class="tab-btn" onclick="switchTab(this, 'acid_logistics')">Логистика ACID</button>
+        <button class="tab-btn" onclick="switchTab(this, 'acid_customs')">Таможня ACID</button>
+        <button class="tab-btn" onclick="switchTab(this, 'contract_main')">Договоры</button>
+        <button class="tab-btn" onclick="switchTab(this, 'contract_stages')">Этапы договора</button>
+        <button class="tab-btn" onclick="switchTab(this, 'acid_kti')">ACID-KTI</button>
+        <button class="tab-btn" onclick="switchTab(this, 'finance_ais_export')">Выгрузка АИС</button>
       </div>
 
       <!-- ACID Main Tab -->
@@ -511,7 +511,7 @@
       </div>
 
       <!-- ACID Logistics Tab -->
-      <div id="acid_logistics-tab" class="tab-content hidden">
+      <div id="acid_logistics-tab" class="tab-content">
         <div class="content-panel">
           <h2>Логистика ACID</h2>
           <div class="form-section">
@@ -557,7 +557,7 @@
       </div>
 
       <!-- ACID Customs Tab -->
-      <div id="acid_customs-tab" class="tab-content hidden">
+      <div id="acid_customs-tab" class="tab-content">
         <div class="content-panel">
           <h2>Таможня ACID</h2>
           <div class="form-section">
@@ -607,7 +607,7 @@
       </div>
 
       <!-- Contract Main Tab -->
-      <div id="contract_main-tab" class="tab-content hidden">
+      <div id="contract_main-tab" class="tab-content">
         <div class="content-panel">
           <h2>Договоры</h2>
           <div class="form-section">
@@ -674,7 +674,7 @@
       </div>
 
       <!-- Contract Stages Tab -->
-      <div id="contract_stages-tab" class="tab-content hidden">
+      <div id="contract_stages-tab" class="tab-content">
         <div class="content-panel">
           <h2>Этапы договора</h2>
           <div class="form-section">
@@ -724,7 +724,7 @@
       </div>
 
       <!-- ACID-KTI Tab -->
-      <div id="acid_kti-tab" class="tab-content hidden">
+      <div id="acid_kti-tab" class="tab-content">
         <div class="content-panel">
           <h2>ACID-KTI</h2>
           <div class="form-section">
@@ -770,7 +770,7 @@
       </div>
 
       <!-- Finance Tab -->
-      <div id="finance_ais_export-tab" class="tab-content hidden">
+      <div id="finance_ais_export-tab" class="tab-content">
         <div class="content-panel">
           <h2>Выгрузка АИС</h2>
           <div class="form-section">
@@ -890,11 +890,11 @@
       setTimeout(() => el.classList.remove('show'), 4000);
     }
 
-    function switchTab(tab) {
+    function switchTab(btn, tab) {
       document.querySelectorAll('[id$="-tab"]').forEach(e => e.classList.remove('active'));
       document.querySelectorAll('.tab-btn').forEach(e => e.classList.remove('active'));
       document.getElementById(`${tab}-tab`).classList.add('active');
-      event.target.classList.add('active');
+      btn.classList.add('active');
       currentTab = tab;
       loadData(tab);
     }
