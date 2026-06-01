@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AccessWeb - Реал-тайм синхронизация</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0a; color: #e0e0e0; }
+    
+    .login-screen { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #0a0a0a, #111111); }
+    .login-box { width: 100%; max-width: 380px; padding: 32px; background: #111111; border: 1px solid #1f1f1f; border-radius: 8px; }
+    .title { font-size: 28px; font-weight: 700; color: #ffffff; margin-bottom: 8px; }
+    .subtitle { font-size: 12px; color: #8a8a8a; text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 18px; }
+    .group { display: grid; gap: 6px; margin-bottom: 12px; }
+    .label { font-size: 12px; color: #a0a0a0; text-transform: uppercase; }
+    .input { padding: 12px 14px; background: #0a0a0a; color: #e0e0e0; border: 1px solid #2a2a2a; border-radius: 6px; outline: none; }
+    .input:focus { border-color: #00ff9d; box-shadow: 0 0 0 3px rgba(0, 255, 157, 0.12); }
+    .btn { padding: 12px 14px; border: none; border-radius: 6px; background: #00ff9d; color: #000000; font-weight: 700; cursor: pointer; width: 100%; }
+    .btn:disabled { background: #3a3a3a; color: #777777; cursor: not-allowed; }
+    .btn-secondary { background: #2a2a2a; color: #e0e0e0; width: auto; padding: 8px 12px; font-size: 12px; }
+    .error { display: none; margin-bottom: 10px; padding: 10px; border-radius: 6px; color: #ff6b6b; background: rgba(255, 50, 50, 0.12); border: 1px solid rgba(255, 50, 50, 0.35); }
+    .error.show { display: block; }
+    .success { display: none; margin-bottom: 10px; padding: 10px; border-radius: 6px; color: #51cf66; background: rgba(81, 207, 102, 0.12); border: 1px solid rgba(81, 207, 102, 0.35); }
+    .success.show { display: block; }
+    .demo { margin-top: 14px; padding-top: 12px; border-top: 1px solid #222222; font-size: 12px; color: #9a9a9a; }
+    .demo div { margin-top: 4px; cursor: pointer; }
+    .demo strong { color: #00ff9d; }
+    
+    .app { display: grid; grid-template-columns: 240px minmax(0, 1fr); height: 100%; }
+    .sidebar { background: #111111; border-right: 1px solid #1f1f1f; padding: 14px; display: flex; flex-direction: column; }
+    .logo { color: #00ff9d; font-weight: 700; margin-bottom: 16px; }
+    .ws-status { font-size: 11px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+    .ws-indicator { width: 8px; height: 8px; border-radius: 50%; animation: pulse 2s infinite; }
+    .ws-indicator.connected { background: #51cf66; }
+    .ws-indicator.disconnected { background: #ff6b6b; animation: none; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .nav { display: grid; gap: 6px; }
+    .nav-btn { text-align: left; padding: 10px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: #c0c0c0; cursor: pointer; font-size: 13px; }
+    .nav-btn.active { color: #00ff9d; border-color: #00ff9d; background: rgba(0, 255, 157, 0.12); }
+    .user-box { margin-top: auto; border-top: 1px solid #1f1f1f; padding-top: 12px; font-size: 12px; color: #8e8e8e; }
+    .logout { margin-top: 8px; background: rgba(255, 50, 50, 0.12); border: 1px solid rgba(255, 50, 50, 0.35); color: #ff6b6b; width: 100%; }
+    
+    .main { padding: 20px; overflow: auto; min-width: 0; }
+    .h1 { color: #ffffff; font-size: 22px; margin-bottom: 12px; }
+    .section-tools { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .section-tools .btn { width: auto; padding: 8px 12px; font-size: 12px; }
+    
+    .table-wrap { width: 100%; background: #111111; border: 1px solid #1f1f1f; border-radius: 8px; overflow: auto; max-height: calc(100vh - 150px); scrollbar-gutter: stable both-edges; }
+    table { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead { background: #1a1a1a; }
+    thead th { position: sticky; top: 0; z-index: 3; background: #1a1a1a; }
+    th, td { text-align: left; padding: 10px; border-bottom: 1px solid #1f1f1f; white-space: nowrap; }
+    th { color: #00ff9d; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; }
+    tr.overdue { background: rgba(255, 50, 50, 0.1); }
+    tr.updated { background: rgba(0, 255, 157, 0.1); }
+    
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.7); display: flex; align-items: center; justify-content: center; z-index: 100; }
+    .modal-box { width: min(900px, 92vw); max-height: 86vh; overflow: auto; background: #111111; border: 1px solid #1f1f1f; border-radius: 8px; padding: 16px; }
+    .modal-title { color: #ffffff; margin-bottom: 10px; font-size: 16px; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+    .json-input { width: 100%; min-height: 340px; resize: vertical; background: #0a0a0a; color: #e0e0e0; border: 1px solid #2a2a2a; border-radius: 6px; padding: 12px; font: 12px/1.5 Consolas, 'Courier New', monospace; outline: none; }
+    .json-input:focus { border-color: #00ff9d; box-shadow: 0 0 0 3px rgba(0, 255, 157, 0.12); }
+    .json-help { color: #8f8f8f; font-size: 12px; margin-bottom: 8px; }
+    .modal-error { display: none; margin-top: 8px; padding: 8px; border-radius: 6px; color: #ff6b6b; background: rgba(255, 50, 50, 0.12); border: 1px solid rgba(255, 50, 50, 0.35); font-size: 12px; }
+    .modal-error.show { display: block; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <!-- LOGIN SCREEN -->
+  <div id="loginScreen" class="login-screen">
+    <div class="login-box">
+      <h1 class="title">AccessWeb</h1>
+      <p class="subtitle">Реал-тайм синхронизация</p>
+      <div id="loginError" class="error"></div>
+      <div class="group">
+        <label class="label">Логин</label>
+        <input id="loginInput" class="input" type="text" placeholder="admin / contracts / finance" />
+      </div>
+      <div class="group">
+        <label class="label">Пароль</label>
+        <input id="passwordInput" class="input" type="password" placeholder="admin123 / contracts123 / finance123" />
+      </div>
+      <button id="loginBtn" class="btn">Вход</button>
+      <div class="demo">
+        <div>Тестовые учетные данные:</div>
+        <div><strong>admin</strong> / admin123</div>
+        <div><strong>contracts</strong> / contracts123</div>
+        <div><strong>finance</strong> / finance123</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- APP SCREEN -->
+  <div id="appScreen" class="app hidden">
+    <div class="sidebar">
+      <div class="logo">AccessWeb</div>
+      <div class="ws-status">
+        <div id="wsIndicator" class="ws-indicator connected"></div>
+        <span id="wsStatus">Подключено</span>
+      </div>
+      <nav class="nav">
+        <button class="nav-btn active" data-tab="acid">ACID</button>
+        <button class="nav-btn" data-tab="contracts">Договоры</button>
+        <button class="nav-btn" data-tab="finance">Финансы</button>
+      </nav>
+      <div class="user-box">
+        <div>Пользователь:</div>
+        <strong id="currentUser">-</strong>
+        <button id="logoutBtn" class="btn logout">Выход</button>
+      </div>
+    </div>
+
+    <main class="main">
+      <!-- ACID TABLE -->
+      <section id="acidView">
+        <div class="section-tools">
+          <h1 class="h1">ACID (Грузы)</h1>
+          <button id="addAcidBtn" class="btn">+ Добавить</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>ID</th><th>Номер КТИ</th><th>Наименование</th><th>Статус</th><th>Сумма</th><th>Дата</th><th>Действия</th></tr>
+            </thead>
+            <tbody id="acidBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- CONTRACTS TABLE -->
+      <section id="contractsView" class="hidden">
+        <div class="section-tools">
+          <h1 class="h1">Договоры</h1>
+          <button id="addContractsBtn" class="btn">+ Добавить</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>ID</th><th>Номер</th><th>Предмет</th><th>Стадия</th><th>Сумма</th><th>Срок</th><th>Действия</th></tr>
+            </thead>
+            <tbody id="contractsBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- FINANCE TABLE -->
+      <section id="financeView" class="hidden">
+        <div class="section-tools">
+          <h1 class="h1">Финансы</h1>
+          <button id="addFinanceBtn" class="btn">+ Добавить</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>ID</th><th>Дата</th><th>Описание</th><th>RUB</th><th>USD</th><th>Статус</th><th>Действия</th></tr>
+            </thead>
+            <tbody id="financeBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- RECORD MODAL -->
+  <div id="recordModal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <h2 id="recordModalTitle" class="modal-title">Редактирование</h2>
+      <div class="json-help">Отредактируйте JSON данные записи:</div>
+      <textarea id="recordJsonInput" class="json-input"></textarea>
+      <div id="recordModalError" class="modal-error"></div>
+      <div id="recordModalSuccess" class="success"></div>
+      <div class="modal-actions">
+        <button id="recordModalCancel" class="btn btn-secondary">Отмена</button>
+        <button id="recordModalDelete" class="btn btn-secondary" style="background:rgba(255,50,50,0.2);color:#ff6b6b;">Удалить</button>
+        <button id="recordModalSave" class="btn">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ============== CONFIG ==============
+    const API_BASE = localStorage.getItem('API_BASE') || 'http://localhost:8080';
+    const WS_BASE = localStorage.getItem('WS_BASE') || 'ws://localhost:8080/ws';
+
+    // ============== STATE ==============
+    let token = null;
+    let currentUser = null;
+    let currentTab = 'acid';
+    let ws = null;
+    let wsConnected = false;
+    let recordEditMode = null; // { table, id, data }
+    let data = { acid: [], contracts: [], finance: [] };
+
+    // ============== HELPERS ==============
+    async function apiCall(method, endpoint, body = null) {
+      const opts = {
+        method,
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+      };
+      if (body) opts.body = JSON.stringify(body);
+      
+      const res = await fetch(`${API_BASE}${endpoint}`, opts);
+      if (res.status === 401) {
+        logout();
+        throw new Error('Unauthorized');
+      }
+      if (!res.ok) throw new Error(`API error: ${res.status}`);
+      return res.json();
+    }
+
+    function showError(msg, container = null) {
+      const el = container || document.getElementById('loginError');
+      el.textContent = msg;
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), 5000);
+    }
+
+    function showSuccess(msg, container = null) {
+      const el = container || document.getElementById('recordModalSuccess');
+      el.textContent = msg;
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), 3000);
+    }
+
+    // ============== WEBSOCKET ==============
+    function initWebSocket() {
+      if (!token) return;
+      
+      ws = new WebSocket(WS_BASE);
+      
+      ws.onopen = () => {
+        console.log('WebSocket connected');
+        wsConnected = true;
+        updateWSStatus();
+        ws.send(JSON.stringify({ type: 'auth', token }));
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          
+          if (msg.type === 'auth_success') {
+            console.log('[✓] WebSocket authenticated');
+            loadAllData(); // Initial load
+          } else if (msg.type.includes('_created') || msg.type.includes('_updated') || msg.type.includes('_deleted')) {
+            handleRemoteUpdate(msg);
+          }
+        } catch (err) {
+          console.error('WebSocket message error:', err);
+        }
+      };
+
+      ws.onclose = () => {
+        console.log('WebSocket disconnected');
+        wsConnected = false;
+        updateWSStatus();
+        setTimeout(initWebSocket, 3000); // Reconnect after 3s
+      };
+
+      ws.onerror = (err) => {
+        console.error('WebSocket error:', err);
+        wsConnected = false;
+        updateWSStatus();
+      };
+    }
+
+    function updateWSStatus() {
+      const indicator = document.getElementById('wsIndicator');
+      const status = document.getElementById('wsStatus');
+      if (wsConnected) {
+        indicator.className = 'ws-indicator connected';
+        status.textContent = 'Подключено';
+      } else {
+        indicator.className = 'ws-indicator disconnected';
+        status.textContent = 'Отключено';
+      }
+    }
+
+    function handleRemoteUpdate(msg) {
+      console.log('🔄 Remote update:', msg.type, msg.data);
+      
+      const table = msg.type.split('_')[0]; // 'acid', 'contracts', 'finance'
+      const action = msg.type.split('_')[1]; // 'created', 'updated', 'deleted'
+      
+      if (action === 'created') {
+        if (!data[table]) data[table] = [];
+        data[table].unshift(msg.data);
+      } else if (action === 'updated') {
+        const idx = data[table].findIndex(r => r.id === msg.data.id);
+        if (idx >= 0) data[table][idx] = msg.data;
+      } else if (action === 'deleted') {
+        data[table] = data[table].filter(r => r.id !== msg.data.id);
+      }
+      
+      renderTable(table);
+    }
+
+    // ============== DATA LOADING ==============
+    async function loadAllData() {
+      try {
+        const [acidRes, contractsRes, financeRes] = await Promise.all([
+          apiCall('GET', '/api/acid'),
+          apiCall('GET', '/api/contracts'),
+          apiCall('GET', '/api/finance')
+        ]);
+        
+        data.acid = acidRes.records || [];
+        data.contracts = contractsRes.records || [];
+        data.finance = financeRes.records || [];
+        
+        renderTable(currentTab);
+      } catch (err) {
+        showError('Ошибка загрузки данных: ' + err.message);
+      }
+    }
+
+    // ============== RENDERING ==============
+    function renderTable(table) {
+      const tbody = document.getElementById(`${table}Body`);
+      if (!tbody) return;
+      
+      tbody.innerHTML = '';
+      const records = data[table] || [];
+      
+      records.forEach(record => {
+        const tr = document.createElement('tr');
+        
+        if (table === 'acid') {
+          tr.innerHTML = `
+            <td>${record.id}</td>
+            <td>${record['Номер КТИ'] || '-'}</td>
+            <td>${record['Наименование'] || '-'}</td>
+            <td>${record['Статус'] || '-'}</td>
+            <td>${record['Стоимость Груза'] || '-'}</td>
+            <td>${record['Дата создания'] || '-'}</td>
+            <td>
+              <button class="btn btn-secondary" onclick="editRecord('acid', ${record.id})">[EDIT]</button>
+              <button class="btn btn-secondary" style="background:rgba(255,50,50,0.2);color:#ff6b6b;" onclick="deleteRecord('acid', ${record.id})">[DEL]</button>
+            </td>
+          `;
+        } else if (table === 'contracts') {
+          const isOverdue = record['Срок стадии'] && new Date(record['Срок стадии']) < new Date();
+          tr.className = isOverdue ? 'overdue' : '';
+          tr.innerHTML = `
+            <td>${record.id}</td>
+            <td>${record['Номер'] || '-'}</td>
+            <td>${record['Предмет'] || '-'}</td>
+            <td>${record['Стадия договора'] || '-'}</td>
+            <td>${record['Сумма оплаты'] || '-'}</td>
+            <td>${record['Срок стадии'] || '-'}</td>
+            <td>
+              <button class="btn btn-secondary" onclick="editRecord('contracts', ${record.id})">[EDIT]</button>
+              <button class="btn btn-secondary" style="background:rgba(255,50,50,0.2);color:#ff6b6b;" onclick="deleteRecord('contracts', ${record.id})">[DEL]</button>
+            </td>
+          `;
+        } else if (table === 'finance') {
+          tr.innerHTML = `
+            <td>${record.id}</td>
+            <td>${record['Дата расхода'] || '-'}</td>
+            <td>${record['Описание'] || '-'}</td>
+            <td>${record['Сумма (RUB)'] || '-'}</td>
+            <td>${record['Перевод в USD'] || '-'}</td>
+            <td>${record['Состояние'] || '-'}</td>
+            <td>
+              <button class="btn btn-secondary" onclick="editRecord('finance', ${record.id})">[EDIT]</button>
+              <button class="btn btn-secondary" style="background:rgba(255,50,50,0.2);color:#ff6b6b;" onclick="deleteRecord('finance', ${record.id})">[DEL]</button>
+            </td>
+          `;
+        }
+        
+        tbody.appendChild(tr);
+      });
+    }
+
+    function editRecord(table, id) {
+      const records = data[table] || [];
+      const record = records.find(r => r.id === id);
+      if (!record) return;
+      
+      recordEditMode = { table, id, data: record };
+      document.getElementById('recordModalTitle').textContent = `Редактирование (${table})`;
+      document.getElementById('recordJsonInput').value = JSON.stringify(record, null, 2);
+      document.getElementById('recordModal').classList.remove('hidden');
+      document.getElementById('recordModalError').classList.remove('show');
+      document.getElementById('recordModalSuccess').classList.remove('show');
+    }
+
+    async function saveRecord() {
+      if (!recordEditMode) return;
+      
+      try {
+        const json = JSON.parse(document.getElementById('recordJsonInput').value);
+        
+        const payload = { payload: json };
+        await apiCall('PUT', `/api/${recordEditMode.table}/${recordEditMode.id}`, payload);
+        
+        showSuccess('[✓] Изменения сохранены', document.getElementById('recordModalSuccess'));
+        setTimeout(() => {
+          document.getElementById('recordModal').classList.add('hidden');
+          recordEditMode = null;
+        }, 1000);
+      } catch (err) {
+        showError('Ошибка: ' + err.message, document.getElementById('recordModalError'));
+      }
+    }
+
+    async function deleteRecord(table, id) {
+      if (!confirm('Вы уверены? Запись будет удалена.')) return;
+      
+      try {
+        await apiCall('DELETE', `/api/${table}/${id}`);
+        data[table] = data[table].filter(r => r.id !== id);
+        renderTable(table);
+      } catch (err) {
+        showError('Ошибка удаления: ' + err.message);
+      }
+    }
+
+    // ============== EVENTS ==============
+    document.getElementById('loginBtn').addEventListener('click', async () => {
+      const login = document.getElementById('loginInput').value;
+      const password = document.getElementById('passwordInput').value;
+      
+      if (!login || !password) {
+        showError('Заполните логин и пароль');
+        return;
+      }
+      
+      try {
+        const res = await fetch(`${API_BASE}/api/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ login, password })
+        });
+        
+        if (!res.ok) throw new Error('Неверные учетные данные');
+        
+        const json = await res.json();
+        token = json.token;
+        currentUser = json.user;
+        
+        localStorage.setItem('token', token);
+        
+        showAppScreen();
+        initWebSocket();
+      } catch (err) {
+        showError(err.message);
+      }
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', logout);
+
+    function logout() {
+      token = null;
+      currentUser = null;
+      wsConnected = false;
+      if (ws) ws.close();
+      localStorage.removeItem('token');
+      document.getElementById('loginScreen').classList.remove('hidden');
+      document.getElementById('appScreen').classList.add('hidden');
+    }
+
+    function showAppScreen() {
+      document.getElementById('currentUser').textContent = currentUser.name || currentUser.login;
+      document.getElementById('loginScreen').classList.add('hidden');
+      document.getElementById('appScreen').classList.remove('hidden');
+    }
+
+    // Tab switching
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        currentTab = e.target.dataset.tab;
+        
+        document.querySelectorAll('.main section').forEach(s => s.classList.add('hidden'));
+        document.getElementById(`${currentTab}View`).classList.remove('hidden');
+        
+        renderTable(currentTab);
+      });
+    });
+
+    // Add record buttons
+    document.getElementById('addAcidBtn').addEventListener('click', () => {
+      recordEditMode = { table: 'acid', id: null, data: {} };
+      document.getElementById('recordModalTitle').textContent = 'Новая запись ACID';
+      document.getElementById('recordJsonInput').value = JSON.stringify({ 'Номер КТИ': '', 'Наименование': '', 'Статус': '', 'Стоимость Груза': 0, 'Дата создания': new Date().toISOString().slice(0, 10) }, null, 2);
+      document.getElementById('recordModal').classList.remove('hidden');
+    });
+
+    document.getElementById('addContractsBtn').addEventListener('click', () => {
+      recordEditMode = { table: 'contracts', id: null, data: {} };
+      document.getElementById('recordModalTitle').textContent = 'Новый договор';
+      document.getElementById('recordJsonInput').value = JSON.stringify({ 'Номер': '', 'Предмет': '', 'Стадия договора': '', 'Сумма оплаты': 0, 'Срок стадии': new Date().toISOString().slice(0, 10) }, null, 2);
+      document.getElementById('recordModal').classList.remove('hidden');
+    });
+
+    document.getElementById('addFinanceBtn').addEventListener('click', () => {
+      recordEditMode = { table: 'finance', id: null, data: {} };
+      document.getElementById('recordModalTitle').textContent = 'Новая финансовая запись';
+      document.getElementById('recordJsonInput').value = JSON.stringify({ 'Дата расхода': new Date().toISOString().slice(0, 10), 'Описание': '', 'Сумма (RUB)': 0, 'Перевод в USD': 0, 'Состояние': 'План' }, null, 2);
+      document.getElementById('recordModal').classList.remove('hidden');
+    });
+
+    document.getElementById('recordModalSave').addEventListener('click', async () => {
+      if (!recordEditMode) return;
+      
+      try {
+        const json = JSON.parse(document.getElementById('recordJsonInput').value);
+        
+        if (recordEditMode.id === null) {
+          // Create new
+          await apiCall('POST', `/api/${recordEditMode.table}`, { payload: json });
+        } else {
+          // Update existing
+          await apiCall('PUT', `/api/${recordEditMode.table}/${recordEditMode.id}`, { payload: json });
+        }
+        
+        showSuccess('[✓] Изменения сохранены', document.getElementById('recordModalSuccess'));
+        setTimeout(() => {
+          document.getElementById('recordModal').classList.add('hidden');
+          recordEditMode = null;
+        }, 800);
+      } catch (err) {
+        showError('Ошибка: ' + err.message, document.getElementById('recordModalError'));
+      }
+    });
+
+    document.getElementById('recordModalDelete').addEventListener('click', async () => {
+      if (!recordEditMode || recordEditMode.id === null) {
+        alert('Невозможно удалить новую запись');
+        return;
+      }
+      
+      if (!confirm('Вы уверены?')) return;
+      
+      try {
+        await apiCall('DELETE', `/api/${recordEditMode.table}/${recordEditMode.id}`);
+        showSuccess('[✓] Запись удалена', document.getElementById('recordModalSuccess'));
+        setTimeout(() => {
+          document.getElementById('recordModal').classList.add('hidden');
+          recordEditMode = null;
+        }, 800);
+      } catch (err) {
+        showError('Ошибка: ' + err.message, document.getElementById('recordModalError'));
+      }
+    });
+
+    document.getElementById('recordModalCancel').addEventListener('click', () => {
+      document.getElementById('recordModal').classList.add('hidden');
+      recordEditMode = null;
+    });
+
+    // ============== INITIALIZATION ==============
+    window.addEventListener('DOMContentLoaded', () => {
+      token = localStorage.getItem('token');
+      if (token) {
+        apiCall('GET', '/api/auth/me')
+          .then(res => {
+            currentUser = res.user;
+            showAppScreen();
+            initWebSocket();
+          })
+          .catch(() => logout());
+      }
+    });
+
+    // Global functions for onclick handlers
+    window.editRecord = editRecord;
+    window.deleteRecord = deleteRecord;
+  </script>
+</body>
+</html>
