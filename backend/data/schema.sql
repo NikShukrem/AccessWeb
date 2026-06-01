@@ -1,4 +1,5 @@
--- AccessWeb Database Schema
+-- AccessWeb Production Database Schema
+-- Optimized for logistics, contracts, and financial tracking
 
 -- Users table
 CREATE TABLE IF NOT EXISTS users (
@@ -12,78 +13,161 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- ACID table (Грузы)
-CREATE TABLE IF NOT EXISTS acids (
+-- ===== ACID TABLES (разбиты на 3 связанные таблицы) =====
+
+-- ACID Main (основная информация о грузе)
+CREATE TABLE IF NOT EXISTS acid_main (
   id TEXT PRIMARY KEY,
-  acid TEXT UNIQUE,
+  acid TEXT UNIQUE NOT NULL,
+  nomyer_ais TEXT,
+  initial_request_number TEXT,
+  shipment_type TEXT,
+  importer_name TEXT,
   gruzootravitel TEXT,
-  status TEXT,
+  registration_number TEXT,
+  vat_number TEXT,
+  status TEXT DEFAULT 'pending',
   postavshchik TEXT,
   naimenovanie TEXT,
-  gw_kg TEXT,
-  kti_nomer TEXT,
-  stoimost_gruza TEXT,
-  valyuta TEXT,
-  kolichestvo_mest TEXT,
+  gw_kg REAL,
+  stoimost_gruza REAL,
+  valyuta TEXT DEFAULT 'USD',
+  kolichestvo_mest INTEGER,
   tip_perevozki TEXT,
-  kolichestvo_konteynerov TEXT,
+  kolichestvo_konteynerov INTEGER,
   strana_otpravleniya TEXT,
+  kontract_id TEXT,
+  otvetstvennyy TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(kontract_id) REFERENCES contract_main(id)
+);
+
+-- ACID Logistics (информация о логистике)
+CREATE TABLE IF NOT EXISTS acid_logistics (
+  id TEXT PRIMARY KEY,
+  acid_id TEXT NOT NULL,
   etd TEXT,
   eta TEXT,
+  mesto_pribytiya TEXT,
+  incoterms TEXT,
+  mesto_postavki TEXT,
+  data_postavki TEXT,
+  port_otpravleniya TEXT,
+  sudno TEXT,
+  shipping_line TEXT,
+  bol_number TEXT,
+  bol_date TEXT,
+  perevozchik TEXT,
+  data_zaprosa_osvobozhdeniya TEXT,
+  kurator_osvobozhdeniya TEXT,
+  data_polucheniya_osvobozhdeniya TEXT,
+  data_pribytiya_egypt TEXT,
   do_released TEXT,
+  rezhim_vvoza TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(acid_id) REFERENCES acid_main(id) ON DELETE CASCADE
+);
+
+-- ACID Customs (информация о таможне)
+CREATE TABLE IF NOT EXISTS acid_customs (
+  id TEXT PRIMARY KEY,
+  acid_id TEXT NOT NULL,
+  nomer_dt TEXT,
+  data_dt TEXT,
+  data_vypuska_dt TEXT,
+  data_dostavki_na_ploschad TEXT,
+  naznachenie TEXT,
+  kurator_upo TEXT,
+  primechanie TEXT,
+  invoiz_zagruzhen BOOLEAN DEFAULT FALSE,
+  prodlen_do TEXT,
   custom_status TEXT,
-  dt_nomer TEXT,
-  dt_data TEXT,
-  created_by TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(acid_id) REFERENCES acid_main(id) ON DELETE CASCADE
 );
 
--- Contracts table (Договоры)
-CREATE TABLE IF NOT EXISTS contracts (
+-- ===== CONTRACT TABLES =====
+
+-- Contract Main (основная информация)
+CREATE TABLE IF NOT EXISTS contract_main (
   id TEXT PRIMARY KEY,
-  nomer TEXT UNIQUE,
-  predmet TEXT,
+  nomer_kontrakta TEXT UNIQUE NOT NULL,
+  tip_kontrakta TEXT,
   kontragent TEXT,
-  tip TEXT,
-  kharakter_zakupki TEXT,
-  osobennosti TEXT,
-  data TEXT,
-  okonchaniye TEXT,
-  status TEXT,
-  protokol TEXT,
-  limit_sum TEXT,
-  valyuta_oplaty TEXT,
-  summa_oplaty TEXT,
-  ostatok_limita TEXT,
-  valyutnyy_kontrol TEXT,
+  nazvanie TEXT,
+  data_kontrakta TEXT,
+  srok_deystviya TEXT,
   ds_data TEXT,
+  cena_kontrakta REAL,
+  valyuta TEXT DEFAULT 'USD',
+  summa_oplatы REAL,
+  marshrut_to TEXT,
+  vid_zakupki TEXT,
+  lot_nomer TEXT,
+  status TEXT DEFAULT 'active',
+  valyutnyy_kontrol TEXT,
+  komentar TEXT,
   ssylka TEXT,
-  kommentariy TEXT,
-  stadiya_dogovora TEXT,
-  created_by TEXT,
+  ostatok_limita REAL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Finance table (Финансы)
-CREATE TABLE IF NOT EXISTS finance (
+-- Contract Stages (отслеживание этапов подписания)
+CREATE TABLE IF NOT EXISTS contract_stages (
   id TEXT PRIMARY KEY,
-  data TEXT,
-  kti_nomer TEXT,
+  kontract_id TEXT NOT NULL,
+  stage_number INTEGER,
+  stage_name TEXT,
+  status TEXT DEFAULT 'pending',
+  data_nachal TEXT,
+  data_okonch TEXT,
+  kurator TEXT,
+  komentar TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(kontract_id) REFERENCES contract_main(id) ON DELETE CASCADE
+);
+
+-- ===== ACID-KTI LINK TABLE =====
+
+CREATE TABLE IF NOT EXISTS acid_kti (
+  id TEXT PRIMARY KEY,
+  acid_id TEXT NOT NULL,
+  data_polucheniya TEXT,
+  nomer_kontrakta TEXT,
+  summa_perevozki REAL,
+  valyuta TEXT DEFAULT 'USD',
+  nomer_ais TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(acid_id) REFERENCES acid_main(id) ON DELETE CASCADE,
+  FOREIGN KEY(nomer_kontrakta) REFERENCES contract_main(nomer_kontrakta)
+);
+
+-- ===== FINANCE/AIS EXPORT TABLE =====
+
+CREATE TABLE IF NOT EXISTS finance_ais_export (
+  id TEXT PRIMARY KEY,
+  data TEXT NOT NULL,
+  nomer TEXT,
   data_raskhoda TEXT,
   kti_data TEXT,
-  valyuta TEXT,
-  summa TEXT,
+  valyuta TEXT DEFAULT 'USD',
+  summa_usd REAL,
   organizaciya TEXT,
   kontragent TEXT,
-  dogovor TEXT,
-  data_dogovora TEXT,
+  kontragent_kratko TEXT,
+  dogovor_kontragenta TEXT,
+  data_dogovora_kontragenta TEXT,
+  dogovor_i_data TEXT,
   proyekt TEXT,
   sostoyanie TEXT,
+  cfo TEXT,
   otvetstvennyy TEXT,
-  srochnyy_platezh TEXT,
-  created_by TEXT,
+  srochnyy_platezh BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -99,7 +183,7 @@ CREATE TABLE IF NOT EXISTS notifications (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- User permissions
+-- User Permissions
 CREATE TABLE IF NOT EXISTS user_permissions (
   id TEXT PRIMARY KEY,
   user_id TEXT,
@@ -111,12 +195,14 @@ CREATE TABLE IF NOT EXISTS user_permissions (
   UNIQUE(user_id, table_name)
 );
 
--- Indexes
-CREATE INDEX IF NOT EXISTS idx_acids_kti ON acids(kti_nomer);
-CREATE INDEX IF NOT EXISTS idx_acids_status ON acids(status);
-CREATE INDEX IF NOT EXISTS idx_contracts_status ON contracts(status);
-CREATE INDEX IF NOT EXISTS idx_contracts_okonchaniye ON contracts(okonchaniye);
-CREATE INDEX IF NOT EXISTS idx_finance_kti ON finance(kti_nomer);
-CREATE INDEX IF NOT EXISTS idx_finance_valyuta ON finance(valyuta);
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_acid_main_status ON acid_main(status);
+CREATE INDEX IF NOT EXISTS idx_acid_main_kontract ON acid_main(kontract_id);
+CREATE INDEX IF NOT EXISTS idx_acid_logistics_acid ON acid_logistics(acid_id);
+CREATE INDEX IF NOT EXISTS idx_acid_customs_acid ON acid_customs(acid_id);
+CREATE INDEX IF NOT EXISTS idx_contract_main_status ON contract_main(status);
+CREATE INDEX IF NOT EXISTS idx_contract_stages_contract ON contract_stages(kontract_id);
+CREATE INDEX IF NOT EXISTS idx_acid_kti_acid ON acid_kti(acid_id);
+CREATE INDEX IF NOT EXISTS idx_finance_data ON finance_ais_export(data);
 CREATE INDEX IF NOT EXISTS idx_users_login ON users(login);
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);

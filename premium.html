@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AccessWeb - Logistics Management System</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+      background: #f8f9fa;
+      color: #2c3e50;
+      line-height: 1.6;
+    }
+
+    /* Login Screen */
+    .login-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .login-card {
+      background: white;
+      padding: 48px;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      width: 100%;
+      max-width: 400px;
+    }
+
+    .login-card h1 {
+      margin-bottom: 30px;
+      text-align: center;
+      color: #2c3e50;
+      font-size: 28px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: #2c3e50;
+      font-size: 14px;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #d0d8e0;
+      border-radius: 6px;
+      font-size: 14px;
+      background: #fafbfc;
+      transition: all 0.2s;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      background: white;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+
+    button:hover {
+      background: #5568d3;
+    }
+
+    button:active {
+      transform: scale(0.98);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* App Container */
+    .app-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 32px;
+      background: white;
+      padding: 20px 24px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    }
+
+    .header h1 {
+      font-size: 24px;
+      color: #2c3e50;
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .user-info span {
+      font-size: 14px;
+      color: #7c8fa3;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 24px;
+      background: white;
+      padding: 12px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      overflow-x: auto;
+    }
+
+    .tab-btn {
+      padding: 10px 16px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #7c8fa3;
+      font-weight: 500;
+      font-size: 13px;
+      border-bottom: 2px solid transparent;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+
+    .tab-btn:hover {
+      color: #667eea;
+    }
+
+    .tab-btn.active {
+      color: #667eea;
+      border-bottom-color: #667eea;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .content-panel {
+      background: white;
+      padding: 24px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    }
+
+    .content-panel h2 {
+      font-size: 18px;
+      margin-bottom: 20px;
+      color: #2c3e50;
+    }
+
+    .form-section {
+      margin-bottom: 24px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid #e8ecf1;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .form-row.full {
+      grid-template-columns: 1fr;
+    }
+
+    .form-group {
+      margin-bottom: 0;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #d0d8e0;
+      border-radius: 6px;
+      font-size: 13px;
+      background: #fafbfc;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      outline: none;
+      background: white;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .form-group textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .btn-submit {
+      background: #667eea;
+      color: white;
+      padding: 10px 24px;
+      width: auto;
+      margin-top: 8px;
+    }
+
+    .btn-submit:hover {
+      background: #5568d3;
+    }
+
+    .table-wrapper {
+      margin-top: 24px;
+      overflow-x: auto;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    thead {
+      background: #f0f3f9;
+    }
+
+    th {
+      padding: 12px;
+      text-align: left;
+      font-weight: 600;
+      color: #2c3e50;
+      border-bottom: 1px solid #d0d8e0;
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 12px;
+      border-bottom: 1px solid #e8ecf1;
+      color: #5a6f85;
+    }
+
+    tbody tr:hover {
+      background: #f8f9fa;
+    }
+
+    tbody tr:nth-child(even) {
+      background: #fafbfc;
+    }
+
+    .btn-delete {
+      background: #dc3545;
+      padding: 6px 12px;
+      font-size: 12px;
+      width: auto;
+    }
+
+    .btn-delete:hover {
+      background: #c82333;
+    }
+
+    .alert {
+      padding: 12px 16px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      display: none;
+    }
+
+    .alert.show {
+      display: block;
+    }
+
+    .alert.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+
+    .alert.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      background: #e8ecf1;
+      color: #2c3e50;
+    }
+
+    .badge.pending {
+      background: #fff3cd;
+      color: #856404;
+    }
+
+    .badge.active {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .badge.completed {
+      background: #d1ecf1;
+      color: #0c5460;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: #7c8fa3;
+    }
+
+    .empty-state p {
+      font-size: 14px;
+    }
+
+    @media (max-width: 768px) {
+      .app-container {
+        padding: 12px;
+      }
+
+      .header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+      }
+
+      .user-info {
+        width: 100%;
+        justify-content: space-between;
+      }
+
+      .tabs {
+        flex-wrap: wrap;
+      }
+
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+
+      table {
+        font-size: 12px;
+      }
+
+      th, td {
+        padding: 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Login Screen -->
+  <div id="loginScreen" class="login-container">
+    <div class="login-card">
+      <h1>AccessWeb</h1>
+      <p style="text-align: center; color: #7c8fa3; margin-bottom: 30px; font-size: 14px;">Logistics Management System</p>
+      <form id="loginForm">
+        <div class="form-group">
+          <label>Логин</label>
+          <input type="text" id="loginInput" value="admin" required>
+        </div>
+        <div class="form-group">
+          <label>Пароль</label>
+          <input type="password" id="passwordInput" value="admin123" required>
+        </div>
+        <button type="submit">Войти</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- App Screen -->
+  <div id="appScreen" class="hidden">
+    <div class="app-container">
+      <div class="header">
+        <h1>AccessWeb</h1>
+        <div class="user-info">
+          <span id="userInfo"></span>
+          <button onclick="logout()" style="width: 100px;">Выход</button>
+        </div>
+      </div>
+
+      <div id="alert" class="alert"></div>
+
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('acid_main')">ACID (Грузы)</button>
+        <button class="tab-btn" onclick="switchTab('acid_logistics')">Логистика ACID</button>
+        <button class="tab-btn" onclick="switchTab('acid_customs')">Таможня ACID</button>
+        <button class="tab-btn" onclick="switchTab('contract_main')">Договоры</button>
+        <button class="tab-btn" onclick="switchTab('contract_stages')">Этапы договора</button>
+        <button class="tab-btn" onclick="switchTab('acid_kti')">ACID-KTI</button>
+        <button class="tab-btn" onclick="switchTab('finance_ais_export')">Выгрузка АИС</button>
+      </div>
+
+      <!-- ACID Main Tab -->
+      <div id="acid_main-tab" class="tab-content active">
+        <div class="content-panel">
+          <h2>ACID (Грузы)</h2>
+          <div class="form-section">
+            <form id="acid_mainForm">
+              <div class="form-row">
+                <div class="form-group">
+                  <label>ACID</label>
+                  <input type="text" name="acid" placeholder="AC-2026-001" required>
+                </div>
+                <div class="form-group">
+                  <label>Статус</label>
+                  <select name="status">
+                    <option value="pending">Pending</option>
+                    <option value="active">Active</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Грузоотправитель</label>
+                  <input type="text" name="gruzootravitel">
+                </div>
+                <div class="form-group">
+                  <label>Поставщик</label>
+                  <input type="text" name="postavshchik">
+                </div>
+              </div>
+              <div class="form-row full">
+                <div class="form-group">
+                  <label>Наименование груза</label>
+                  <input type="text" name="naimenovanie" placeholder="Описание груза">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>GW (кг)</label>
+                  <input type="number" name="gw_kg" step="0.01">
+                </div>
+                <div class="form-group">
+                  <label>Стоимость груза</label>
+                  <input type="number" name="stoimost_gruza" step="0.01">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Валюта</label>
+                  <input type="text" name="valyuta" value="USD">
+                </div>
+                <div class="form-group">
+                  <label>Кол-во мест</label>
+                  <input type="number" name="kolichestvo_mest">
+                </div>
+              </div>
+              <button type="submit" class="btn-submit">Добавить ACID</button>
+            </form>
+          </div>
+          <div class="table-wrapper">
+            <table id="acid_mainTable">
+              <thead>
+                <tr>
+                  <th>ACID</th>
+                  <th>Статус</th>
+                  <th>Грузоотправитель</th>
+                  <th>Поставщик</th>
+                  <th>Наименование</th>
+                  <th>GW (кг)</th>
+                  <th>Действие</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ACID Logistics Tab -->
+      <div id="acid_logistics-tab" class="tab-content hidden">
+        <div class="content-panel">
+          <h2>Логистика ACID</h2>
+          <div class="form-section">
+            <form id="acid_logisticsForm">
+              <div class="form-row">
+                <div class="form-group">
+                  <label>ACID (ID)</label>
+                  <input type="text" name="acid_id" placeholder="ACID ID" required>
+                </div>
+                <div class="form-group">
+                  <label>ETD</label>
+                  <input type="date" name="etd">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>ETA</label>
+                  <input type="date" name="eta">
+                </div>
+                <div class="form-group">
+                  <label>Место прибытия</label>
+                  <input type="text" name="mesto_pribytiya">
+                </div>
+              </div>
+              <button type="submit" class="btn-submit">Добавить</button>
+            </form>
+          </div>
+          <div class="table-wrapper">
+            <table id="acid_logisticsTable">
+              <thead>
+                <tr>
+                  <th>ACID</th>
+                  <th>ETD</th>
+                  <th>ETA</th>
+                  <th>Место прибытия</th>
+                  <th>Действие</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ACID Customs Tab -->
+      <div id="acid_customs-tab" class="tab-content hidden">
+        <div class="content-panel">
+          <h2>Таможня ACID</h2>
+          <div class="form-section">
+            <form id="acid_customsForm">
+              <div class="form-row">
+                <div class="form-group">
+                  <label>ACID (ID)</label>
+                  <input type="text" name="acid_id" placeholder="ACID ID" required>
+                </div>
+                <div class="form-group">
+                  <label>Номер ДТ</label>
+                  <input type="text" name="nomer_dt">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Дата ДТ</label>
+                  <input type="date" name="data_dt">
+                </div>
+                <div class="form-group">
+                  <label>Статус</label>
+                  <select name="custom_status">
+                    <option value="pending">Pending</option>
+                    <option value="cleared">Cleared</option>
+                    <option value="released">Released</option>
+                  </select>
+                </div>
+              </div>
+              <button type="submit" class="btn-submit">Добавить</button>
+            </form>
+          </div>
+          <div class="table-wrapper">
+            <table id="acid_customsTable">
+              <thead>
+                <tr>
+                  <th>ACID</th>
+                  <th>Номер ДТ</th>
+                  <th>Дата ДТ</th>
+                  <th>Статус</th>
+                  <th>Действие</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Contract Main Tab -->
+      <div id="contract_main-tab" class="tab-content hidden">
+        <div class="content-panel">
+          <h2>Договоры</h2>
+          <div class="form-section">
+            <form id="contract_mainForm">
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Номер договора</label>
+                  <input type="text" name="nomer_kontrakta" placeholder="ДОГ-2026-001" required>
+                </div>
+                <div class="form-group">
+                  <label>Тип договора</label>
+                  <select name="tip_kontrakta">
+                    <option value="">Выбрать</option>
+                    <option value="Основной договор на строительство">Строительство</option>
+                    <option value="договор поставки">Поставка</option>
+                    <option value="счёт">Счёт</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Контрагент</label>
+                  <input type="text" name="kontragent">
+                </div>
+                <div class="form-group">
+                  <label>Статус</label>
+                  <select name="status">
+                    <option value="active">Active</option>
+                    <option value="pending">Pending</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Дата договора</label>
+                  <input type="date" name="data_kontrakta">
+                </div>
+                <div class="form-group">
+                  <label>Цена (USD)</label>
+                  <input type="number" name="cena_kontrakta" step="0.01">
+                </div>
+              </div>
+              <button type="submit" class="btn-submit">Добавить договор</button>
+            </form>
+          </div>
+          <div class="table-wrapper">
+            <table id="contract_mainTable">
+              <thead>
+                <tr>
+                  <th>Номер</th>
+                  <th>Тип</th>
+                  <th>Контрагент</th>
+                  <th>Статус</th>
+                  <th>Дата</th>
+                  <th>Цена</th>
+                  <th>Действие</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Contract Stages Tab -->
+      <div id="contract_stages-tab" class="tab-content hidden">
+        <div class="content-panel">
+          <h2>Этапы договора</h2>
+          <div class="form-section">
+            <form id="contract_stagesForm">
+              <div class="form-row">
+                <div class="form-group">
+                  <label>ID договора</label>
+                  <input type="text" name="kontract_id" placeholder="Contract ID" required>
+                </div>
+                <div class="form-group">
+                  <label>Номер этапа</label>
+                  <input type="number" name="stage_number">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Название этапа</label>
+                  <input type="text" name="stage_name">
+                </div>
+                <div class="form-group">
+                  <label>Статус</label>
+                  <select name="status">
+                    <option value="pending">Pending</option>
+                    <option value="active">Active</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                </div>
+              </div>
+              <button type="submit" class="btn-submit">Добавить этап</button>
+            </form>
+          </div>
+          <div class="table-wrapper">
+            <table id="contract_stagesTable">
+              <thead>
+                <tr>
+                  <th>Договор</th>
+                  <th>Этап</th>
+                  <th>Название</th>
+                  <th>Статус</th>
+                  <th>Действие</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ACID-KTI Tab -->
+      <div id="acid_kti-tab" class="tab-content hidden">
+        <div class="content-panel">
+          <h2>ACID-KTI</h2>
+          <div class="form-section">
+            <form id="acid_ktiForm">
+              <div class="form-row">
+                <div class="form-group">
+                  <label>ACID (ID)</label>
+                  <input type="text" name="acid_id" placeholder="ACID ID" required>
+                </div>
+                <div class="form-group">
+                  <label>Дата получения</label>
+                  <input type="date" name="data_polucheniya">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Номер контракта</label>
+                  <input type="text" name="nomer_kontrakta">
+                </div>
+                <div class="form-group">
+                  <label>Сумма перевозки (USD)</label>
+                  <input type="number" name="summa_perevozki" step="0.01">
+                </div>
+              </div>
+              <button type="submit" class="btn-submit">Добавить</button>
+            </form>
+          </div>
+          <div class="table-wrapper">
+            <table id="acid_ktiTable">
+              <thead>
+                <tr>
+                  <th>ACID</th>
+                  <th>Дата получения</th>
+                  <th>Номер контракта</th>
+                  <th>Сумма</th>
+                  <th>Действие</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Finance Tab -->
+      <div id="finance_ais_export-tab" class="tab-content hidden">
+        <div class="content-panel">
+          <h2>Выгрузка АИС</h2>
+          <div class="form-section">
+            <form id="finance_ais_exportForm">
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Дата</label>
+                  <input type="date" name="data" required>
+                </div>
+                <div class="form-group">
+                  <label>Номер</label>
+                  <input type="text" name="nomer">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Организация</label>
+                  <input type="text" name="organizaciya">
+                </div>
+                <div class="form-group">
+                  <label>Контрагент</label>
+                  <input type="text" name="kontragent">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Сумма (USD)</label>
+                  <input type="number" name="summa_usd" step="0.01">
+                </div>
+                <div class="form-group">
+                  <label>Статус</label>
+                  <input type="text" name="sostoyanie">
+                </div>
+              </div>
+              <button type="submit" class="btn-submit">Добавить запись</button>
+            </form>
+          </div>
+          <div class="table-wrapper">
+            <table id="finance_ais_exportTable">
+              <thead>
+                <tr>
+                  <th>Дата</th>
+                  <th>Организация</th>
+                  <th>Контрагент</th>
+                  <th>Сумма</th>
+                  <th>Статус</th>
+                  <th>Действие</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const API = isDev ? 'http://localhost:8080/api' : (window.API_URL || 'https://accessweb-api.onrender.com/api');
+    let token = null;
+    let currentTab = 'acid_main';
+
+    // Login
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const login = document.getElementById('loginInput').value;
+      const password = document.getElementById('passwordInput').value;
+
+      try {
+        const res = await fetch(`${API}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ login, password })
+        });
+        const data = await res.json();
+
+        if (!res.ok) throw new Error(data.error || 'Login failed');
+
+        token = data.token;
+        document.getElementById('userInfo').textContent = `${data.user.name} (${data.user.role})`;
+        document.getElementById('loginScreen').classList.add('hidden');
+        document.getElementById('appScreen').classList.remove('hidden');
+
+        loadData('acid_main');
+      } catch (err) {
+        showAlert(err.message, 'error');
+      }
+    });
+
+    function logout() {
+      token = null;
+      document.getElementById('loginScreen').classList.remove('hidden');
+      document.getElementById('appScreen').classList.add('hidden');
+      document.getElementById('loginForm').reset();
+    }
+
+    async function api(method, path, body = null) {
+      const opts = {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      };
+      if (body) opts.body = JSON.stringify(body);
+
+      const res = await fetch(`${API}${path}`, opts);
+      if (!res.ok && res.status !== 201) throw new Error('API Error: ' + res.status);
+      return res.json();
+    }
+
+    function showAlert(msg, type = 'success') {
+      const el = document.getElementById('alert');
+      el.className = `alert show ${type}`;
+      el.textContent = msg;
+      setTimeout(() => el.classList.remove('show'), 4000);
+    }
+
+    function switchTab(tab) {
+      document.querySelectorAll('[id$="-tab"]').forEach(e => e.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(e => e.classList.remove('active'));
+      document.getElementById(`${tab}-tab`).classList.add('active');
+      event.target.classList.add('active');
+      currentTab = tab;
+      loadData(tab);
+    }
+
+    async function loadData(table) {
+      try {
+        const data = await api('GET', `/${table}?limit=1000&offset=0`);
+        const tbody = document.getElementById(`${table}Table`).querySelector('tbody');
+        tbody.innerHTML = '';
+
+        if (!data.data || data.data.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 40px; color: #7c8fa3;">Нет данных</td></tr>';
+          return;
+        }
+
+        data.data.forEach(row => {
+          const tr = document.createElement('tr');
+          
+          if (table === 'acid_main') {
+            tr.innerHTML = `
+              <td>${row.acid || '-'}</td>
+              <td><span class="badge ${row.status}">${row.status || '-'}</span></td>
+              <td>${row.gruzootravitel || '-'}</td>
+              <td>${row.postavshchik || '-'}</td>
+              <td>${row.naimenovanie || '-'}</td>
+              <td>${row.gw_kg || '-'}</td>
+              <td><button class="btn-delete" onclick="deleteRecord('${table}', '${row.id}')">Delete</button></td>
+            `;
+          } else if (table === 'contract_main') {
+            tr.innerHTML = `
+              <td>${row.nomer_kontrakta || '-'}</td>
+              <td>${row.tip_kontrakta || '-'}</td>
+              <td>${row.kontragent || '-'}</td>
+              <td><span class="badge ${row.status}">${row.status || '-'}</span></td>
+              <td>${row.data_kontrakta || '-'}</td>
+              <td>${row.cena_kontrakta ? row.cena_kontrakta.toFixed(2) : '-'}</td>
+              <td><button class="btn-delete" onclick="deleteRecord('${table}', '${row.id}')">Delete</button></td>
+            `;
+          } else if (table === 'finance_ais_export') {
+            tr.innerHTML = `
+              <td>${row.data || '-'}</td>
+              <td>${row.organizaciya || '-'}</td>
+              <td>${row.kontragent || '-'}</td>
+              <td>${row.summa_usd ? row.summa_usd.toFixed(2) : '-'}</td>
+              <td>${row.sostoyanie || '-'}</td>
+              <td><button class="btn-delete" onclick="deleteRecord('${table}', '${row.id}')">Delete</button></td>
+            `;
+          } else {
+            tr.innerHTML = `<td colspan="10">Data format: ${JSON.stringify(row)}</td>`;
+          }
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        showAlert(err.message, 'error');
+      }
+    }
+
+    // Form submissions
+    ['acid_main', 'acid_logistics', 'acid_customs', 'contract_main', 'contract_stages', 'acid_kti', 'finance_ais_export'].forEach(table => {
+      const form = document.getElementById(`${table}Form`);
+      if (form) {
+        form.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const fd = new FormData(e.target);
+          const body = Object.fromEntries(fd);
+
+          try {
+            await api('POST', `/${table}`, body);
+            showAlert('Запись добавлена');
+            e.target.reset();
+            loadData(table);
+          } catch (err) {
+            showAlert(err.message, 'error');
+          }
+        });
+      }
+    });
+
+    async function deleteRecord(table, id) {
+      if (!confirm('Удалить запись?')) return;
+      try {
+        await api('DELETE', `/${table}/${id}`);
+        showAlert('Удалено');
+        loadData(table);
+      } catch (err) {
+        showAlert(err.message, 'error');
+      }
+    }
+  </script>
+</body>
+</html>

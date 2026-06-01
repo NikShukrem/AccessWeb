@@ -91,15 +91,29 @@ app.get('/api/:table', auth, async (req, res) => {
   const { table } = req.params;
   const { limit = 100, offset = 0 } = req.query;
 
-  const allowedTables = ['acids', 'contracts', 'finance'];
-  if (!allowedTables.includes(table)) return res.status(400).json({ error: 'Invalid table' });
+  // Support both old and new table names
+  const tableMap = {
+    'acids': 'acid_main',
+    'acid_main': 'acid_main',
+    'acid_logistics': 'acid_logistics',
+    'acid_customs': 'acid_customs',
+    'contracts': 'contract_main',
+    'contract_main': 'contract_main',
+    'contract_stages': 'contract_stages',
+    'finance': 'finance_ais_export',
+    'finance_ais_export': 'finance_ais_export',
+    'acid_kti': 'acid_kti'
+  };
+
+  const dbTable = tableMap[table];
+  if (!dbTable) return res.status(400).json({ error: 'Invalid table' });
 
   try {
     const records = await db.all(
-      `SELECT * FROM ${table} LIMIT ? OFFSET ?`,
+      `SELECT * FROM ${dbTable} LIMIT ? OFFSET ?`,
       [parseInt(limit), parseInt(offset)]
     );
-    const countResult = await db.get(`SELECT COUNT(*) as count FROM ${table}`);
+    const countResult = await db.get(`SELECT COUNT(*) as count FROM ${dbTable}`);
 
     res.json({
       data: records,
@@ -114,11 +128,25 @@ app.get('/api/:table', auth, async (req, res) => {
 
 app.get('/api/:table/:id', auth, async (req, res) => {
   const { table, id } = req.params;
-  const allowedTables = ['acids', 'contracts', 'finance'];
-  if (!allowedTables.includes(table)) return res.status(400).json({ error: 'Invalid table' });
+  
+  const tableMap = {
+    'acids': 'acid_main',
+    'acid_main': 'acid_main',
+    'acid_logistics': 'acid_logistics',
+    'acid_customs': 'acid_customs',
+    'contracts': 'contract_main',
+    'contract_main': 'contract_main',
+    'contract_stages': 'contract_stages',
+    'finance': 'finance_ais_export',
+    'finance_ais_export': 'finance_ais_export',
+    'acid_kti': 'acid_kti'
+  };
+
+  const dbTable = tableMap[table];
+  if (!dbTable) return res.status(400).json({ error: 'Invalid table' });
 
   try {
-    const record = await db.get(`SELECT * FROM ${table} WHERE id = ?`, [id]);
+    const record = await db.get(`SELECT * FROM ${dbTable} WHERE id = ?`, [id]);
     if (!record) return res.status(404).json({ error: 'Not found' });
     res.json({ data: record });
   } catch (err) {
@@ -128,8 +156,22 @@ app.get('/api/:table/:id', auth, async (req, res) => {
 
 app.post('/api/:table', auth, async (req, res) => {
   const { table } = req.params;
-  const allowedTables = ['acids', 'contracts', 'finance'];
-  if (!allowedTables.includes(table)) return res.status(400).json({ error: 'Invalid table' });
+  
+  const tableMap = {
+    'acids': 'acid_main',
+    'acid_main': 'acid_main',
+    'acid_logistics': 'acid_logistics',
+    'acid_customs': 'acid_customs',
+    'contracts': 'contract_main',
+    'contract_main': 'contract_main',
+    'contract_stages': 'contract_stages',
+    'finance': 'finance_ais_export',
+    'finance_ais_export': 'finance_ais_export',
+    'acid_kti': 'acid_kti'
+  };
+
+  const dbTable = tableMap[table];
+  if (!dbTable) return res.status(400).json({ error: 'Invalid table' });
 
   try {
     const id = uuidv4();
@@ -141,11 +183,11 @@ app.post('/api/:table', auth, async (req, res) => {
     const columnList = columns.join(',');
 
     await db.run(
-      `INSERT INTO ${table} (id, ${columnList}) VALUES (?, ${placeholders})`,
+      `INSERT INTO ${dbTable} (id, ${columnList}) VALUES (?, ${placeholders})`,
       [id, ...values]
     );
 
-    const record = await db.get(`SELECT * FROM ${table} WHERE id = ?`, [id]);
+    const record = await db.get(`SELECT * FROM ${dbTable} WHERE id = ?`, [id]);
     res.status(201).json({ data: record });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -154,8 +196,22 @@ app.post('/api/:table', auth, async (req, res) => {
 
 app.put('/api/:table/:id', auth, async (req, res) => {
   const { table, id } = req.params;
-  const allowedTables = ['acids', 'contracts', 'finance'];
-  if (!allowedTables.includes(table)) return res.status(400).json({ error: 'Invalid table' });
+  
+  const tableMap = {
+    'acids': 'acid_main',
+    'acid_main': 'acid_main',
+    'acid_logistics': 'acid_logistics',
+    'acid_customs': 'acid_customs',
+    'contracts': 'contract_main',
+    'contract_main': 'contract_main',
+    'contract_stages': 'contract_stages',
+    'finance': 'finance_ais_export',
+    'finance_ais_export': 'finance_ais_export',
+    'acid_kti': 'acid_kti'
+  };
+
+  const dbTable = tableMap[table];
+  if (!dbTable) return res.status(400).json({ error: 'Invalid table' });
 
   try {
     const data = req.body;
@@ -165,11 +221,11 @@ app.put('/api/:table/:id', auth, async (req, res) => {
     const setList = columns.map(c => `${c} = ?`).join(',');
 
     await db.run(
-      `UPDATE ${table} SET ${setList}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      `UPDATE ${dbTable} SET ${setList}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
       [...values, id]
     );
 
-    const record = await db.get(`SELECT * FROM ${table} WHERE id = ?`, [id]);
+    const record = await db.get(`SELECT * FROM ${dbTable} WHERE id = ?`, [id]);
     res.json({ data: record });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -178,11 +234,25 @@ app.put('/api/:table/:id', auth, async (req, res) => {
 
 app.delete('/api/:table/:id', auth, async (req, res) => {
   const { table, id } = req.params;
-  const allowedTables = ['acids', 'contracts', 'finance'];
-  if (!allowedTables.includes(table)) return res.status(400).json({ error: 'Invalid table' });
+  
+  const tableMap = {
+    'acids': 'acid_main',
+    'acid_main': 'acid_main',
+    'acid_logistics': 'acid_logistics',
+    'acid_customs': 'acid_customs',
+    'contracts': 'contract_main',
+    'contract_main': 'contract_main',
+    'contract_stages': 'contract_stages',
+    'finance': 'finance_ais_export',
+    'finance_ais_export': 'finance_ais_export',
+    'acid_kti': 'acid_kti'
+  };
+
+  const dbTable = tableMap[table];
+  if (!dbTable) return res.status(400).json({ error: 'Invalid table' });
 
   try {
-    await db.run(`DELETE FROM ${table} WHERE id = ?`, [id]);
+    await db.run(`DELETE FROM ${dbTable} WHERE id = ?`, [id]);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -193,10 +263,24 @@ app.delete('/api/:table/:id', auth, async (req, res) => {
 
 app.post('/api/import/:table', auth, async (req, res) => {
   const { table } = req.params;
-  const { rows } = req.body;
-  const allowedTables = ['acids', 'contracts', 'finance'];
-  if (!allowedTables.includes(table)) return res.status(400).json({ error: 'Invalid table' });
+  
+  const tableMap = {
+    'acids': 'acid_main',
+    'acid_main': 'acid_main',
+    'acid_logistics': 'acid_logistics',
+    'acid_customs': 'acid_customs',
+    'contracts': 'contract_main',
+    'contract_main': 'contract_main',
+    'contract_stages': 'contract_stages',
+    'finance': 'finance_ais_export',
+    'finance_ais_export': 'finance_ais_export',
+    'acid_kti': 'acid_kti'
+  };
 
+  const dbTable = tableMap[table];
+  if (!dbTable) return res.status(400).json({ error: 'Invalid table' });
+
+  const { rows } = req.body;
   if (!Array.isArray(rows)) return res.status(400).json({ error: 'rows must be array' });
 
   try {
@@ -209,7 +293,7 @@ app.post('/api/import/:table', auth, async (req, res) => {
       const columnList = columns.join(',');
 
       await db.run(
-        `INSERT INTO ${table} (id, ${columnList}) VALUES (?, ${placeholders})`,
+        `INSERT INTO ${dbTable} (id, ${columnList}) VALUES (?, ${placeholders})`,
         [id, ...values]
       );
       imported++;
