@@ -587,17 +587,17 @@
           </div>
 
           <div class="dashboard-grid">
-            <!-- CHART 1: Услуги, Оплаты, Задолженность -->
+            <!-- CHART 1: Задолженность по времени -->
             <div class="chart-card">
-              <h3>Финансовые метрики</h3>
+              <h3>Задолженность по времени (май 2025 - июнь 2026)</h3>
               <div class="chart-container">
                 <canvas id="metricsChart"></canvas>
               </div>
             </div>
 
-            <!-- CHART 2: Задолженность по времени -->
+            <!-- CHART 2: Остатки по договорам -->
             <div class="chart-card">
-              <h3>Задолженность по времени (май 2025 - июнь 2026)</h3>
+              <h3>Остатки по договорам</h3>
               <div class="chart-container">
                 <canvas id="balanceChart"></canvas>
               </div>
@@ -908,11 +908,19 @@
         const payments = financeData.filter(r => r.status === 'completed').reduce((sum, r) => sum + (parseFloat(r.summa) || 0), 0);
         const debt = services - payments;
 
-        renderMetricsChart(services, payments, Math.max(0, debt));
+        renderMetricsChart(acidData, financeData, contractData);
 
-        // DEBT TIMELINE CHART (май 2025 - июнь 2026)
-        const debtTimeline = generateDebtTimeline(acidData, financeData, contractData);
-        renderDebtTimelineChart(debtTimeline);
+        // BALANCE CHART (по договорам)
+        const balances = {};
+        contractData.forEach(c => {
+          const contractSum = parseFloat(c.summa) || 0;
+          const paid = financeData
+            .filter(f => f.nomer_kontrakta === c.nomer_kontrakta && f.status === 'completed')
+            .reduce((sum, f) => sum + (parseFloat(f.summa) || 0), 0);
+          balances[c.nomer_kontrakta] = Math.max(0, contractSum - paid);
+        });
+
+        renderBalanceChart(balances);
 
         renderAcidTable(acidData);
         renderContractTable(contractData);
@@ -922,48 +930,82 @@
       }
     }
 
-    function renderMetricsChart(services, payments, debt) {
+    function renderMetricsChart(acidData, financeData, contractData) {
       const ctx = document.getElementById('metricsChart').getContext('2d');
       
       if (metricsChart) metricsChart.destroy();
       
+      // Генерируем timeline задолженности (май 2025 - июнь 2026)
+      const months = [];
+      const startDate = new Date(2025, 4, 1); // май 2025
+      const endDate = new Date(2026, 5, 30); // июнь 2026
+
+      for (let d = new Date(startDate); d <= endDate; d.setMonth(d.getMonth() + 1)) {
+        const monthLabel = d.toLocaleDateString('ru-RU', { year: 'numeric', month: 'long' });
+        const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+
+        // Считаем услуги на конец месяца
+        const services = acidData
+          .filter(r => {
+            const date = r.etd ? new Date(r.etd) : null;
+            return date && date <= monthEnd;
+          })
+          .reduce((sum, r) => sum + (parseFloat(r.stoimost_gruza) || 0), 0);
+
+        // Считаем платежи на конец месяца
+        const payments = financeData
+          .filter(f => {
+            const date = f.data ? new Date(f.data) : null;
+            return f.status === 'completed' && date && date <= monthEnd;
+          })
+          .reduce((sum, f) => sum + (parseFloat(f.summa) || 0), 0);
+
+        const debt = Math.max(0, services - payments);
+        months.push({ label: monthLabel, debt: debt });
+      }
+
+      const labels = months.map(d => d.label);
+      const data = months.map(d => d.debt);
+
       metricsChart = new Chart(ctx, {
-        type: 'bar',
+        type: 'line',
         data: {
-          labels: ['Метрика'],
-          datasets: [
-            {
-              label: 'Оказанные услуги (USD)',
-              data: [services],
-              backgroundColor: 'rgba(26, 61, 92, 0.8)',
-              borderColor: '#1A3D5C',
-              borderWidth: 2
-            },
-            {
-              label: 'Оплаты (USD)',
-              data: [payments],
-              backgroundColor: 'rgba(39, 174, 96, 0.8)',
-              borderColor: '#27AE60',
-              borderWidth: 2
-            },
-            {
-              label: 'Задолженность (USD)',
-              data: [debt],
-              backgroundColor: 'rgba(192, 57, 43, 0.8)',
-              borderColor: '#C0392B',
-              borderWidth: 2
-            }
-          ]
+          labels: labels,
+          datasets: [{
+            label: 'Задолженность (USD)',
+            data: data,
+            borderColor: '#C0392B',
+            backgroundColor: 'rgba(192, 57, 43, 0.1)',
+            borderWidth: 3,
+            fill: true,
+            tension: 0.4, // Гладкие сплайны
+            pointRadius: 5,
+            pointBackgroundColor: '#C0392B',
+            pointBorderColor: 'white',
+            pointBorderWidth: 2,
+            pointHoverRadius: 7
+          }]
         },
         options: {
-          indexAxis: 'y',
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            legend: { position: 'bottom' }
+            legend: { display: true, position: 'top' },
+            tooltip: {
+              callbacks: {
+                label: (context) => {
+                  return `${context.dataset.label}: $${context.parsed.y.toLocaleString('ru-RU', { maximumFractionDigits: 0 })}`;
+                }
+              }
+            }
           },
           scales: {
-            x: { beginAtZero: true }
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: (value) => `$${value.toLocaleString('ru-RU', { maximumFractionDigits: 0 })}`
+              }
+            }
           }
         }
       });
