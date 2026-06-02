@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="AccessWeb - система управления логистикой для АЭС">
+  <meta name="description" content="AccessWeb - система управления логистикой">
   <title>AccessWeb - Управление логистикой</title>
   <style>
     :root {
@@ -627,7 +627,7 @@
   <!-- LOGIN SCREEN -->
   <div id="loginScreen" class="login-container">
     <div class="login-card">
-      <h1>⚛ AccessWeb</h1>
+      <h1>AccessWeb</h1>
       <p>Система управления логистикой и договорами</p>
       <form id="loginForm">
         <div class="form-group">
@@ -636,9 +636,9 @@
         </div>
         <div class="form-group">
           <label for="password-input">Пароль</label>
-          <input id="password-input" type="password" value="admin123" required aria-label="Введите пароль" placeholder="•••••">
+          <input id="password-input" type="password" value="admin123" required aria-label="Введите пароль" placeholder="••••••">
         </div>
-        <button type="submit" aria-label="Кнопка входа">🔒 Войти</button>
+        <button type="submit" aria-label="Кнопка входа">Войти</button>
       </form>
     </div>
   </div>
@@ -647,7 +647,7 @@
   <div id="appScreen" class="hidden">
     <div class="app-container">
       <div class="header">
-        <h1>⚛ AccessWeb</h1>
+        <h1>AccessWeb</h1>
         <div class="user-info">
           <span id="userInfo" role="status" aria-live="polite"></span>
           <button onclick="logout()" aria-label="Выход из системы">Выход</button>
@@ -657,19 +657,19 @@
       <div id="alert" class="alert" role="alert" aria-live="polite"></div>
 
       <div class="tabs" role="tablist">
-        <button class="tab-btn active" onclick="switchTab(this, 'acid_main')" role="tab" aria-selected="true" aria-controls="acid_main-tab">📦 Грузы</button>
-        <button class="tab-btn" onclick="switchTab(this, 'acid_logistics')" role="tab" aria-selected="false" aria-controls="acid_logistics-tab">🚢 Логистика</button>
-        <button class="tab-btn" onclick="switchTab(this, 'acid_customs')" role="tab" aria-selected="false" aria-controls="acid_customs-tab">📋 Таможня</button>
-        <button class="tab-btn" onclick="switchTab(this, 'contract_main')" role="tab" aria-selected="false" aria-controls="contract_main-tab">📄 Договоры</button>
-        <button class="tab-btn" onclick="switchTab(this, 'contract_stages')" role="tab" aria-selected="false" aria-controls="contract_stages-tab">⏳ Этапы</button>
-        <button class="tab-btn" onclick="switchTab(this, 'acid_kti')" role="tab" aria-selected="false" aria-controls="acid_kti-tab">🔗 KTI</button>
-        <button class="tab-btn" onclick="switchTab(this, 'finance_ais_export')" role="tab" aria-selected="false" aria-controls="finance_ais_export-tab">💰 Финансы</button>
+        <button class="tab-btn active" onclick="switchTab(this, 'acid_main')" role="tab" aria-selected="true" aria-controls="acid_main-tab">Грузы</button>
+        <button class="tab-btn" onclick="switchTab(this, 'acid_logistics')" role="tab" aria-selected="false" aria-controls="acid_logistics-tab">Логистика</button>
+        <button class="tab-btn" onclick="switchTab(this, 'acid_customs')" role="tab" aria-selected="false" aria-controls="acid_customs-tab">Таможня</button>
+        <button class="tab-btn" onclick="switchTab(this, 'contract_main')" role="tab" aria-selected="false" aria-controls="contract_main-tab">Договоры</button>
+        <button class="tab-btn" onclick="switchTab(this, 'contract_stages')" role="tab" aria-selected="false" aria-controls="contract_stages-tab">Этапы</button>
+        <button class="tab-btn" onclick="switchTab(this, 'acid_kti')" role="tab" aria-selected="false" aria-controls="acid_kti-tab">KTI</button>
+        <button class="tab-btn" onclick="switchTab(this, 'finance_ais_export')" role="tab" aria-selected="false" aria-controls="finance_ais_export-tab">Финансы</button>
       </div>
 
       <!-- ACID MAIN -->
       <div id="acid_main-tab" class="tab-content active" role="tabpanel">
         <div class="content-panel">
-          <h2>📦 Управление грузами (ACID)</h2>
+          <h2>Управление грузами</h2>
           <div class="form-section">
             <form id="acid_mainForm" novalidate>
               <div class="form-row">
@@ -747,7 +747,7 @@
       <!-- ACID LOGISTICS -->
       <div id="acid_logistics-tab" class="tab-content" role="tabpanel">
         <div class="content-panel">
-          <h2>🚢 Логистические данные</h2>
+          <h2>Логистические данные</h2>
           <div class="form-section">
             <form id="acid_logisticsForm" novalidate>
               <div class="form-row">
@@ -793,7 +793,7 @@
       <!-- ACID CUSTOMS -->
       <div id="acid_customs-tab" class="tab-content" role="tabpanel">
         <div class="content-panel">
-          <h2>📋 Таможенные данные</h2>
+          <h2>Таможенные данные</h2>
           <div class="form-section">
             <form id="acid_customsForm" novalidate>
               <div class="form-row">
@@ -844,7 +844,7 @@
       <!-- CONTRACTS -->
       <div id="contract_main-tab" class="tab-content" role="tabpanel">
         <div class="content-panel">
-          <h2>📄 Управление договорами</h2>
+          <h2>Управление договорами</h2>
           <div class="form-section">
             <form id="contract_mainForm" novalidate>
               <div class="form-row">
@@ -911,7 +911,7 @@
       <!-- STAGES -->
       <div id="contract_stages-tab" class="tab-content" role="tabpanel">
         <div class="content-panel">
-          <h2>⏳ Этапы подписания договоров</h2>
+          <h2>Этапы подписания договоров</h2>
           <div class="form-section">
             <form id="contract_stagesForm" novalidate>
               <div class="form-row">
@@ -961,7 +961,7 @@
       <!-- ACID-KTI -->
       <div id="acid_kti-tab" class="tab-content" role="tabpanel">
         <div class="content-panel">
-          <h2>🔗 Связь ACID-KTI</h2>
+          <h2>Связь ACID-KTI</h2>
           <div class="form-section">
             <form id="acid_ktiForm" novalidate>
               <div class="form-row">
@@ -1007,7 +1007,7 @@
       <!-- FINANCE -->
       <div id="finance_ais_export-tab" class="tab-content" role="tabpanel">
         <div class="content-panel">
-          <h2>💰 Выгрузка АИС</h2>
+          <h2>Выгрузка АИС</h2>
           <div class="form-section">
             <form id="finance_ais_exportForm" novalidate>
               <div class="form-row">
@@ -1251,3 +1251,4 @@
   </script>
 </body>
 </html>
+
