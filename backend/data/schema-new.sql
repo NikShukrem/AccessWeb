@@ -164,7 +164,7 @@ CREATE TABLE IF NOT EXISTS finance (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Notifications
+-- ===== NOTIFICATIONS TABLE =====
 CREATE TABLE IF NOT EXISTS notifications (
   id TEXT PRIMARY KEY,
   user_id TEXT,
@@ -173,18 +173,6 @@ CREATE TABLE IF NOT EXISTS notifications (
   type TEXT,
   is_read BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- User Permissions
-CREATE TABLE IF NOT EXISTS user_permissions (
-  id TEXT PRIMARY KEY,
-  user_id TEXT,
-  table_name TEXT,
-  can_view BOOLEAN DEFAULT FALSE,
-  can_create BOOLEAN DEFAULT FALSE,
-  can_update BOOLEAN DEFAULT FALSE,
-  can_delete BOOLEAN DEFAULT FALSE,
-  UNIQUE(user_id, table_name)
 );
 
 -- ===== INDEXES FOR PERFORMANCE =====
@@ -196,11 +184,3 @@ CREATE INDEX IF NOT EXISTS idx_contracts_status ON contracts(status);
 CREATE INDEX IF NOT EXISTS idx_contracts_nomer ON contracts(nomer_kontrakta);
 CREATE INDEX IF NOT EXISTS idx_finance_data ON finance(data);
 CREATE INDEX IF NOT EXISTS idx_contract_stages_kontract ON contract_stages(kontract_id);
-CREATE INDEX IF NOT EXISTS idx_acid_logistics_acid ON acid_logistics(acid_id);
-CREATE INDEX IF NOT EXISTS idx_acid_customs_acid ON acid_customs(acid_id);
-CREATE INDEX IF NOT EXISTS idx_contract_main_status ON contract_main(status);
-CREATE INDEX IF NOT EXISTS idx_contract_stages_contract ON contract_stages(kontract_id);
-CREATE INDEX IF NOT EXISTS idx_acid_kti_acid ON acid_kti(acid_id);
-CREATE INDEX IF NOT EXISTS idx_finance_data ON finance_ais_export(data);
-CREATE INDEX IF NOT EXISTS idx_users_login ON users(login);
-CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
