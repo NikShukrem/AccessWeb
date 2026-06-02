@@ -1378,6 +1378,52 @@
       });
     }
 
+    function renderBalanceChart(balances) {
+      const ctx = document.getElementById('balanceChart').getContext('2d');
+      
+      if (balanceChart) balanceChart.destroy();
+      
+      const entries = Object.entries(balances)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10);
+      
+      const labels = entries.map(e => e[0]);
+      const data = entries.map(e => e[1]);
+      
+      const colors = [
+        '#E67E22', '#3498DB', '#2ECC71', '#9B59B6',
+        '#E74C3C', '#1ABC9C', '#F39C12', '#34495E',
+        '#27AE60', '#C0392B'
+      ];
+      
+      balanceChart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: data,
+            backgroundColor: colors.slice(0, labels.length),
+            borderColor: '#fff',
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom' },
+            tooltip: {
+              callbacks: {
+                label: (context) => {
+                  return `$${context.parsed.toLocaleString('ru-RU', { maximumFractionDigits: 0 })}`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
     function generateDebtTimeline(acidData, financeData, contractData) {
       // Генерируем точки данных с май 2025 по июнь 2026 (14 месяцев)
       const months = [];
