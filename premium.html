@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AccessWeb v3 - Управление логистикой</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <style>
     :root {
       --titan-primary: #1A3D5C;
@@ -1165,12 +1166,159 @@
       }
     }
 
-    function exportCurrentTable() {
-      showAlert('Экспорт - скоро будет доступен', 'success');
+    function downloadTemplate(tableName) {
+      const templates = {
+        acid: {
+          headers: ['gruzootravitel*', 'postavshchik*', 'naimenovanie*', 'gw_kg', 'stoimost_gruza', 'status', 'etd', 'eta', 'nomer_dt', 'data_dt', 'custom_status', 'komentar', 'nomer_kontrakta'],
+          example: [
+            ['OOO Export', 'Supplier A', 'Электроника', '1500', '50000', 'pending', '2026-04-15', '2026-05-20', 'DT-001', '2026-04-01', 'cleared', 'Sample shipment', 'CONTRACT-001'],
+            ['Global Trade', 'Supplier B', 'Оборудование', '2000', '75000', 'completed', '2026-04-10', '2026-05-15', 'DT-002', '2026-03-28', 'processing', '', 'CONTRACT-002']
+          ]
+        },
+        contracts: {
+          headers: ['nomer_kontrakta*', 'kontragent*', 'data_nachala*', 'data_okonchanya*', 'status', 'summa*'],
+          example: [
+            ['CONTRACT-001', 'TransCargo Ltd', '2026-01-15', '2026-12-31', 'active', '100000'],
+            ['CONTRACT-002', 'ElectroSupply Inc', '2026-02-01', '2026-06-30', 'active', '250000']
+          ]
+        },
+        finance: {
+          headers: ['data*', 'kontragent*', 'valyuta*', 'summa*', 'status'],
+          example: [
+            ['2026-04-20', 'TransCargo Ltd', 'USD', '5000', 'completed'],
+            ['2026-04-19', 'ElectroSupply Inc', 'EUR', '8500', 'pending']
+          ]
+        }
+      };
+
+      const template = templates[tableName];
+      if (!template) {
+        showAlert('Неизвестная таблица', 'error');
+        return;
+      }
+
+      const rows = [template.headers, ...template.example];
+      const csv = rows.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+      
+      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `template_${tableName}_${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+      showAlert('Шаблон загружен', 'success');
     }
 
-    function importFile(event) {
-      showAlert('Импорт - скоро будет доступен', 'success');
+    function exportCurrentTable() {
+      const activeTab = document.querySelector('.content-section.active').id;
+      
+      if (activeTab === 'dashboard') {
+        showAlert('Экспорт недоступен для Дашборда', 'info');
+        return;
+      }
+      
+      const tableMap = {
+        'acid': 'acid',
+        'contracts': 'contracts',
+        'finance': 'finance'
+      };
+      
+      const table = tableMap[activeTab];
+      if (table) {
+        downloadTemplate(table);
+      }
+    }
+
+    async function importFile(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const activeTab = document.querySelector('.content-section.active').id;
+      if (activeTab === 'dashboard') {
+        showAlert('Импорт недоступен для Дашборда', 'info');
+        return;
+      }
+
+      const tableMap = {
+        'acid': { table: 'acid', required: ['gruzootravitel', 'postavshchik', 'naimenovanie'] },
+        'contracts': { table: 'contracts', required: ['nomer_kontrakta', 'kontragent', 'data_nachala', 'data_okonchanya', 'summa'] },
+        'finance': { table: 'finance', required: ['data', 'kontragent', 'valyuta', 'summa'] }
+      };
+
+      const config = tableMap[activeTab];
+      if (!config) {
+        showAlert('Ошибка: неизвестная таблица', 'error');
+        return;
+      }
+
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: async (results) => {
+          try {
+            const rows = results.data;
+            if (!rows || rows.length === 0) {
+              showAlert('CSV файл пуст', 'error');
+              return;
+            }
+
+            // Валидация и подготовка данных
+            const validRows = [];
+            for (let i = 0; i < rows.length; i++) {
+              const row = rows[i];
+              
+              // Проверка обязательных полей
+              for (const field of config.required) {
+                if (!row[field] || row[field].trim() === '') {
+                  showAlert(`Строка ${i + 1}: отсутствует поле "${field}"`, 'error');
+                  return;
+                }
+              }
+
+              // Очистка и валидация
+              const cleanRow = {};
+              for (const [key, value] of Object.entries(row)) {
+                if (value !== null && value !== undefined && value !== '') {
+                  cleanRow[key.trim()] = value.toString().trim();
+                }
+              }
+
+              validRows.push(cleanRow);
+            }
+
+            // Импорт в БД
+            let imported = 0;
+            for (const row of validRows) {
+              try {
+                await api('POST', `/${config.table}`, row);
+                imported++;
+              } catch (err) {
+                showAlert(`Ошибка при импорте строки: ${err.message}`, 'error');
+                return;
+              }
+            }
+
+            showAlert(`Успешно импортировано ${imported} записей`, 'success');
+            
+            // Перезагрузка таблицы
+            if (activeTab === 'acid') {
+              renderAcidTable();
+            } else if (activeTab === 'contracts') {
+              renderContractTable();
+            } else if (activeTab === 'finance') {
+              renderFinanceTable();
+            }
+            loadDashboard();
+          } catch (err) {
+            showAlert(`Ошибка парсинга: ${err.message}`, 'error');
+          }
+        },
+        error: (error) => {
+          showAlert(`Ошибка чтения файла: ${error.message}`, 'error');
+        }
+      });
+
+      // Очистить input
+      event.target.value = '';
     }
 
     window.addEventListener('load', () => {
