@@ -1266,19 +1266,27 @@
             for (let i = 0; i < rows.length; i++) {
               const row = rows[i];
               
+              // Очистка имён полей (убираем *)
+              const cleanRowRaw = {};
+              for (const [key, value] of Object.entries(row)) {
+                const cleanKey = key.replace(/\*/g, '').trim();
+                cleanRowRaw[cleanKey] = value;
+              }
+
               // Проверка обязательных полей
               for (const field of config.required) {
-                if (!row[field] || row[field].trim() === '') {
-                  showAlert(`Строка ${i + 1}: отсутствует поле "${field}"`, 'error');
+                const cleanField = field.replace(/\*/g, '').trim();
+                if (!cleanRowRaw[cleanField] || cleanRowRaw[cleanField].toString().trim() === '') {
+                  showAlert(`Строка ${i + 1}: отсутствует поле "${cleanField}"`, 'error');
                   return;
                 }
               }
 
-              // Очистка и валидация
+              // Финальная очистка данных
               const cleanRow = {};
-              for (const [key, value] of Object.entries(row)) {
+              for (const [key, value] of Object.entries(cleanRowRaw)) {
                 if (value !== null && value !== undefined && value !== '') {
-                  cleanRow[key.trim()] = value.toString().trim();
+                  cleanRow[key] = value.toString().trim();
                 }
               }
 
