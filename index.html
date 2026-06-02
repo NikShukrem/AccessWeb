@@ -523,6 +523,137 @@
       th, td { padding: 8px; font-size: 12px; }
       .dashboard-grid { grid-template-columns: 1fr; }
     }
+
+    /* IMPORT MODAL */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: white;
+      border-radius: 12px;
+      padding: 40px;
+      max-width: 600px;
+      width: 90%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+
+    .modal-header {
+      margin-bottom: 30px;
+    }
+
+    .modal-header h2 {
+      color: var(--titan-primary);
+      font-size: 24px;
+      margin-bottom: 8px;
+    }
+
+    .modal-header p {
+      color: var(--gray-text);
+      font-size: 14px;
+    }
+
+    .drag-drop-zone {
+      border: 3px dashed var(--titan-accent);
+      border-radius: 8px;
+      padding: 40px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: rgba(230, 126, 34, 0.05);
+    }
+
+    .drag-drop-zone:hover {
+      background: rgba(230, 126, 34, 0.1);
+      border-color: var(--titan-primary);
+    }
+
+    .drag-drop-zone.active {
+      background: rgba(230, 126, 34, 0.15);
+      border-color: var(--success);
+    }
+
+    .drag-drop-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    .drag-drop-text {
+      color: var(--titan-primary);
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .drag-drop-subtext {
+      color: var(--gray-text);
+      font-size: 13px;
+    }
+
+    .modal-buttons {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      margin-top: 30px;
+    }
+
+    .modal-buttons button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .btn-cancel {
+      background: var(--gray-border);
+      color: var(--titan-primary);
+    }
+
+    .btn-cancel:hover {
+      background: #BCC5D4;
+    }
+
+    .btn-submit {
+      background: var(--titan-accent);
+      color: white;
+    }
+
+    .btn-submit:hover {
+      background: #D46D0E;
+    }
+
+    .btn-submit:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    .file-name {
+      margin-top: 20px;
+      padding: 12px;
+      background: var(--gray-light);
+      border-radius: 6px;
+      text-align: center;
+      color: var(--gray-text);
+      display: none;
+    }
+
+    .file-name.show {
+      display: block;
+    }
   </style>
 </head>
 <body>
@@ -562,8 +693,7 @@
 
         <div class="nav-section">
           <div class="nav-section-title">Действия</div>
-          <button class="nav-btn" onclick="document.getElementById('importFile').click()">Импорт данных</button>
-          <button class="nav-btn" onclick="exportCurrentTable()">Экспорт таблицы</button>
+          <button class="nav-btn" onclick="openImportModal()">Импорт данных</button>
         </div>
 
         <div class="user-section">
@@ -830,6 +960,29 @@
 
   <input type="file" id="importFile" style="display: none;" onchange="importFile(event)">
 
+  <!-- IMPORT MODAL -->
+  <div id="importModal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Импорт данных</h2>
+        <p>Перетащите файл или нажмите для выбора</p>
+      </div>
+
+      <div class="drag-drop-zone" id="dragDropZone">
+        <div class="drag-drop-icon">📁</div>
+        <div class="drag-drop-text">Перетащите файл сюда</div>
+        <div class="drag-drop-subtext">или нажмите для выбора (CSV, XLSX)</div>
+      </div>
+
+      <div class="file-name" id="fileName"></div>
+
+      <div class="modal-buttons">
+        <button class="btn-cancel" onclick="closeImportModal()">Отмена</button>
+        <button class="btn-submit" id="btnImport" onclick="processImportFile()" disabled>Импортировать</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     let authToken = null;
     let currentFilter = 'all';
@@ -889,6 +1042,72 @@
       localStorage.removeItem('authToken');
       document.getElementById('loginScreen').style.display = 'flex';
       document.getElementById('appScreen').style.display = 'none';
+    }
+
+    let selectedFile = null;
+
+    function openImportModal() {
+      document.getElementById('importModal').classList.add('active');
+      setupDragDrop();
+    }
+
+    function closeImportModal() {
+      document.getElementById('importModal').classList.remove('active');
+      selectedFile = null;
+      document.getElementById('fileName').classList.remove('show');
+      document.getElementById('btnImport').disabled = true;
+      document.getElementById('dragDropZone').classList.remove('active');
+    }
+
+    function setupDragDrop() {
+      const zone = document.getElementById('dragDropZone');
+      
+      zone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        zone.classList.add('active');
+      });
+
+      zone.addEventListener('dragleave', () => {
+        zone.classList.remove('active');
+      });
+
+      zone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        zone.classList.remove('active');
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+          selectedFile = files[0];
+          showSelectedFile(files[0]);
+        }
+      });
+
+      zone.addEventListener('click', () => {
+        document.getElementById('importFile').click();
+      });
+    }
+
+    function showSelectedFile(file) {
+      const fileNameEl = document.getElementById('fileName');
+      fileNameEl.textContent = `✓ Файл выбран: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+      fileNameEl.classList.add('show');
+      document.getElementById('btnImport').disabled = false;
+      selectedFile = file;
+    }
+
+    function processImportFile() {
+      if (!selectedFile) {
+        showAlert('Файл не выбран', 'error');
+        return;
+      }
+
+      const event = {
+        target: {
+          files: [selectedFile]
+        }
+      };
+
+      importFile(event);
+      closeImportModal();
     }
 
     let metricsChart = null;
