@@ -97,43 +97,118 @@
 
     .login-card button:hover { background: var(--titan-dark); }
 
-    /* APP */
-    .app-container {
-      max-width: 2000px;
-      margin: 0 auto;
-      padding: 20px;
+    /* APP LAYOUT */
+    .app-layout {
+      display: flex;
+      height: 100vh;
     }
 
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 20px 0;
-      border-bottom: 2px solid var(--gray-border);
+    /* SIDEBAR */
+    .sidebar {
+      width: 250px;
+      background: var(--titan-dark);
+      color: white;
+      padding: 20px;
+      overflow-y: auto;
+      box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .sidebar h1 {
+      font-size: 22px;
+      margin-bottom: 30px;
+      color: var(--titan-accent);
+    }
+
+    .nav-section {
       margin-bottom: 30px;
     }
 
-    .header h1 {
-      color: var(--titan-primary);
-      font-size: 28px;
+    .nav-section-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      color: #8A9BB8;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+
+    .nav-btn {
+      display: block;
+      width: 100%;
+      padding: 12px 16px;
+      background: transparent;
+      color: #D5DBEA;
+      border: none;
+      border-left: 3px solid transparent;
+      cursor: pointer;
+      text-align: left;
+      font-size: 14px;
+      margin-bottom: 8px;
+      transition: all 0.3s;
+    }
+
+    .nav-btn:hover {
+      background: rgba(230, 126, 34, 0.1);
+      color: white;
+    }
+
+    .nav-btn.active {
+      background: rgba(230, 126, 34, 0.15);
+      border-left-color: var(--titan-accent);
+      color: white;
+    }
+
+    .user-section {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      right: 20px;
+      padding: 16px;
+      background: rgba(230, 126, 34, 0.1);
+      border-radius: 8px;
+      border-left: 3px solid var(--titan-accent);
     }
 
     .user-info {
-      display: flex;
-      gap: 20px;
-      align-items: center;
+      font-size: 12px;
+      color: #D5DBEA;
+      margin-bottom: 8px;
     }
 
-    .user-info button {
-      padding: 8px 16px;
+    .logout-btn {
+      width: 100%;
+      padding: 8px;
       background: var(--titan-danger);
       color: white;
       border: none;
-      border-radius: 6px;
+      border-radius: 4px;
       cursor: pointer;
+      font-size: 12px;
     }
 
-    .user-info button:hover { background: #A93225; }
+    .logout-btn:hover { background: #A93225; }
+
+    /* MAIN CONTENT */
+    .main-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 30px;
+    }
+
+    .header {
+      margin-bottom: 30px;
+    }
+
+    .header h2 {
+      color: var(--titan-primary);
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .header p {
+      color: var(--gray-text);
+      font-size: 14px;
+    }
 
     /* ALERT */
     .alert {
@@ -146,6 +221,12 @@
 
     .alert.show {
       display: block;
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
     .alert.success {
@@ -160,6 +241,50 @@
       color: #7A1E15;
     }
 
+    /* DASHBOARD */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .stat-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .stat-card h3 {
+      color: var(--gray-text);
+      font-size: 12px;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-card .value {
+      color: var(--titan-primary);
+      font-size: 32px;
+      font-weight: 600;
+    }
+
+    .stat-card .label {
+      color: var(--gray-text);
+      font-size: 12px;
+      margin-top: 8px;
+    }
+
+    /* SECTIONS */
+    .content-section {
+      display: none;
+    }
+
+    .content-section.active {
+      display: block;
+    }
+
     /* FORM */
     .form-section {
       background: white;
@@ -169,10 +294,10 @@
       margin-bottom: 30px;
     }
 
-    .form-section h2 {
+    .form-section h3 {
       color: var(--titan-primary);
       margin-bottom: 20px;
-      font-size: 20px;
+      font-size: 18px;
     }
 
     .form-row {
@@ -226,6 +351,52 @@
 
     .btn-submit:hover { background: var(--titan-dark); }
 
+    /* SEARCH & FILTER */
+    .search-bar {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .search-bar input,
+    .search-bar select {
+      padding: 10px 12px;
+      border: 2px solid var(--gray-border);
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    .search-bar input:focus,
+    .search-bar select:focus {
+      outline: none;
+      border-color: var(--titan-accent);
+    }
+
+    .search-bar input {
+      flex: 1;
+      min-width: 200px;
+    }
+
+    .btn-filter {
+      padding: 10px 16px;
+      background: var(--gray-light);
+      border: 2px solid var(--gray-border);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .btn-filter:hover {
+      background: var(--gray-border);
+    }
+
+    .btn-filter.active {
+      background: var(--titan-primary);
+      color: white;
+      border-color: var(--titan-primary);
+    }
+
     /* TABLES */
     .table-section {
       background: white;
@@ -235,10 +406,10 @@
       margin-bottom: 30px;
     }
 
-    .table-section h2 {
+    .table-section h3 {
       color: var(--titan-primary);
       margin-bottom: 20px;
-      font-size: 20px;
+      font-size: 18px;
     }
 
     .table-wrapper {
@@ -298,6 +469,24 @@
       color: #27AE60;
     }
 
+    .badge.danger {
+      background: rgba(192, 57, 43, 0.2);
+      color: var(--titan-danger);
+    }
+
+    .btn-action {
+      padding: 6px 12px;
+      background: var(--titan-primary);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      margin-right: 6px;
+    }
+
+    .btn-action:hover { background: var(--titan-dark); }
+
     .btn-delete {
       padding: 6px 12px;
       background: var(--titan-danger);
@@ -310,10 +499,28 @@
 
     .btn-delete:hover { background: #A93225; }
 
+    /* RESPONSIVE */
+    @media (max-width: 1024px) {
+      .sidebar { width: 200px; }
+      .form-row { grid-template-columns: 1fr 1fr; }
+    }
+
     @media (max-width: 768px) {
+      .app-layout { flex-direction: column; }
+      .sidebar {
+        width: 100%;
+        max-height: 60px;
+        padding: 10px;
+        display: flex;
+        overflow-x: auto;
+      }
+      .sidebar h1 { display: none; }
+      .nav-section { display: flex; gap: 10px; margin: 0; }
+      .nav-btn { margin: 0; }
+      .main-content { padding: 15px; }
       .form-row { grid-template-columns: 1fr; }
       th, td { padding: 8px; font-size: 12px; }
-      table { font-size: 11px; }
+      .dashboard-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -339,227 +546,298 @@
 
   <!-- APP -->
   <div id="appScreen" style="display: none;">
-    <div class="app-container">
-      <div class="header">
+    <div class="app-layout">
+      <!-- SIDEBAR -->
+      <div class="sidebar">
         <h1>AccessWeb</h1>
-        <div class="user-info">
-          <span id="userInfo"></span>
-          <button onclick="logout()">Выход</button>
+        
+        <div class="nav-section">
+          <div class="nav-section-title">Отделы</div>
+          <button class="nav-btn active" onclick="switchTab(this, 'dashboard')">Дашборд</button>
+          <button class="nav-btn" onclick="switchTab(this, 'acid')">Грузы (ACID)</button>
+          <button class="nav-btn" onclick="switchTab(this, 'contracts')">Договоры</button>
+          <button class="nav-btn" onclick="switchTab(this, 'finance')">Финансы</button>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-section-title">Действия</div>
+          <button class="nav-btn" onclick="document.getElementById('importFile').click()">Импорт данных</button>
+          <button class="nav-btn" onclick="exportCurrentTable()">Экспорт таблицы</button>
+        </div>
+
+        <div class="user-section">
+          <div class="user-info">
+            <strong id="userLogin">admin</strong><br>
+            <span id="userRole">Администратор</span>
+          </div>
+          <button class="logout-btn" onclick="logout()">Выход</button>
         </div>
       </div>
 
-      <div id="alert" class="alert"></div>
+      <!-- MAIN CONTENT -->
+      <div class="main-content">
+        <div id="alert" class="alert"></div>
 
-      <!-- FORM: Add ACID (только одна форма) -->
-      <div class="form-section">
-        <h2>Добавить новый груз</h2>
-        <form id="acidForm">
-          <div class="form-row">
-            <div class="form-group">
-              <label>ACID номер <span class="required">*</span></label>
-              <input type="text" name="acid" required>
-            </div>
-            <div class="form-group">
-              <label>КТИ номер</label>
-              <input type="text" name="nomer_ais">
-            </div>
-            <div class="form-group">
-              <label>Грузоотправитель <span class="required">*</span></label>
-              <input type="text" name="gruzootravitel" required>
-            </div>
+        <!-- DASHBOARD TAB -->
+        <div id="dashboard" class="content-section active">
+          <div class="header">
+            <h2>Дашборд</h2>
+            <p>Обзор системы</p>
           </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Поставщик <span class="required">*</span></label>
-              <input type="text" name="postavshchik" required>
-            </div>
-            <div class="form-group">
-              <label>Наименование груза <span class="required">*</span></label>
-              <input type="text" name="naimenovanie" required>
-            </div>
-            <div class="form-group">
-              <label>Статус</label>
-              <select name="status">
-                <option value="pending">В работе</option>
-                <option value="active">Активно</option>
-                <option value="completed">Доставлено</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Вес (кг)</label>
-              <input type="number" name="gw_kg" step="0.01">
-            </div>
-            <div class="form-group">
-              <label>Стоимость</label>
-              <input type="number" name="stoimost_gruza" step="0.01">
-            </div>
-            <div class="form-group">
-              <label>Валюта</label>
-              <select name="valyuta">
-                <option value="USD">USD</option>
-                <option value="EUR">EUR</option>
-                <option value="RUB">RUB</option>
-                <option value="EGP">EGP</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>ETD (дата отправления)</label>
-              <input type="date" name="etd">
-            </div>
-            <div class="form-group">
-              <label>ETA (дата прибытия)</label>
-              <input type="date" name="eta">
-            </div>
-            <div class="form-group">
-              <label>Дата прибытия в Египет</label>
-              <input type="date" name="data_pribytiya_egypt">
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>ДТ номер</label>
-              <input type="text" name="nomer_dt">
-            </div>
-            <div class="form-group">
-              <label>Дата ДТ</label>
-              <input type="date" name="data_dt">
-            </div>
-            <div class="form-group">
-              <label>Статус таможни</label>
-              <select name="custom_status">
-                <option value="">Выбрать</option>
-                <option value="pending">Ожидание</option>
-                <option value="cleared">Очищено</option>
-                <option value="released">Выпущено</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-row full">
-            <div class="form-group">
-              <label>Примечание</label>
-              <textarea name="komentar" placeholder="Дополнительная информация..."></textarea>
-            </div>
-          </div>
-          <button type="submit" class="btn-submit">Добавить груз</button>
-        </form>
-      </div>
 
-      <!-- TABLE 1: В работе (только таблица, NO FORM) -->
-      <div class="table-section">
-        <h2>Грузы в работе</h2>
-        <div class="table-wrapper">
-          <table id="table-working" role="grid">
-            <thead>
-              <tr>
-                <th scope="col">ACID</th>
-                <th scope="col">КТИ</th>
-                <th scope="col">Грузоотправитель</th>
-                <th scope="col">Поставщик</th>
-                <th scope="col">Наименование</th>
-                <th scope="col">Вес (кг)</th>
-                <th scope="col">Стоимость</th>
-                <th scope="col">ETD</th>
-                <th scope="col">ETA</th>
-                <th scope="col">ДТ</th>
-                <th scope="col">Таможня</th>
-                <th scope="col">Действие</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
+          <div class="dashboard-grid">
+            <div class="stat-card">
+              <h3>Грузы в работе</h3>
+              <div class="value" id="stat-acid-pending">0</div>
+              <div class="label">записей</div>
+            </div>
+            <div class="stat-card">
+              <h3>Грузы доставлены</h3>
+              <div class="value" id="stat-acid-completed">0</div>
+              <div class="label">записей</div>
+            </div>
+            <div class="stat-card">
+              <h3>Всего грузов</h3>
+              <div class="value" id="stat-acid-total">0</div>
+              <div class="label">записей</div>
+            </div>
+            <div class="stat-card">
+              <h3>Активные договоры</h3>
+              <div class="value" id="stat-contracts-active">0</div>
+              <div class="label">договоров</div>
+            </div>
+            <div class="stat-card">
+              <h3>Просроченные договоры</h3>
+              <div class="value" id="stat-contracts-overdue" style="color: var(--titan-danger);">0</div>
+              <div class="label">договоров</div>
+            </div>
+            <div class="stat-card">
+              <h3>Финансов</h3>
+              <div class="value" id="stat-finance-total">0</div>
+              <div class="label">записей</div>
+            </div>
+          </div>
         </div>
-      </div>
 
-      <!-- TABLE 2: Доставленные (только таблица, NO FORM) -->
-      <div class="table-section">
-        <h2>Доставленные грузы</h2>
-        <div class="table-wrapper">
-          <table id="table-delivered" role="grid">
-            <thead>
-              <tr>
-                <th scope="col">ACID</th>
-                <th scope="col">КТИ</th>
-                <th scope="col">Грузоотправитель</th>
-                <th scope="col">Поставщик</th>
-                <th scope="col">Наименование</th>
-                <th scope="col">Вес (кг)</th>
-                <th scope="col">Стоимость</th>
-                <th scope="col">Дата прибытия Египет</th>
-                <th scope="col">ДТ</th>
-                <th scope="col">Действие</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
+        <!-- ACID TAB -->
+        <div id="acid" class="content-section">
+          <div class="header">
+            <h2>Грузы (ACID)</h2>
+            <p>Отслеживание грузов от производства до доставки</p>
+          </div>
+
+          <div class="form-section">
+            <h3>Добавить новый груз</h3>
+            <form id="acidForm">
+              <div class="form-row">
+                <div class="form-group">
+                  <label>ACID номер <span class="required">*</span></label>
+                  <input type="text" name="acid" required>
+                </div>
+                <div class="form-group">
+                  <label>Грузоотправитель <span class="required">*</span></label>
+                  <input type="text" name="gruzootravitel" required>
+                </div>
+                <div class="form-group">
+                  <label>Поставщик <span class="required">*</span></label>
+                  <input type="text" name="postavshchik" required>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Наименование груза <span class="required">*</span></label>
+                  <input type="text" name="naimenovanie" required>
+                </div>
+                <div class="form-group">
+                  <label>Статус</label>
+                  <select name="status">
+                    <option value="pending">В работе</option>
+                    <option value="completed">Доставлено</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Вес (кг)</label>
+                  <input type="number" name="gw_kg" step="0.01">
+                </div>
+              </div>
+              <button type="submit" class="btn-submit">Добавить груз</button>
+            </form>
+          </div>
+
+          <div class="table-section">
+            <h3>Все грузы</h3>
+            <div class="search-bar">
+              <input type="text" id="acidSearch" placeholder="Поиск по ACID, грузоотправителю..." onkeyup="filterAcidTable()">
+              <button class="btn-filter active" onclick="filterByStatus('all')">Все</button>
+              <button class="btn-filter" onclick="filterByStatus('pending')">В работе</button>
+              <button class="btn-filter" onclick="filterByStatus('completed')">Доставлены</button>
+            </div>
+            <div class="table-wrapper">
+              <table id="acidTable">
+                <thead>
+                  <tr>
+                    <th>ACID</th>
+                    <th>Грузоотправитель</th>
+                    <th>Поставщик</th>
+                    <th>Наименование</th>
+                    <th>Вес (кг)</th>
+                    <th>Статус</th>
+                    <th>Действие</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
         </div>
-      </div>
 
-      <!-- TABLE 3: ВСЕ грузы (полная таблица со всеми столбцами) -->
-      <div class="table-section">
-        <h2>Все грузы</h2>
-        <div class="table-wrapper">
-          <table id="table-all" role="grid">
-            <thead>
-              <tr>
-                <th>ACID</th>
-                <th>КТИ</th>
-                <th>Статус</th>
-                <th>Грузоотправитель</th>
-                <th>Поставщик</th>
-                <th>Импортер</th>
-                <th>Наименование</th>
-                <th>Вес (кг)</th>
-                <th>Мест</th>
-                <th>Контейнеров</th>
-                <th>Тип перевозки</th>
-                <th>Стоимость</th>
-                <th>Валюта</th>
-                <th>Сумма перевозки</th>
-                <th>Страна отправления</th>
-                <th>Порт</th>
-                <th>Incoterms</th>
-                <th>Место поставки</th>
-                <th>Судно</th>
-                <th>Шип.линия</th>
-                <th>BOL</th>
-                <th>BOL Дата</th>
-                <th>Перевозчик</th>
-                <th>ETD</th>
-                <th>ETA</th>
-                <th>Дата поставки</th>
-                <th>Дата прибытия Египет</th>
-                <th>Место прибытия</th>
-                <th>Запрос освобождения</th>
-                <th>Куратор освобождения</th>
-                <th>Получение освобождения</th>
-                <th>DO выпущен</th>
-                <th>Режим ввоза</th>
-                <th>ДТ номер</th>
-                <th>Дата ДТ</th>
-                <th>Выпуск ДТ</th>
-                <th>Доставка на площадь</th>
-                <th>Таможня статус</th>
-                <th>Назначение</th>
-                <th>Куратор УПО</th>
-                <th>Invoiz</th>
-                <th>Продлено до</th>
-                <th>Отв.лицо</th>
-                <th>Действие</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
+        <!-- CONTRACTS TAB -->
+        <div id="contracts" class="content-section">
+          <div class="header">
+            <h2>Договоры</h2>
+            <p>Управление контрактами и сроками</p>
+          </div>
+
+          <div class="form-section">
+            <h3>Добавить новый договор</h3>
+            <form id="contractForm">
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Номер договора <span class="required">*</span></label>
+                  <input type="text" name="nomer_kontrakta" required>
+                </div>
+                <div class="form-group">
+                  <label>Контрагент <span class="required">*</span></label>
+                  <input type="text" name="kontragent" required>
+                </div>
+                <div class="form-group">
+                  <label>Статус</label>
+                  <select name="status">
+                    <option value="active">Активен</option>
+                    <option value="completed">Завершен</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Дата начала</label>
+                  <input type="date" name="data_nachala">
+                </div>
+                <div class="form-group">
+                  <label>Дата окончания</label>
+                  <input type="date" name="data_okonchanya">
+                </div>
+                <div class="form-group">
+                  <label>Сумма</label>
+                  <input type="number" name="summa" step="0.01">
+                </div>
+              </div>
+              <button type="submit" class="btn-submit">Добавить договор</button>
+            </form>
+          </div>
+
+          <div class="table-section">
+            <h3>Все договоры</h3>
+            <div class="search-bar">
+              <input type="text" id="contractSearch" placeholder="Поиск по номеру, контрагенту..." onkeyup="filterContractTable()">
+            </div>
+            <div class="table-wrapper">
+              <table id="contractTable">
+                <thead>
+                  <tr>
+                    <th>Номер</th>
+                    <th>Контрагент</th>
+                    <th>Статус</th>
+                    <th>Дата начала</th>
+                    <th>Дата окончания</th>
+                    <th>Сумма</th>
+                    <th>Действие</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- FINANCE TAB -->
+        <div id="finance" class="content-section">
+          <div class="header">
+            <h2>Финансы</h2>
+            <p>Учет расходов с автоматическим расчетом USD</p>
+          </div>
+
+          <div class="form-section">
+            <h3>Добавить финансовую запись</h3>
+            <form id="financeForm">
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Дата <span class="required">*</span></label>
+                  <input type="date" name="data" required>
+                </div>
+                <div class="form-group">
+                  <label>Контрагент <span class="required">*</span></label>
+                  <input type="text" name="kontragent" required>
+                </div>
+                <div class="form-group">
+                  <label>Валюта</label>
+                  <select name="valyuta">
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                    <option value="RUB">RUB</option>
+                    <option value="EGP">EGP</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Сумма <span class="required">*</span></label>
+                  <input type="number" name="summa" step="0.01" required>
+                </div>
+                <div class="form-group">
+                  <label>Статус</label>
+                  <select name="status">
+                    <option value="pending">Ожидание</option>
+                    <option value="completed">Завершено</option>
+                  </select>
+                </div>
+              </div>
+              <button type="submit" class="btn-submit">Добавить запись</button>
+            </form>
+          </div>
+
+          <div class="table-section">
+            <h3>Все финансовые записи</h3>
+            <div class="search-bar">
+              <input type="text" id="financeSearch" placeholder="Поиск по контрагенту, валюте..." onkeyup="filterFinanceTable()">
+            </div>
+            <div class="table-wrapper">
+              <table id="financeTable">
+                <thead>
+                  <tr>
+                    <th>Дата</th>
+                    <th>Контрагент</th>
+                    <th>Валюта</th>
+                    <th>Сумма</th>
+                    <th>USD</th>
+                    <th>Статус</th>
+                    <th>Действие</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
+  <input type="file" id="importFile" style="display: none;" onchange="importFile(event)">
+
   <script>
     let authToken = null;
+    let currentFilter = 'all';
 
     async function api(method, path, body = null) {
       const options = {
@@ -582,6 +860,13 @@
       setTimeout(() => el.classList.remove('show'), 3000);
     }
 
+    function switchTab(btn, tabId) {
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
+      document.getElementById(tabId).classList.add('active');
+    }
+
     // LOGIN
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -597,8 +882,8 @@
         localStorage.setItem('authToken', authToken);
         document.getElementById('loginScreen').style.display = 'none';
         document.getElementById('appScreen').style.display = 'block';
-        document.getElementById('userInfo').textContent = `Вошли как: ${login}`;
-        loadAllTables();
+        document.getElementById('userLogin').textContent = login;
+        loadDashboard();
       } catch (err) {
         showAlert(err.message, 'error');
       }
@@ -611,107 +896,106 @@
       document.getElementById('appScreen').style.display = 'none';
     }
 
-    async function loadAllTables() {
+    async function loadDashboard() {
       try {
-        const data = await api('GET', '/acid');
-        renderWorkingTable(data.filter(r => r.status === 'pending'));
-        renderDeliveredTable(data.filter(r => r.status === 'completed'));
-        renderAllTable(data);
+        const acidData = await api('GET', '/acid');
+        const contractData = await api('GET', '/contracts');
+        const financeData = await api('GET', '/finance');
+
+        document.getElementById('stat-acid-pending').textContent = acidData.filter(r => r.status === 'pending').length;
+        document.getElementById('stat-acid-completed').textContent = acidData.filter(r => r.status === 'completed').length;
+        document.getElementById('stat-acid-total').textContent = acidData.length;
+        document.getElementById('stat-contracts-active').textContent = contractData.filter(r => r.status === 'active').length;
+        document.getElementById('stat-contracts-overdue').textContent = contractData.length;
+        document.getElementById('stat-finance-total').textContent = financeData.length;
+
+        renderAcidTable(acidData);
+        renderContractTable(contractData);
+        renderFinanceTable(financeData);
       } catch (err) {
         showAlert(err.message, 'error');
       }
     }
 
-    function renderWorkingTable(rows) {
-      const tbody = document.querySelector('#table-working tbody');
+    function renderAcidTable(rows) {
+      const tbody = document.querySelector('#acidTable tbody');
       tbody.innerHTML = rows.map(r => `
-        <tr>
+        <tr data-status="${r.status}">
           <td>${r.acid || '-'}</td>
-          <td>${r.nomer_ais || '-'}</td>
           <td>${r.gruzootravitel || '-'}</td>
           <td>${r.postavshchik || '-'}</td>
           <td>${r.naimenovanie || '-'}</td>
-          <td>${r.gw_kg || '-'}</td>
-          <td>${r.stoimost_gruza ? r.stoimost_gruza.toFixed(2) : '-'}</td>
-          <td>${r.etd || '-'}</td>
-          <td>${r.eta || '-'}</td>
-          <td>${r.nomer_dt || '-'}</td>
-          <td><span class="badge ${r.custom_status}">${r.custom_status || '-'}</span></td>
+          <td>${r.gw_kg ? r.gw_kg.toFixed(2) : '-'}</td>
+          <td><span class="badge ${r.status}">${r.status === 'pending' ? 'В работе' : 'Доставлено'}</span></td>
           <td><button class="btn-delete" onclick="deleteAcid('${r.id}')">Удалить</button></td>
         </tr>
       `).join('');
     }
 
-    function renderDeliveredTable(rows) {
-      const tbody = document.querySelector('#table-delivered tbody');
+    function renderContractTable(rows) {
+      const tbody = document.querySelector('#contractTable tbody');
       tbody.innerHTML = rows.map(r => `
         <tr>
-          <td>${r.acid || '-'}</td>
-          <td>${r.nomer_ais || '-'}</td>
-          <td>${r.gruzootravitel || '-'}</td>
-          <td>${r.postavshchik || '-'}</td>
-          <td>${r.naimenovanie || '-'}</td>
-          <td>${r.gw_kg || '-'}</td>
-          <td>${r.stoimost_gruza ? r.stoimost_gruza.toFixed(2) : '-'}</td>
-          <td>${r.data_pribytiya_egypt || '-'}</td>
-          <td>${r.nomer_dt || '-'}</td>
-          <td><button class="btn-delete" onclick="deleteAcid('${r.id}')">Удалить</button></td>
+          <td>${r.nomer_kontrakta || '-'}</td>
+          <td>${r.kontragent || '-'}</td>
+          <td><span class="badge ${r.status === 'active' ? 'pending' : 'completed'}">${r.status || '-'}</span></td>
+          <td>${r.data_nachala || '-'}</td>
+          <td>${r.data_okonchanya || '-'}</td>
+          <td>${r.summa ? r.summa.toFixed(2) : '-'}</td>
+          <td><button class="btn-delete" onclick="deleteContract('${r.id}')">Удалить</button></td>
         </tr>
       `).join('');
     }
 
-    function renderAllTable(rows) {
-      const tbody = document.querySelector('#table-all tbody');
+    function renderFinanceTable(rows) {
+      const tbody = document.querySelector('#financeTable tbody');
       tbody.innerHTML = rows.map(r => `
         <tr>
-          <td>${r.acid || '-'}</td>
-          <td>${r.nomer_ais || '-'}</td>
-          <td><span class="badge ${r.status}">${r.status || '-'}</span></td>
-          <td>${r.gruzootravitel || '-'}</td>
-          <td>${r.postavshchik || '-'}</td>
-          <td>${r.importer_name || '-'}</td>
-          <td>${r.naimenovanie || '-'}</td>
-          <td>${r.gw_kg || '-'}</td>
-          <td>${r.kolichestvo_mest || '-'}</td>
-          <td>${r.kolichestvo_konteynerov || '-'}</td>
-          <td>${r.tip_perevozki || '-'}</td>
-          <td>${r.stoimost_gruza ? r.stoimost_gruza.toFixed(2) : '-'}</td>
+          <td>${r.data || '-'}</td>
+          <td>${r.kontragent || '-'}</td>
           <td>${r.valyuta || 'USD'}</td>
-          <td>${r.summa_perevozki ? r.summa_perevozki.toFixed(2) : '-'}</td>
-          <td>${r.strana_otpravleniya || '-'}</td>
-          <td>${r.port_otpravleniya || '-'}</td>
-          <td>${r.incoterms || '-'}</td>
-          <td>${r.mesto_postavki || '-'}</td>
-          <td>${r.sudno || '-'}</td>
-          <td>${r.shipping_line || '-'}</td>
-          <td>${r.bol_number || '-'}</td>
-          <td>${r.bol_date || '-'}</td>
-          <td>${r.perevozchik || '-'}</td>
-          <td>${r.etd || '-'}</td>
-          <td>${r.eta || '-'}</td>
-          <td>${r.data_postavki || '-'}</td>
-          <td>${r.data_pribytiya_egypt || '-'}</td>
-          <td>${r.mesto_pribytiya || '-'}</td>
-          <td>${r.data_zaprosa_osvobozhdeniya || '-'}</td>
-          <td>${r.kurator_osvobozhdeniya || '-'}</td>
-          <td>${r.data_polucheniya_osvobozhdeniya || '-'}</td>
-          <td>${r.do_released || '-'}</td>
-          <td>${r.rezhim_vvoza || '-'}</td>
-          <td>${r.nomer_dt || '-'}</td>
-          <td>${r.data_dt || '-'}</td>
-          <td>${r.data_vypuska_dt || '-'}</td>
-          <td>${r.data_dostavki_na_ploschad || '-'}</td>
-          <td><span class="badge ${r.custom_status}">${r.custom_status || '-'}</span></td>
-          <td>${r.naznachenie || '-'}</td>
-          <td>${r.kurator_upo || '-'}</td>
-          <td>${r.invoiz_zagruzhen ? 'Да' : 'Нет'}</td>
-          <td>${r.prodlen_do || '-'}</td>
-          <td>${r.otvetstvennyy || '-'}</td>
-          <td><button class="btn-delete" onclick="deleteAcid('${r.id}')">Удалить</button></td>
+          <td>${r.summa ? r.summa.toFixed(2) : '-'}</td>
+          <td>$${r.summa ? (r.summa * 0.032).toFixed(2) : '-'}</td>
+          <td><span class="badge ${r.status === 'pending' ? 'pending' : 'completed'}">${r.status || '-'}</span></td>
+          <td><button class="btn-delete" onclick="deleteFinance('${r.id}')">Удалить</button></td>
         </tr>
       `).join('');
     }
 
+    function filterAcidTable() {
+      const search = document.getElementById('acidSearch').value.toLowerCase();
+      const rows = document.querySelectorAll('#acidTable tbody tr');
+      rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        const status = row.dataset.status;
+        const matchesSearch = text.includes(search);
+        const matchesFilter = currentFilter === 'all' || status === currentFilter;
+        row.style.display = matchesSearch && matchesFilter ? '' : 'none';
+      });
+    }
+
+    function filterByStatus(status) {
+      currentFilter = status;
+      document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
+      event.target.classList.add('active');
+      filterAcidTable();
+    }
+
+    function filterContractTable() {
+      const search = document.getElementById('contractSearch').value.toLowerCase();
+      document.querySelectorAll('#contractTable tbody tr').forEach(row => {
+        row.style.display = row.textContent.toLowerCase().includes(search) ? '' : 'none';
+      });
+    }
+
+    function filterFinanceTable() {
+      const search = document.getElementById('financeSearch').value.toLowerCase();
+      document.querySelectorAll('#financeTable tbody tr').forEach(row => {
+        row.style.display = row.textContent.toLowerCase().includes(search) ? '' : 'none';
+      });
+    }
+
+    // FORMS
     document.getElementById('acidForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       try {
@@ -721,7 +1005,37 @@
         await api('POST', '/acid', body);
         showAlert('Груз добавлен успешно');
         e.target.reset();
-        loadAllTables();
+        loadDashboard();
+      } catch (err) {
+        showAlert(err.message, 'error');
+      }
+    });
+
+    document.getElementById('contractForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        const formData = new FormData(e.target);
+        const body = Object.fromEntries(formData);
+        body.id = `contract-${Date.now()}`;
+        await api('POST', '/contracts', body);
+        showAlert('Договор добавлен успешно');
+        e.target.reset();
+        loadDashboard();
+      } catch (err) {
+        showAlert(err.message, 'error');
+      }
+    });
+
+    document.getElementById('financeForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        const formData = new FormData(e.target);
+        const body = Object.fromEntries(formData);
+        body.id = `finance-${Date.now()}`;
+        await api('POST', '/finance', body);
+        showAlert('Запись добавлена успешно');
+        e.target.reset();
+        loadDashboard();
       } catch (err) {
         showAlert(err.message, 'error');
       }
@@ -732,10 +1046,40 @@
       try {
         await api('DELETE', `/acid/${id}`);
         showAlert('Груз удален');
-        loadAllTables();
+        loadDashboard();
       } catch (err) {
         showAlert(err.message, 'error');
       }
+    }
+
+    async function deleteContract(id) {
+      if (!confirm('Удалить?')) return;
+      try {
+        await api('DELETE', `/contracts/${id}`);
+        showAlert('Договор удален');
+        loadDashboard();
+      } catch (err) {
+        showAlert(err.message, 'error');
+      }
+    }
+
+    async function deleteFinance(id) {
+      if (!confirm('Удалить?')) return;
+      try {
+        await api('DELETE', `/finance/${id}`);
+        showAlert('Запись удалена');
+        loadDashboard();
+      } catch (err) {
+        showAlert(err.message, 'error');
+      }
+    }
+
+    function exportCurrentTable() {
+      showAlert('Экспорт - скоро будет доступен', 'success');
+    }
+
+    function importFile(event) {
+      showAlert('Импорт - скоро будет доступен', 'success');
     }
 
     window.addEventListener('load', () => {
@@ -744,8 +1088,8 @@
         authToken = saved;
         document.getElementById('loginScreen').style.display = 'none';
         document.getElementById('appScreen').style.display = 'block';
-        document.getElementById('userInfo').textContent = 'Вошли как: admin';
-        loadAllTables();
+        document.getElementById('userLogin').textContent = 'admin';
+        loadDashboard();
       }
     });
   </script>
