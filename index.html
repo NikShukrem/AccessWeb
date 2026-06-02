@@ -6,6 +6,7 @@
   <title>AccessWeb v3 - Управление логистикой</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
     :root {
       --titan-primary: #1A3D5C;
@@ -909,17 +910,9 @@
 
         renderMetricsChart(services, payments, Math.max(0, debt));
 
-        // BALANCE CHART (по договорам)
-        const balances = {};
-        contractData.forEach(c => {
-          const contractSum = parseFloat(c.summa) || 0;
-          const paid = financeData
-            .filter(f => f.nomer_kontrakta === c.nomer_kontrakta && f.status === 'completed')
-            .reduce((sum, f) => sum + (parseFloat(f.summa) || 0), 0);
-          balances[c.nomer_kontrakta] = Math.max(0, contractSum - paid);
-        });
-
-        renderBalanceChart(balances);
+        // DEBT TIMELINE CHART (май 2025 - июнь 2026)
+        const debtTimeline = generateDebtTimeline(acidData, financeData, contractData);
+        renderDebtTimelineChart(debtTimeline);
 
         renderAcidTable(acidData);
         renderContractTable(contractData);
@@ -976,34 +969,86 @@
       });
     }
 
-    function renderBalanceChart(balances) {
+    function generateDebtTimeline(acidData, financeData, contractData) {
+      // Генерируем точки данных с май 2025 по июнь 2026 (14 месяцев)
+      const months = [];
+      const startDate = new Date(2025, 4, 1); // май 2025
+      const endDate = new Date(2026, 5, 30); // июнь 2026
+
+      for (let d = new Date(startDate); d <= endDate; d.setMonth(d.getMonth() + 1)) {
+        const monthLabel = d.toLocaleDateString('ru-RU', { year: 'numeric', month: 'long' });
+        const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+
+        // Считаем услуги на конец месяца
+        const services = acidData
+          .filter(r => {
+            const date = r.etd ? new Date(r.etd) : null;
+            return date && date <= monthEnd;
+          })
+          .reduce((sum, r) => sum + (parseFloat(r.stoimost_gruza) || 0), 0);
+
+        // Считаем платежи на конец месяца
+        const payments = financeData
+          .filter(f => {
+            const date = f.data ? new Date(f.data) : null;
+            return f.status === 'completed' && date && date <= monthEnd;
+          })
+          .reduce((sum, f) => sum + (parseFloat(f.summa) || 0), 0);
+
+        const debt = Math.max(0, services - payments);
+        months.push({ label: monthLabel, debt: debt });
+      }
+
+      return months;
+    }
+
+    function renderDebtTimelineChart(debtData) {
       const ctx = document.getElementById('balanceChart').getContext('2d');
       
       if (balanceChart) balanceChart.destroy();
       
-      const labels = Object.keys(balances).slice(0, 10);
-      const data = Object.values(balances).slice(0, 10);
-      const colors = [
-        '#1A3D5C', '#2E5C8D', '#4A7BB8', '#6C9FD6', '#8FB5E3',
-        '#A8C5EB', '#C1D5F3', '#DAE5FA', '#EDF0F7', '#F5F7FB'
-      ];
+      const labels = debtData.map(d => d.label);
+      const data = debtData.map(d => d.debt);
 
       balanceChart = new Chart(ctx, {
-        type: 'pie',
+        type: 'line',
         data: {
-          labels: labels.length > 0 ? labels : ['Нет данных'],
+          labels: labels,
           datasets: [{
-            data: data.length > 0 ? data : [1],
-            backgroundColor: labels.length > 0 ? colors.slice(0, labels.length) : ['#CCCCCC'],
-            borderColor: 'white',
-            borderWidth: 2
+            label: 'Задолженность (USD)',
+            data: data,
+            borderColor: '#C0392B',
+            backgroundColor: 'rgba(192, 57, 43, 0.1)',
+            borderWidth: 3,
+            fill: true,
+            tension: 0.4, // Гладкие сплайны
+            pointRadius: 5,
+            pointBackgroundColor: '#C0392B',
+            pointBorderColor: 'white',
+            pointBorderWidth: 2,
+            pointHoverRadius: 7
           }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            legend: { position: 'bottom' }
+            legend: { display: true, position: 'top' },
+            tooltip: {
+              callbacks: {
+                label: (context) => {
+                  return `${context.dataset.label}: $${context.parsed.y.toLocaleString('ru-RU', { maximumFractionDigits: 0 })}`;
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: (value) => `$${value.toLocaleString('ru-RU', { maximumFractionDigits: 0 })}`
+              }
+            }
           }
         }
       });
@@ -1250,80 +1295,135 @@
         return;
       }
 
-      Papa.parse(file, {
-        header: true,
-        skipEmptyLines: true,
-        complete: async (results) => {
-          try {
-            const rows = results.data;
-            if (!rows || rows.length === 0) {
-              showAlert('CSV файл пуст', 'error');
-              return;
-            }
+      const isExcel = file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls');
+      
+      const processData = async (rows) => {
+        try {
+          if (!rows || rows.length === 0) {
+            showAlert('Файл пуст', 'error');
+            return;
+          }
 
-            // Валидация и подготовка данных
-            const validRows = [];
-            for (let i = 0; i < rows.length; i++) {
-              const row = rows[i];
-              
-              // Очистка имён полей (убираем *)
-              const cleanRowRaw = {};
-              for (const [key, value] of Object.entries(row)) {
-                const cleanKey = key.replace(/\*/g, '').trim();
-                cleanRowRaw[cleanKey] = value;
-              }
+          // Нормализация ключей (маппирование синонимов)
+          const fieldMapping = {
+            'acid': ['acid', 'ACID номер', 'грузоотправитель_acid'],
+            'gruzootravitel': ['gruzootravitel', 'грузоотправитель', 'shipper'],
+            'postavshchik': ['postavshchik', 'поставщик', 'supplier'],
+            'naimenovanie': ['naimenovanie', 'наименование', 'description'],
+            'nomer_kontrakta': ['nomer_kontrakta', 'номер контракта', 'contract_number', 'договор'],
+            'kontragent': ['kontragent', 'контрагент', 'counterparty'],
+            'data_nachala': ['data_nachala', 'дата начала', 'start_date'],
+            'data_okonchanya': ['data_okonchanya', 'дата окончания', 'end_date'],
+            'summa': ['summa', 'сумма', 'amount', 'total'],
+            'data': ['data', 'дата', 'date'],
+            'valyuta': ['valyuta', 'валюта', 'currency'],
+            'status': ['status', 'статус', 'state'],
+            'gw_kg': ['gw_kg', 'вес', 'weight_kg', 'kilograms'],
+            'stoimost_gruza': ['stoimost_gruza', 'стоимость груза', 'cargo_cost'],
+            'etd': ['etd', 'etd', 'планируемое отправление'],
+            'eta': ['eta', 'eta', 'планируемое прибытие']
+          };
 
-              // Проверка обязательных полей
-              for (const field of config.required) {
-                const cleanField = field.replace(/\*/g, '').trim();
-                if (!cleanRowRaw[cleanField] || cleanRowRaw[cleanField].toString().trim() === '') {
-                  showAlert(`Строка ${i + 1}: отсутствует поле "${cleanField}"`, 'error');
-                  return;
+          // Функция для поиска правильного ключа в строке
+          const findFieldKey = (row, fieldName) => {
+            const aliases = fieldMapping[fieldName] || [fieldName];
+            for (const alias of aliases) {
+              for (const key in row) {
+                if (key.toLowerCase().trim() === alias.toLowerCase().trim() || key.replace(/\*/g, '').toLowerCase().trim() === alias.toLowerCase().trim()) {
+                  return key;
                 }
               }
+            }
+            return null;
+          };
 
-              // Финальная очистка данных
-              const cleanRow = {};
-              for (const [key, value] of Object.entries(cleanRowRaw)) {
-                if (value !== null && value !== undefined && value !== '') {
-                  cleanRow[key] = value.toString().trim();
-                }
+          // Валидация и подготовка данных
+          const validRows = [];
+          for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            
+            // Преобразование в объект с нормальными ключами
+            const cleanRowRaw = {};
+            for (const [dbField] of Object.entries(fieldMapping)) {
+              const key = findFieldKey(row, dbField);
+              if (key && row[key] !== null && row[key] !== undefined) {
+                cleanRowRaw[dbField] = row[key];
               }
-
-              validRows.push(cleanRow);
             }
 
-            // Импорт в БД
-            let imported = 0;
-            for (const row of validRows) {
-              try {
-                await api('POST', `/${config.table}`, row);
-                imported++;
-              } catch (err) {
-                showAlert(`Ошибка при импорте строки: ${err.message}`, 'error');
+            // Проверка обязательных полей
+            for (const field of config.required) {
+              if (!cleanRowRaw[field] || cleanRowRaw[field].toString().trim() === '') {
+                showAlert(`Строка ${i + 1}: отсутствует поле "${field}"`, 'error');
                 return;
               }
             }
 
-            showAlert(`Успешно импортировано ${imported} записей`, 'success');
-            
-            // Перезагрузка таблицы
-            if (activeTab === 'acid') {
-              renderAcidTable();
-            } else if (activeTab === 'contracts') {
-              renderContractTable();
-            } else if (activeTab === 'finance') {
-              renderFinanceTable();
+            // Финальная очистка данных
+            const cleanRow = {};
+            for (const [key, value] of Object.entries(cleanRowRaw)) {
+              if (value !== null && value !== undefined && value !== '') {
+                cleanRow[key] = value.toString().trim();
+              }
             }
-            loadDashboard();
-          } catch (err) {
-            showAlert(`Ошибка парсинга: ${err.message}`, 'error');
+
+            validRows.push(cleanRow);
           }
-        },
-        error: (error) => {
-          showAlert(`Ошибка чтения файла: ${error.message}`, 'error');
+
+          // Импорт в БД
+          let imported = 0;
+          for (const row of validRows) {
+            try {
+              await api('POST', `/${config.table}`, row);
+              imported++;
+            } catch (err) {
+              showAlert(`Ошибка при импорте строки: ${err.message}`, 'error');
+              return;
+            }
+          }
+
+          showAlert(`Успешно импортировано ${imported} записей`, 'success');
+          
+          // Перезагрузка таблицы
+          if (activeTab === 'acid') {
+            renderAcidTable();
+          } else if (activeTab === 'contracts') {
+            renderContractTable();
+          } else if (activeTab === 'finance') {
+            renderFinanceTable();
+          }
+          loadDashboard();
+        } catch (err) {
+          showAlert(`Ошибка обработки: ${err.message}`, 'error');
         }
-      });
+      };
+
+      if (isExcel) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+            const rows = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+            processData(rows);
+          } catch (err) {
+            showAlert(`Ошибка чтения Excel: ${err.message}`, 'error');
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      } else {
+        Papa.parse(file, {
+          header: true,
+          skipEmptyLines: true,
+          complete: (results) => {
+            processData(results.data);
+          },
+          error: (error) => {
+            showAlert(`Ошибка чтения CSV: ${error.message}`, 'error');
+          }
+        });
+      }
 
       // Очистить input
       event.target.value = '';
