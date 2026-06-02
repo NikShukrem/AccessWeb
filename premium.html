@@ -1148,8 +1148,8 @@
           // Конфигурация таблиц
           const tableMap = {
             'acid': { table: 'acid', required: ['acid', 'gruzootravitel', 'postavshchik', 'naimenovanie'] },
-            'contracts': { table: 'contracts', required: ['nomer_kontrakta', 'kontragent', 'data_nachala', 'data_okonchanya', 'summa'] },
-            'finance': { table: 'finance', required: ['data', 'kontragent', 'valyuta', 'summa'] }
+            'contracts': { table: 'contracts', required: ['nomer_kontrakta', 'kontragent', 'data_kontrakta', 'srok_deystviya', 'cena_kontrakta'] },
+            'finance': { table: 'finance', required: ['data', 'kontragent', 'valyuta', 'summa_usd'] }
           };
 
           const config = tableMap[tableType];
@@ -1160,11 +1160,14 @@
             'gruzootravitel': ['gruzootravitel', 'грузоотправитель', 'shipper'],
             'postavshchik': ['postavshchik', 'поставщик', 'supplier'],
             'naimenovanie': ['naimenovanie', 'наименование', 'description'],
-            'nomer_kontrakta': ['nomer_kontrakta', 'номер контракта', 'contract_number', 'договор'],
+            'nomer_kontrakta': ['nomer_kontrakta', 'номер контракта', 'contract_number', 'договор', 'к-'],
             'kontragent': ['kontragent', 'контрагент', 'counterparty'],
-            'data_nachala': ['data_nachala', 'дата начала', 'start_date'],
-            'data_okonchanya': ['data_okonchanya', 'дата окончания', 'end_date'],
-            'summa': ['summa', 'сумма', 'amount', 'total'],
+            // Contracts fields (different schema)
+            'data_kontrakta': ['data_kontrakta', 'дата начала', 'start_date', 'data_nachala'],
+            'srok_deystviya': ['srok_deystviya', 'дата окончания', 'end_date', 'data_okonchanya'],
+            'cena_kontrakta': ['cena_kontrakta', 'сумма', 'amount', 'total', 'summa'],
+            // Finance fields
+            'summa_usd': ['summa_usd', 'сумма', 'amount', 'total', 'summa'],
             'data': ['data', 'дата', 'date'],
             'valyuta': ['valyuta', 'валюта', 'currency'],
             'status': ['status', 'статус', 'state'],
