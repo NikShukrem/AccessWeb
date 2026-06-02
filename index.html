@@ -1046,10 +1046,17 @@
     }
 
     let selectedFile = null;
+    let dragDropInitialized = false;
 
     function openImportModal() {
       document.getElementById('importModal').classList.add('active');
-      setupDragDrop();
+      document.getElementById('fileName').classList.remove('show');
+      document.getElementById('btnImport').disabled = true;
+      selectedFile = null;
+      if (!dragDropInitialized) {
+        setupDragDrop();
+        dragDropInitialized = true;
+      }
     }
 
     function closeImportModal() {
@@ -1066,6 +1073,8 @@
         selectedFile = file;
         showSelectedFile(file);
       }
+      // Очистить input после выбора
+      event.target.value = '';
     }
 
     function setupDragDrop() {
@@ -1073,15 +1082,19 @@
       
       zone.addEventListener('dragover', (e) => {
         e.preventDefault();
+        e.stopPropagation();
         zone.classList.add('active');
       });
 
-      zone.addEventListener('dragleave', () => {
+      zone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         zone.classList.remove('active');
       });
 
       zone.addEventListener('drop', (e) => {
         e.preventDefault();
+        e.stopPropagation();
         zone.classList.remove('active');
         const files = e.dataTransfer.files;
         if (files.length > 0) {
@@ -1109,163 +1122,188 @@
         return;
       }
 
-      importFileFromModal(selectedFile);
-      closeImportModal();
+      const btnImport = document.getElementById('btnImport');
+      btnImport.disabled = true;
+      btnImport.textContent = 'Загрузка...';
+
+      importFileFromModal(selectedFile).then(() => {
+        btnImport.disabled = false;
+        btnImport.textContent = 'Импортировать';
+      }).catch((err) => {
+        btnImport.disabled = false;
+        btnImport.textContent = 'Импортировать';
+        console.error('Import error:', err);
+      });
     }
 
     async function importFileFromModal(file) {
-      const isExcel = file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls');
-      
-      const processData = async (rows) => {
-        try {
-          if (!rows || rows.length === 0) {
-            showAlert('Файл пуст', 'error');
-            return;
-          }
+      return new Promise((resolve, reject) => {
+        const isExcel = file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls');
+        
+        const processData = async (rows) => {
+          try {
+            if (!rows || rows.length === 0) {
+              showAlert('Файл пуст', 'error');
+              resolve();
+              return;
+            }
 
-          // Определение типа таблицы по заголовкам
-          const firstRow = rows[0];
-          const headers = Object.keys(firstRow).map(h => h.toLowerCase().replace(/\*/g, '').trim());
-          
-          let tableType = null;
-          const acidFields = ['acid', 'грузоотправитель', 'поставщик', 'наименование'];
-          const contractsFields = ['nomer_kontrakta', 'номер контракта', 'контрагент', 'дата начала'];
-          const financeFields = ['дата', 'контрагент', 'валюта', 'сумма'];
+            // Определение типа таблицы по заголовкам
+            const firstRow = rows[0];
+            const headers = Object.keys(firstRow).map(h => h.toLowerCase().replace(/\*/g, '').trim());
+            
+            let tableType = null;
+            const acidFields = ['acid', 'грузоотправитель', 'поставщик', 'наименование'];
+            const contractsFields = ['nomer_kontrakta', 'номер контракта', 'контрагент', 'дата начала'];
+            const financeFields = ['дата', 'контрагент', 'валюта', 'сумма'];
 
-          if (headers.some(h => acidFields.some(f => h.includes(f.toLowerCase())))) {
-            tableType = 'acid';
-          } else if (headers.some(h => contractsFields.some(f => h.includes(f.toLowerCase())))) {
-            tableType = 'contracts';
-          } else if (headers.some(h => financeFields.some(f => h.includes(f.toLowerCase())))) {
-            tableType = 'finance';
-          }
+            if (headers.some(h => acidFields.some(f => h.includes(f.toLowerCase())))) {
+              tableType = 'acid';
+            } else if (headers.some(h => contractsFields.some(f => h.includes(f.toLowerCase())))) {
+              tableType = 'contracts';
+            } else if (headers.some(h => financeFields.some(f => h.includes(f.toLowerCase())))) {
+              tableType = 'finance';
+            }
 
-          if (!tableType) {
-            showAlert('Не удалось определить тип файла (ACID, Договоры или Финансы)', 'error');
-            return;
-          }
+            if (!tableType) {
+              showAlert('Не удалось определить тип файла (ACID, Договоры или Финансы)', 'error');
+              resolve();
+              return;
+            }
 
-          // Конфигурация таблиц
-          const tableMap = {
-            'acid': { table: 'acid', required: ['acid', 'gruzootravitel', 'postavshchik', 'naimenovanie'] },
-            'contracts': { table: 'contracts', required: ['nomer_kontrakta', 'kontragent', 'data_kontrakta', 'srok_deystviya', 'cena_kontrakta'] },
-            'finance': { table: 'finance', required: ['data', 'kontragent', 'valyuta', 'summa_usd'] }
-          };
+            // Конфигурация таблиц
+            const tableMap = {
+              'acid': { table: 'acid', required: ['acid', 'gruzootravitel', 'postavshchik', 'naimenovanie'] },
+              'contracts': { table: 'contracts', required: ['nomer_kontrakta', 'kontragent', 'data_kontrakta', 'srok_deystviya', 'cena_kontrakta'] },
+              'finance': { table: 'finance', required: ['data', 'kontragent', 'valyuta', 'summa_usd'] }
+            };
 
-          const config = tableMap[tableType];
+            const config = tableMap[tableType];
 
-          // Маппирование полей (общее для всех таблиц)
-          const globalFieldMapping = {
-            'acid': ['acid', 'ACID номер', 'грузоотравитель_acid'],
-            'gruzootravitel': ['gruzootravitel', 'грузоотправитель', 'shipper'],
-            'postavshchik': ['postavshchik', 'поставщик', 'supplier'],
-            'naimenovanie': ['naimenovanie', 'наименование', 'description'],
-            'nomer_kontrakta': ['nomer_kontrakta', 'номер контракта', 'contract_number', 'договор', 'к-'],
-            'kontragent': ['kontragent', 'контрагент', 'counterparty'],
-            'data_kontrakta': ['data_kontrakta', 'дата начала', 'start_date', 'data_nachala'],
-            'srok_deystviya': ['srok_deystviya', 'дата окончания', 'end_date', 'data_okonchanya'],
-            'cena_kontrakta': ['cena_kontrakta', 'сумма', 'amount', 'total', 'summa'],
-            'summa_usd': ['summa_usd', 'сумма', 'amount', 'total', 'summa'],
-            'data': ['data', 'дата', 'date'],
-            'valyuta': ['valyuta', 'валюта', 'currency'],
-            'status': ['status', 'статус', 'state'],
-            'gw_kg': ['gw_kg', 'вес', 'weight_kg', 'kilograms'],
-            'stoimost_gruza': ['stoimost_gruza', 'стоимость груза', 'cargo_cost'],
-            'etd': ['etd', 'etd', 'планируемое отправление'],
-            'eta': ['eta', 'eta', 'планируемое прибытие']
-          };
+            // Маппирование полей (общее для всех таблиц)
+            const globalFieldMapping = {
+              'acid': ['acid', 'ACID номер', 'грузоотравитель_acid'],
+              'gruzootravitel': ['gruzootravitel', 'грузоотправитель', 'shipper'],
+              'postavshchik': ['postavshchik', 'поставщик', 'supplier'],
+              'naimenovanie': ['naimenovanie', 'наименование', 'description'],
+              'nomer_kontrakta': ['nomer_kontrakta', 'номер контракта', 'contract_number', 'договор', 'к-'],
+              'kontragent': ['kontragent', 'контрагент', 'counterparty'],
+              'data_kontrakta': ['data_kontrakta', 'дата начала', 'start_date', 'data_nachala'],
+              'srok_deystviya': ['srok_deystviya', 'дата окончания', 'end_date', 'data_okonchanya'],
+              'cena_kontrakta': ['cena_kontrakta', 'сумма', 'amount', 'total', 'summa'],
+              'summa_usd': ['summa_usd', 'сумма', 'amount', 'total', 'summa'],
+              'data': ['data', 'дата', 'date'],
+              'valyuta': ['valyuta', 'валюта', 'currency'],
+              'status': ['status', 'статус', 'state'],
+              'gw_kg': ['gw_kg', 'вес', 'weight_kg', 'kilograms'],
+              'stoimost_gruza': ['stoimost_gruza', 'стоимость груза', 'cargo_cost'],
+              'etd': ['etd', 'etd', 'планируемое отправление'],
+              'eta': ['eta', 'eta', 'планируемое прибытие']
+            };
 
-          // Функция для поиска правильного ключа в строке
-          const findFieldKey = (row, fieldName) => {
-            const aliases = globalFieldMapping[fieldName] || [fieldName];
-            for (const alias of aliases) {
-              for (const key in row) {
-                if (key.toLowerCase().trim() === alias.toLowerCase().trim() || key.replace(/\*/g, '').toLowerCase().trim() === alias.toLowerCase().trim()) {
-                  return key;
+            // Функция для поиска правильного ключа в строке
+            const findFieldKey = (row, fieldName) => {
+              const aliases = globalFieldMapping[fieldName] || [fieldName];
+              for (const alias of aliases) {
+                for (const key in row) {
+                  if (key.toLowerCase().trim() === alias.toLowerCase().trim() || key.replace(/\*/g, '').toLowerCase().trim() === alias.toLowerCase().trim()) {
+                    return key;
+                  }
                 }
               }
-            }
-            return null;
-          };
+              return null;
+            };
 
-          // Валидация и подготовка данных
-          const validRows = [];
-          for (let i = 0; i < rows.length; i++) {
-            const row = rows[i];
-            
-            // Преобразование в объект с нормальными ключами (только нужные для этой таблицы)
-            const cleanRowRaw = {};
-            for (const field of config.required) {
-              const key = findFieldKey(row, field);
-              if (key && row[key] !== null && row[key] !== undefined && row[key] !== '') {
-                cleanRowRaw[field] = row[key];
+            // Валидация и подготовка данных
+            const validRows = [];
+            for (let i = 0; i < rows.length; i++) {
+              const row = rows[i];
+              
+              // Преобразование в объект с нормальными ключами (только нужные для этой таблицы)
+              const cleanRowRaw = {};
+              for (const field of config.required) {
+                const key = findFieldKey(row, field);
+                if (key && row[key] !== null && row[key] !== undefined && row[key] !== '') {
+                  cleanRowRaw[field] = row[key];
+                }
               }
+
+              // Проверка обязательных полей
+              for (const field of config.required) {
+                if (!cleanRowRaw[field] || cleanRowRaw[field].toString().trim() === '') {
+                  showAlert(`Строка ${i + 1}: отсутствует поле "${field}"`, 'error');
+                  resolve();
+                  return;
+                }
+              }
+
+              // Финальная очистка данных
+              const cleanRow = {};
+              for (const [key, value] of Object.entries(cleanRowRaw)) {
+                if (value !== null && value !== undefined && value !== '') {
+                  cleanRow[key] = value.toString().trim();
+                }
+              }
+
+              validRows.push(cleanRow);
             }
 
-            // Проверка обязательных полей
-            for (const field of config.required) {
-              if (!cleanRowRaw[field] || cleanRowRaw[field].toString().trim() === '') {
-                showAlert(`Строка ${i + 1}: отсутствует поле "${field}"`, 'error');
+            // Импорт в БД
+            let imported = 0;
+            for (const row of validRows) {
+              try {
+                await api('POST', `/${config.table}`, row);
+                imported++;
+              } catch (err) {
+                showAlert(`Ошибка при импорте строки: ${err.message}`, 'error');
+                resolve();
                 return;
               }
             }
 
-            // Финальная очистка данных
-            const cleanRow = {};
-            for (const [key, value] of Object.entries(cleanRowRaw)) {
-              if (value !== null && value !== undefined && value !== '') {
-                cleanRow[key] = value.toString().trim();
-              }
-            }
-
-            validRows.push(cleanRow);
-          }
-
-          // Импорт в БД
-          let imported = 0;
-          for (const row of validRows) {
-            try {
-              await api('POST', `/${config.table}`, row);
-              imported++;
-            } catch (err) {
-              showAlert(`Ошибка при импорте строки: ${err.message}`, 'error');
-              return;
-            }
-          }
-
-          showAlert(`✓ Импортировано ${imported} записей в таблицу "${tableType}"`, 'success');
-          loadDashboard();
-        } catch (err) {
-          showAlert(`Ошибка обработки: ${err.message}`, 'error');
-        }
-      };
-
-      if (isExcel) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          try {
-            const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, { type: 'array' });
-            const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-            const rows = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
-            processData(rows);
+            showAlert(`✓ Импортировано ${imported} записей в таблицу "${tableType}"`, 'success');
+            loadDashboard();
+            closeImportModal();
+            resolve();
           } catch (err) {
-            showAlert(`Ошибка чтения Excel: ${err.message}`, 'error');
+            showAlert(`Ошибка обработки: ${err.message}`, 'error');
+            resolve();
           }
         };
-        reader.readAsArrayBuffer(file);
-      } else {
-        Papa.parse(file, {
-          header: true,
-          skipEmptyLines: true,
-          complete: (results) => {
-            processData(results.data);
-          },
-          error: (error) => {
-            showAlert(`Ошибка чтения CSV: ${error.message}`, 'error');
-          }
-        });
-      }
+
+        if (isExcel) {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            try {
+              const data = new Uint8Array(e.target.result);
+              const workbook = XLSX.read(data, { type: 'array' });
+              const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+              const rows = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+              processData(rows);
+            } catch (err) {
+              showAlert(`Ошибка чтения Excel: ${err.message}`, 'error');
+              resolve();
+            }
+          };
+          reader.onerror = () => {
+            showAlert(`Ошибка чтения файла`, 'error');
+            resolve();
+          };
+          reader.readAsArrayBuffer(file);
+        } else {
+          Papa.parse(file, {
+            header: true,
+            skipEmptyLines: true,
+            complete: (results) => {
+              processData(results.data);
+            },
+            error: (error) => {
+              showAlert(`Ошибка чтения CSV: ${error.message}`, 'error');
+              resolve();
+            }
+          });
+        }
+      });
     }
 
     let metricsChart = null;
