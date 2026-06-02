@@ -959,6 +959,7 @@
   </div>
 
   <input type="file" id="importFile" style="display: none;" onchange="importFile(event)">
+  <input type="file" id="modalImportFile" accept=".csv,.xlsx,.xls" style="display: none;" onchange="showSelectedFileFromInput(event)">
 
   <!-- IMPORT MODAL -->
   <div id="importModal" class="modal-overlay">
@@ -1059,6 +1060,14 @@
       document.getElementById('dragDropZone').classList.remove('active');
     }
 
+    function showSelectedFileFromInput(event) {
+      const file = event.target.files[0];
+      if (file) {
+        selectedFile = file;
+        showSelectedFile(file);
+      }
+    }
+
     function setupDragDrop() {
       const zone = document.getElementById('dragDropZone');
       
@@ -1082,7 +1091,7 @@
       });
 
       zone.addEventListener('click', () => {
-        document.getElementById('importFile').click();
+        document.getElementById('modalImportFile').click();
       });
     }
 
