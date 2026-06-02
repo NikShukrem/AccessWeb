@@ -1154,19 +1154,17 @@
 
           const config = tableMap[tableType];
 
-          // Маппирование полей
-          const fieldMapping = {
-            'acid': ['acid', 'ACID номер', 'грузоотправитель_acid'],
+          // Маппирование полей (общее для всех таблиц)
+          const globalFieldMapping = {
+            'acid': ['acid', 'ACID номер', 'грузоотравитель_acid'],
             'gruzootravitel': ['gruzootravitel', 'грузоотправитель', 'shipper'],
             'postavshchik': ['postavshchik', 'поставщик', 'supplier'],
             'naimenovanie': ['naimenovanie', 'наименование', 'description'],
             'nomer_kontrakta': ['nomer_kontrakta', 'номер контракта', 'contract_number', 'договор', 'к-'],
             'kontragent': ['kontragent', 'контрагент', 'counterparty'],
-            // Contracts fields (different schema)
             'data_kontrakta': ['data_kontrakta', 'дата начала', 'start_date', 'data_nachala'],
             'srok_deystviya': ['srok_deystviya', 'дата окончания', 'end_date', 'data_okonchanya'],
             'cena_kontrakta': ['cena_kontrakta', 'сумма', 'amount', 'total', 'summa'],
-            // Finance fields
             'summa_usd': ['summa_usd', 'сумма', 'amount', 'total', 'summa'],
             'data': ['data', 'дата', 'date'],
             'valyuta': ['valyuta', 'валюта', 'currency'],
@@ -1179,7 +1177,7 @@
 
           // Функция для поиска правильного ключа в строке
           const findFieldKey = (row, fieldName) => {
-            const aliases = fieldMapping[fieldName] || [fieldName];
+            const aliases = globalFieldMapping[fieldName] || [fieldName];
             for (const alias of aliases) {
               for (const key in row) {
                 if (key.toLowerCase().trim() === alias.toLowerCase().trim() || key.replace(/\*/g, '').toLowerCase().trim() === alias.toLowerCase().trim()) {
@@ -1195,12 +1193,12 @@
           for (let i = 0; i < rows.length; i++) {
             const row = rows[i];
             
-            // Преобразование в объект с нормальными ключами
+            // Преобразование в объект с нормальными ключами (только нужные для этой таблицы)
             const cleanRowRaw = {};
-            for (const [dbField] of Object.entries(fieldMapping)) {
-              const key = findFieldKey(row, dbField);
-              if (key && row[key] !== null && row[key] !== undefined) {
-                cleanRowRaw[dbField] = row[key];
+            for (const field of config.required) {
+              const key = findFieldKey(row, field);
+              if (key && row[key] !== null && row[key] !== undefined && row[key] !== '') {
+                cleanRowRaw[field] = row[key];
               }
             }
 
