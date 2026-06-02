@@ -3,28 +3,72 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AccessWeb - Logistics Management System</title>
+  <meta name="description" content="AccessWeb - система управления логистикой для АЭС">
+  <title>AccessWeb - Управление логистикой</title>
   <style>
+    :root {
+      --titan-primary: #1A3D5C;
+      --titan-dark: #0F2A3F;
+      --titan-light: #2A5D8C;
+      --titan-accent: #E67E22;
+      --titan-danger: #C0392B;
+      --gray-light: #F8FAFC;
+      --gray-border: #D5DBEA;
+      --gray-text: #5A6F85;
+      --success: #27AE60;
+      --warning: #F39C12;
+      --error: #E74C3C;
+    }
+
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
     }
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-      background: #f8f9fa;
-      color: #2c3e50;
-      line-height: 1.6;
+    html {
+      scroll-behavior: smooth;
     }
 
-    /* Login Screen */
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+      background: var(--gray-light);
+      color: #2C3E50;
+      line-height: 1.6;
+      font-size: 15px;
+    }
+
+    /* LOGIN SCREEN */
     .login-container {
       display: flex;
       justify-content: center;
       align-items: center;
       min-height: 100vh;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, var(--titan-primary) 0%, var(--titan-dark) 100%);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .login-container::before {
+      content: '';
+      position: absolute;
+      width: 400px;
+      height: 400px;
+      background: rgba(230, 126, 34, 0.1);
+      border-radius: 50%;
+      top: -100px;
+      left: -100px;
+    }
+
+    .login-container::after {
+      content: '';
+      position: absolute;
+      width: 300px;
+      height: 300px;
+      background: rgba(230, 126, 34, 0.1);
+      border-radius: 50%;
+      bottom: -50px;
+      right: -50px;
     }
 
     .login-card {
@@ -33,14 +77,25 @@
       border-radius: 12px;
       box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
       width: 100%;
-      max-width: 400px;
+      max-width: 420px;
+      position: relative;
+      z-index: 1;
     }
 
     .login-card h1 {
-      margin-bottom: 30px;
+      margin-bottom: 8px;
       text-align: center;
-      color: #2c3e50;
-      font-size: 28px;
+      color: var(--titan-primary);
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .login-card p {
+      text-align: center;
+      color: var(--gray-text);
+      margin-bottom: 32px;
+      font-size: 14px;
     }
 
     .form-group {
@@ -50,54 +105,65 @@
     .form-group label {
       display: block;
       margin-bottom: 8px;
-      font-weight: 500;
-      color: #2c3e50;
+      font-weight: 600;
+      color: var(--titan-primary);
       font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
 
     .form-group input {
       width: 100%;
       padding: 12px;
-      border: 1px solid #d0d8e0;
+      border: 2px solid var(--gray-border);
       border-radius: 6px;
-      font-size: 14px;
+      font-size: 15px;
       background: #fafbfc;
-      transition: all 0.2s;
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+
+    .form-group input:hover {
+      border-color: var(--titan-accent);
     }
 
     .form-group input:focus {
       outline: none;
       background: white;
-      border-color: #667eea;
-      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      border-color: var(--titan-primary);
+      box-shadow: 0 0 0 4px rgba(26, 61, 92, 0.1);
     }
 
     button {
       width: 100%;
       padding: 12px;
-      background: #667eea;
+      background: var(--titan-primary);
       color: white;
       border: none;
       border-radius: 6px;
       cursor: pointer;
       font-weight: 600;
-      font-size: 14px;
-      transition: all 0.2s;
+      font-size: 15px;
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
 
     button:hover {
-      background: #5568d3;
+      background: var(--titan-dark);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(26, 61, 92, 0.2);
     }
 
     button:active {
-      transform: scale(0.98);
+      transform: translateY(0);
     }
 
     .hidden {
       display: none !important;
     }
 
-    /* App Container */
+    /* APP CONTAINER */
     .app-container {
       max-width: 1400px;
       margin: 0 auto;
@@ -109,15 +175,17 @@
       justify-content: space-between;
       align-items: center;
       margin-bottom: 32px;
-      background: white;
-      padding: 20px 24px;
+      background: linear-gradient(135deg, var(--titan-primary) 0%, var(--titan-light) 100%);
+      padding: 24px;
       border-radius: 10px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      box-shadow: 0 4px 12px rgba(26, 61, 92, 0.15);
+      color: white;
     }
 
     .header h1 {
-      font-size: 24px;
-      color: #2c3e50;
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
     }
 
     .user-info {
@@ -128,9 +196,21 @@
 
     .user-info span {
       font-size: 14px;
-      color: #7c8fa3;
+      opacity: 0.9;
     }
 
+    .user-info button {
+      background: var(--titan-accent);
+      width: auto;
+      padding: 8px 16px;
+      font-size: 13px;
+    }
+
+    .user-info button:hover {
+      background: #D35400;
+    }
+
+    /* TABS */
     .tabs {
       display: flex;
       gap: 4px;
@@ -140,6 +220,7 @@
       border-radius: 10px;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
       overflow-x: auto;
+      border-bottom: 3px solid var(--titan-accent);
     }
 
     .tab-btn {
@@ -147,21 +228,24 @@
       background: none;
       border: none;
       cursor: pointer;
-      color: #7c8fa3;
-      font-weight: 500;
+      color: var(--gray-text);
+      font-weight: 600;
       font-size: 13px;
-      border-bottom: 2px solid transparent;
+      border-bottom: 3px solid transparent;
       white-space: nowrap;
-      transition: all 0.2s;
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
 
     .tab-btn:hover {
-      color: #667eea;
+      color: var(--titan-primary);
     }
 
     .tab-btn.active {
-      color: #667eea;
-      border-bottom-color: #667eea;
+      color: var(--titan-primary);
+      border-bottom-color: var(--titan-accent);
+      background: rgba(230, 126, 34, 0.05);
     }
 
     .tab-content {
@@ -170,25 +254,45 @@
 
     .tab-content.active {
       display: block;
+      animation: fadeIn 0.2s ease;
     }
 
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    /* CONTENT PANEL */
     .content-panel {
       background: white;
       padding: 24px;
       border-radius: 10px;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      border-top: 4px solid var(--titan-accent);
     }
 
     .content-panel h2 {
-      font-size: 18px;
-      margin-bottom: 20px;
-      color: #2c3e50;
+      font-size: 24px;
+      margin-bottom: 24px;
+      color: var(--titan-primary);
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
+    /* FORMS */
     .form-section {
-      margin-bottom: 24px;
-      padding-bottom: 24px;
-      border-bottom: 1px solid #e8ecf1;
+      margin-bottom: 28px;
+      padding-bottom: 28px;
+      border-bottom: 2px solid var(--gray-light);
+    }
+
+    .form-section:last-child {
+      margin-bottom: 0;
+      padding-bottom: 0;
+      border-bottom: none;
     }
 
     .form-row {
@@ -203,20 +307,42 @@
     }
 
     .form-group {
-      margin-bottom: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: var(--titan-primary);
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .form-group label .required {
+      color: var(--titan-accent);
+      margin-left: 2px;
     }
 
     .form-group input,
     .form-group select,
     .form-group textarea {
-      width: 100%;
       padding: 10px 12px;
-      border: 1px solid #d0d8e0;
+      border: 2px solid var(--gray-border);
       border-radius: 6px;
-      font-size: 13px;
+      font-size: 14px;
       background: #fafbfc;
       font-family: inherit;
-      transition: all 0.2s;
+      transition: all 0.2s ease;
+      color: #2C3E50;
+    }
+
+    .form-group input:hover,
+    .form-group select:hover,
+    .form-group textarea:hover {
+      border-color: var(--titan-accent);
     }
 
     .form-group input:focus,
@@ -224,8 +350,17 @@
     .form-group textarea:focus {
       outline: none;
       background: white;
-      border-color: #667eea;
-      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      border-color: var(--titan-primary);
+      box-shadow: 0 0 0 4px rgba(26, 61, 92, 0.1);
+    }
+
+    .form-group input:invalid {
+      border-color: var(--error);
+    }
+
+    .form-group input[type="date"],
+    .form-group input[type="number"] {
+      font-family: 'Courier New', monospace;
     }
 
     .form-group textarea {
@@ -234,74 +369,137 @@
     }
 
     .btn-submit {
-      background: #667eea;
+      background: var(--titan-primary);
       color: white;
       padding: 10px 24px;
       width: auto;
-      margin-top: 8px;
+      margin-top: 12px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
 
     .btn-submit:hover {
-      background: #5568d3;
+      background: var(--titan-dark);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(26, 61, 92, 0.2);
     }
 
+    .btn-submit:active {
+      transform: translateY(0);
+    }
+
+    .btn-submit:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* TABLES */
     .table-wrapper {
-      margin-top: 24px;
+      margin-top: 28px;
       overflow-x: auto;
       border-radius: 8px;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      border: 1px solid var(--gray-border);
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 13px;
+      font-size: 14px;
     }
 
     thead {
-      background: #f0f3f9;
+      background: linear-gradient(135deg, var(--titan-primary) 0%, var(--titan-light) 100%);
+      color: white;
     }
 
     th {
       padding: 12px;
       text-align: left;
-      font-weight: 600;
-      color: #2c3e50;
-      border-bottom: 1px solid #d0d8e0;
+      font-weight: 700;
+      color: white;
+      border-bottom: 2px solid var(--titan-accent);
       white-space: nowrap;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-size: 12px;
     }
 
     td {
       padding: 12px;
-      border-bottom: 1px solid #e8ecf1;
-      color: #5a6f85;
+      border-bottom: 1px solid var(--gray-border);
+      color: var(--gray-text);
     }
 
     tbody tr:hover {
-      background: #f8f9fa;
+      background: var(--gray-light);
     }
 
     tbody tr:nth-child(even) {
-      background: #fafbfc;
+      background: #FAFBFC;
     }
 
+    tbody tr td:first-child {
+      font-weight: 600;
+      color: var(--titan-primary);
+    }
+
+    /* BUTTONS IN TABLES */
     .btn-delete {
-      background: #dc3545;
+      background: var(--titan-accent);
+      color: white;
       padding: 6px 12px;
-      font-size: 12px;
+      font-size: 11px;
       width: auto;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      transition: all 0.2s ease;
     }
 
     .btn-delete:hover {
-      background: #c82333;
+      background: var(--titan-danger);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(192, 57, 43, 0.3);
     }
 
+    .btn-delete:active {
+      transform: translateY(0);
+    }
+
+    /* ALERTS */
     .alert {
       padding: 12px 16px;
       border-radius: 6px;
-      margin-bottom: 16px;
-      font-size: 13px;
+      margin-bottom: 20px;
+      font-size: 14px;
       display: none;
+      border-left: 4px solid;
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .alert.show {
@@ -309,52 +507,56 @@
     }
 
     .alert.success {
-      background: #d4edda;
+      background: #D4EDDA;
       color: #155724;
-      border: 1px solid #c3e6cb;
+      border-color: #28A745;
     }
 
     .alert.error {
-      background: #f8d7da;
-      color: #721c24;
-      border: 1px solid #f5c6cb;
+      background: #F8D7DA;
+      color: #721C24;
+      border-color: #F5C6CB;
     }
 
+    /* BADGES */
     .badge {
       display: inline-block;
       padding: 4px 8px;
       border-radius: 4px;
       font-size: 11px;
-      font-weight: 600;
+      font-weight: 700;
       background: #e8ecf1;
       color: #2c3e50;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
 
     .badge.pending {
-      background: #fff3cd;
-      color: #856404;
+      background: var(--warning);
+      color: white;
     }
 
     .badge.active {
-      background: #d4edda;
-      color: #155724;
+      background: var(--success);
+      color: white;
     }
 
     .badge.completed {
-      background: #d1ecf1;
-      color: #0c5460;
+      background: var(--titan-primary);
+      color: white;
     }
 
-    .empty-state {
-      text-align: center;
-      padding: 40px;
-      color: #7c8fa3;
+    .badge.cleared {
+      background: var(--titan-accent);
+      color: white;
     }
 
-    .empty-state p {
-      font-size: 14px;
+    .badge.released {
+      background: var(--success);
+      color: white;
     }
 
+    /* RESPONSIVE */
     @media (max-width: 768px) {
       .app-container {
         padding: 12px;
@@ -364,6 +566,11 @@
         flex-direction: column;
         align-items: flex-start;
         gap: 12px;
+        padding: 16px;
+      }
+
+      .header h1 {
+        font-size: 22px;
       }
 
       .user-info {
@@ -373,10 +580,27 @@
 
       .tabs {
         flex-wrap: wrap;
+        gap: 6px;
+        padding: 8px;
+      }
+
+      .tab-btn {
+        padding: 8px 12px;
+        font-size: 12px;
       }
 
       .form-row {
         grid-template-columns: 1fr;
+      }
+
+      .content-panel {
+        padding: 16px;
+        border-radius: 8px;
+      }
+
+      .content-panel h2 {
+        font-size: 18px;
+        margin-bottom: 16px;
       }
 
       table {
@@ -386,441 +610,452 @@
       th, td {
         padding: 8px;
       }
+
+      .btn-delete {
+        padding: 4px 8px;
+        font-size: 10px;
+      }
+
+      .login-card {
+        margin: 16px;
+        padding: 32px 24px;
+      }
     }
   </style>
 </head>
 <body>
-  <!-- Login Screen -->
+  <!-- LOGIN SCREEN -->
   <div id="loginScreen" class="login-container">
     <div class="login-card">
-      <h1>AccessWeb</h1>
-      <p style="text-align: center; color: #7c8fa3; margin-bottom: 30px; font-size: 14px;">Logistics Management System</p>
+      <h1>⚛ AccessWeb</h1>
+      <p>Система управления логистикой и договорами</p>
       <form id="loginForm">
         <div class="form-group">
-          <label>Логин</label>
-          <input type="text" id="loginInput" value="admin" required>
+          <label for="login-input">Логин</label>
+          <input id="login-input" type="text" value="admin" required aria-label="Введите логин" placeholder="admin">
         </div>
         <div class="form-group">
-          <label>Пароль</label>
-          <input type="password" id="passwordInput" value="admin123" required>
+          <label for="password-input">Пароль</label>
+          <input id="password-input" type="password" value="admin123" required aria-label="Введите пароль" placeholder="•••••">
         </div>
-        <button type="submit">Войти</button>
+        <button type="submit" aria-label="Кнопка входа">🔒 Войти</button>
       </form>
     </div>
   </div>
 
-  <!-- App Screen -->
+  <!-- APP SCREEN -->
   <div id="appScreen" class="hidden">
     <div class="app-container">
       <div class="header">
-        <h1>AccessWeb</h1>
+        <h1>⚛ AccessWeb</h1>
         <div class="user-info">
-          <span id="userInfo"></span>
-          <button onclick="logout()" style="width: 100px;">Выход</button>
+          <span id="userInfo" role="status" aria-live="polite"></span>
+          <button onclick="logout()" aria-label="Выход из системы">Выход</button>
         </div>
       </div>
 
-      <div id="alert" class="alert"></div>
+      <div id="alert" class="alert" role="alert" aria-live="polite"></div>
 
-      <div class="tabs">
-        <button class="tab-btn active" onclick="switchTab(this, 'acid_main')">ACID (Грузы)</button>
-        <button class="tab-btn" onclick="switchTab(this, 'acid_logistics')">Логистика ACID</button>
-        <button class="tab-btn" onclick="switchTab(this, 'acid_customs')">Таможня ACID</button>
-        <button class="tab-btn" onclick="switchTab(this, 'contract_main')">Договоры</button>
-        <button class="tab-btn" onclick="switchTab(this, 'contract_stages')">Этапы договора</button>
-        <button class="tab-btn" onclick="switchTab(this, 'acid_kti')">ACID-KTI</button>
-        <button class="tab-btn" onclick="switchTab(this, 'finance_ais_export')">Выгрузка АИС</button>
+      <div class="tabs" role="tablist">
+        <button class="tab-btn active" onclick="switchTab(this, 'acid_main')" role="tab" aria-selected="true" aria-controls="acid_main-tab">📦 Грузы</button>
+        <button class="tab-btn" onclick="switchTab(this, 'acid_logistics')" role="tab" aria-selected="false" aria-controls="acid_logistics-tab">🚢 Логистика</button>
+        <button class="tab-btn" onclick="switchTab(this, 'acid_customs')" role="tab" aria-selected="false" aria-controls="acid_customs-tab">📋 Таможня</button>
+        <button class="tab-btn" onclick="switchTab(this, 'contract_main')" role="tab" aria-selected="false" aria-controls="contract_main-tab">📄 Договоры</button>
+        <button class="tab-btn" onclick="switchTab(this, 'contract_stages')" role="tab" aria-selected="false" aria-controls="contract_stages-tab">⏳ Этапы</button>
+        <button class="tab-btn" onclick="switchTab(this, 'acid_kti')" role="tab" aria-selected="false" aria-controls="acid_kti-tab">🔗 KTI</button>
+        <button class="tab-btn" onclick="switchTab(this, 'finance_ais_export')" role="tab" aria-selected="false" aria-controls="finance_ais_export-tab">💰 Финансы</button>
       </div>
 
-      <!-- ACID Main Tab -->
-      <div id="acid_main-tab" class="tab-content active">
+      <!-- ACID MAIN -->
+      <div id="acid_main-tab" class="tab-content active" role="tabpanel">
         <div class="content-panel">
-          <h2>ACID (Грузы)</h2>
+          <h2>📦 Управление грузами (ACID)</h2>
           <div class="form-section">
-            <form id="acid_mainForm">
+            <form id="acid_mainForm" novalidate>
               <div class="form-row">
                 <div class="form-group">
-                  <label>ACID</label>
-                  <input type="text" name="acid" placeholder="AC-2026-001" required>
+                  <label for="acid-input">ACID <span class="required">*</span></label>
+                  <input id="acid-input" type="text" name="acid" required aria-label="Номер ACID" placeholder="ACID-2026-001" aria-required="true">
                 </div>
                 <div class="form-group">
-                  <label>Статус</label>
-                  <select name="status">
-                    <option value="pending">Pending</option>
-                    <option value="active">Active</option>
-                    <option value="completed">Completed</option>
+                  <label for="status-select">Статус</label>
+                  <select id="status-select" name="status" aria-label="Статус грузоотправки">
+                    <option value="pending">⏳ Ожидание</option>
+                    <option value="active">▶ Активно</option>
+                    <option value="completed">✓ Завершено</option>
                   </select>
                 </div>
               </div>
               <div class="form-row">
                 <div class="form-group">
-                  <label>Грузоотправитель</label>
-                  <input type="text" name="gruzootravitel">
+                  <label for="gruzo-input">Грузоотправитель <span class="required">*</span></label>
+                  <input id="gruzo-input" type="text" name="gruzootravitel" required aria-label="Компания-грузоотправитель" placeholder="ООО/АО..." aria-required="true">
                 </div>
                 <div class="form-group">
-                  <label>Поставщик</label>
-                  <input type="text" name="postavshchik">
+                  <label for="postavshchik-input">Поставщик <span class="required">*</span></label>
+                  <input id="postavshchik-input" type="text" name="postavshchik" required aria-label="Компания-поставщик" placeholder="Наименование" aria-required="true">
                 </div>
               </div>
               <div class="form-row full">
                 <div class="form-group">
-                  <label>Наименование груза</label>
-                  <input type="text" name="naimenovanie" placeholder="Описание груза">
+                  <label for="naimen-input">Наименование груза <span class="required">*</span></label>
+                  <input id="naimen-input" type="text" name="naimenovanie" required aria-label="Описание груза" placeholder="Хлопок, металл, оборудование..." aria-required="true">
                 </div>
               </div>
               <div class="form-row">
                 <div class="form-group">
-                  <label>GW (кг)</label>
-                  <input type="number" name="gw_kg" step="0.01">
+                  <label for="gw-input">Вес брутто (кг) <span class="required">*</span></label>
+                  <input id="gw-input" type="number" name="gw_kg" step="0.01" min="0" required aria-label="Вес груза" placeholder="500000" aria-required="true">
                 </div>
                 <div class="form-group">
-                  <label>Стоимость груза</label>
-                  <input type="number" name="stoimost_gruza" step="0.01">
+                  <label for="cost-input">Стоимость (USD) <span class="required">*</span></label>
+                  <input id="cost-input" type="number" name="stoimost_gruza" step="0.01" min="0" required aria-label="Стоимость груза" placeholder="125000" aria-required="true">
                 </div>
               </div>
               <div class="form-row">
                 <div class="form-group">
-                  <label>Валюта</label>
-                  <input type="text" name="valyuta" value="USD">
+                  <label for="valyuta-input">Валюта</label>
+                  <input id="valyuta-input" type="text" name="valyuta" value="USD" placeholder="USD" aria-label="Валюта стоимости">
                 </div>
                 <div class="form-group">
-                  <label>Кол-во мест</label>
-                  <input type="number" name="kolichestvo_mest">
+                  <label for="mesta-input">Кол-во мест</label>
+                  <input id="mesta-input" type="number" name="kolichestvo_mest" min="1" aria-label="Количество мест" placeholder="1">
                 </div>
               </div>
-              <button type="submit" class="btn-submit">Добавить ACID</button>
+              <button type="submit" class="btn-submit">✚ Добавить груз</button>
             </form>
           </div>
           <div class="table-wrapper">
-            <table id="acid_mainTable">
+            <table id="acid_mainTable" role="grid">
               <thead>
-                <tr>
-                  <th>ACID</th>
-                  <th>Статус</th>
-                  <th>Грузоотправитель</th>
-                  <th>Поставщик</th>
-                  <th>Наименование</th>
-                  <th>GW (кг)</th>
-                  <th>Действие</th>
+                <tr role="row">
+                  <th scope="col">ACID</th>
+                  <th scope="col">Статус</th>
+                  <th scope="col">Грузоотправитель</th>
+                  <th scope="col">Поставщик</th>
+                  <th scope="col">Наименование</th>
+                  <th scope="col">Вес (кг)</th>
+                  <th scope="col">Действие</th>
                 </tr>
               </thead>
-              <tbody></tbody>
+              <tbody role="rowgroup"></tbody>
             </table>
           </div>
         </div>
       </div>
 
-      <!-- ACID Logistics Tab -->
-      <div id="acid_logistics-tab" class="tab-content">
+      <!-- ACID LOGISTICS -->
+      <div id="acid_logistics-tab" class="tab-content" role="tabpanel">
         <div class="content-panel">
-          <h2>Логистика ACID</h2>
+          <h2>🚢 Логистические данные</h2>
           <div class="form-section">
-            <form id="acid_logisticsForm">
+            <form id="acid_logisticsForm" novalidate>
               <div class="form-row">
                 <div class="form-group">
-                  <label>ACID (ID)</label>
-                  <input type="text" name="acid_id" placeholder="ACID ID" required>
+                  <label for="acid-log-input">ACID (ID) <span class="required">*</span></label>
+                  <input id="acid-log-input" type="text" name="acid_id" required aria-label="Номер ACID" placeholder="ACID-2026-001" aria-required="true">
                 </div>
                 <div class="form-group">
-                  <label>ETD</label>
-                  <input type="date" name="etd">
+                  <label for="etd-input">Дата отправления (ETD)</label>
+                  <input id="etd-input" type="date" name="etd" aria-label="Expected Time of Departure">
                 </div>
               </div>
               <div class="form-row">
                 <div class="form-group">
-                  <label>ETA</label>
-                  <input type="date" name="eta">
+                  <label for="eta-input">Дата прибытия (ETA)</label>
+                  <input id="eta-input" type="date" name="eta" aria-label="Estimated Time of Arrival">
                 </div>
                 <div class="form-group">
-                  <label>Место прибытия</label>
-                  <input type="text" name="mesto_pribytiya">
+                  <label for="mesto-input">Место прибытия</label>
+                  <input id="mesto-input" type="text" name="mesto_pribytiya" aria-label="Место прибытия" placeholder="Порт/Город">
                 </div>
               </div>
-              <button type="submit" class="btn-submit">Добавить</button>
+              <button type="submit" class="btn-submit">✚ Добавить</button>
             </form>
           </div>
           <div class="table-wrapper">
-            <table id="acid_logisticsTable">
+            <table id="acid_logisticsTable" role="grid">
               <thead>
-                <tr>
-                  <th>ACID</th>
-                  <th>ETD</th>
-                  <th>ETA</th>
-                  <th>Место прибытия</th>
-                  <th>Действие</th>
+                <tr role="row">
+                  <th scope="col">ACID</th>
+                  <th scope="col">ETD</th>
+                  <th scope="col">ETA</th>
+                  <th scope="col">Место прибытия</th>
+                  <th scope="col">Действие</th>
                 </tr>
               </thead>
-              <tbody></tbody>
+              <tbody role="rowgroup"></tbody>
             </table>
           </div>
         </div>
       </div>
 
-      <!-- ACID Customs Tab -->
-      <div id="acid_customs-tab" class="tab-content">
+      <!-- ACID CUSTOMS -->
+      <div id="acid_customs-tab" class="tab-content" role="tabpanel">
         <div class="content-panel">
-          <h2>Таможня ACID</h2>
+          <h2>📋 Таможенные данные</h2>
           <div class="form-section">
-            <form id="acid_customsForm">
+            <form id="acid_customsForm" novalidate>
               <div class="form-row">
                 <div class="form-group">
-                  <label>ACID (ID)</label>
-                  <input type="text" name="acid_id" placeholder="ACID ID" required>
+                  <label for="acid-cust-input">ACID (ID) <span class="required">*</span></label>
+                  <input id="acid-cust-input" type="text" name="acid_id" required aria-label="Номер ACID" placeholder="ACID-2026-001" aria-required="true">
                 </div>
                 <div class="form-group">
-                  <label>Номер ДТ</label>
-                  <input type="text" name="nomer_dt">
+                  <label for="dt-input">Номер ДТ</label>
+                  <input id="dt-input" type="text" name="nomer_dt" aria-label="Номер декларации" placeholder="ДТ-2026-001">
                 </div>
               </div>
               <div class="form-row">
                 <div class="form-group">
-                  <label>Дата ДТ</label>
-                  <input type="date" name="data_dt">
+                  <label for="dt-date-input">Дата ДТ</label>
+                  <input id="dt-date-input" type="date" name="data_dt" aria-label="Дата декларации">
                 </div>
                 <div class="form-group">
-                  <label>Статус</label>
-                  <select name="custom_status">
-                    <option value="pending">Pending</option>
-                    <option value="cleared">Cleared</option>
-                    <option value="released">Released</option>
-                  </select>
-                </div>
-              </div>
-              <button type="submit" class="btn-submit">Добавить</button>
-            </form>
-          </div>
-          <div class="table-wrapper">
-            <table id="acid_customsTable">
-              <thead>
-                <tr>
-                  <th>ACID</th>
-                  <th>Номер ДТ</th>
-                  <th>Дата ДТ</th>
-                  <th>Статус</th>
-                  <th>Действие</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- Contract Main Tab -->
-      <div id="contract_main-tab" class="tab-content">
-        <div class="content-panel">
-          <h2>Договоры</h2>
-          <div class="form-section">
-            <form id="contract_mainForm">
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Номер договора</label>
-                  <input type="text" name="nomer_kontrakta" placeholder="ДОГ-2026-001" required>
-                </div>
-                <div class="form-group">
-                  <label>Тип договора</label>
-                  <select name="tip_kontrakta">
+                  <label for="customs-status">Статус таможни</label>
+                  <select id="customs-status" name="custom_status" aria-label="Статус таможенного оформления">
                     <option value="">Выбрать</option>
-                    <option value="Основной договор на строительство">Строительство</option>
-                    <option value="договор поставки">Поставка</option>
-                    <option value="счёт">Счёт</option>
+                    <option value="pending">⏳ Ожидание</option>
+                    <option value="cleared">✓ Очищено</option>
+                    <option value="released">✓ Выпущено</option>
                   </select>
                 </div>
               </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Контрагент</label>
-                  <input type="text" name="kontragent">
-                </div>
-                <div class="form-group">
-                  <label>Статус</label>
-                  <select name="status">
-                    <option value="active">Active</option>
-                    <option value="pending">Pending</option>
-                    <option value="completed">Completed</option>
-                  </select>
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Дата договора</label>
-                  <input type="date" name="data_kontrakta">
-                </div>
-                <div class="form-group">
-                  <label>Цена (USD)</label>
-                  <input type="number" name="cena_kontrakta" step="0.01">
-                </div>
-              </div>
-              <button type="submit" class="btn-submit">Добавить договор</button>
+              <button type="submit" class="btn-submit">✚ Добавить</button>
             </form>
           </div>
           <div class="table-wrapper">
-            <table id="contract_mainTable">
+            <table id="acid_customsTable" role="grid">
               <thead>
-                <tr>
-                  <th>Номер</th>
-                  <th>Тип</th>
-                  <th>Контрагент</th>
-                  <th>Статус</th>
-                  <th>Дата</th>
-                  <th>Цена</th>
-                  <th>Действие</th>
+                <tr role="row">
+                  <th scope="col">ACID</th>
+                  <th scope="col">Номер ДТ</th>
+                  <th scope="col">Дата ДТ</th>
+                  <th scope="col">Статус</th>
+                  <th scope="col">Действие</th>
                 </tr>
               </thead>
-              <tbody></tbody>
+              <tbody role="rowgroup"></tbody>
             </table>
           </div>
         </div>
       </div>
 
-      <!-- Contract Stages Tab -->
-      <div id="contract_stages-tab" class="tab-content">
+      <!-- CONTRACTS -->
+      <div id="contract_main-tab" class="tab-content" role="tabpanel">
         <div class="content-panel">
-          <h2>Этапы договора</h2>
+          <h2>📄 Управление договорами</h2>
           <div class="form-section">
-            <form id="contract_stagesForm">
+            <form id="contract_mainForm" novalidate>
               <div class="form-row">
                 <div class="form-group">
-                  <label>ID договора</label>
-                  <input type="text" name="kontract_id" placeholder="Contract ID" required>
+                  <label for="dogn-input">Номер договора <span class="required">*</span></label>
+                  <input id="dogn-input" type="text" name="nomer_kontrakta" required aria-label="Номер договора" placeholder="ДОГ-2026-001" aria-required="true">
                 </div>
                 <div class="form-group">
-                  <label>Номер этапа</label>
-                  <input type="number" name="stage_number">
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Название этапа</label>
-                  <input type="text" name="stage_name">
-                </div>
-                <div class="form-group">
-                  <label>Статус</label>
-                  <select name="status">
-                    <option value="pending">Pending</option>
-                    <option value="active">Active</option>
-                    <option value="completed">Completed</option>
+                  <label for="tip-input">Тип договора</label>
+                  <select id="tip-input" name="tip_kontrakta" aria-label="Тип контракта">
+                    <option value="">Выбрать тип</option>
+                    <option value="Строительство">🏗 Строительство</option>
+                    <option value="Поставка">📦 Поставка</option>
+                    <option value="Счёт">💳 Счёт-фактура</option>
                   </select>
                 </div>
               </div>
-              <button type="submit" class="btn-submit">Добавить этап</button>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="kontr-input">Контрагент <span class="required">*</span></label>
+                  <input id="kontr-input" type="text" name="kontragent" required aria-label="Контрагент" placeholder="ООО/АО..." aria-required="true">
+                </div>
+                <div class="form-group">
+                  <label for="dstat-input">Статус договора</label>
+                  <select id="dstat-input" name="status" aria-label="Статус договора">
+                    <option value="active">▶ Активно</option>
+                    <option value="pending">⏳ Ожидание</option>
+                    <option value="completed">✓ Завершено</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="ddate-input">Дата договора</label>
+                  <input id="ddate-input" type="date" name="data_kontrakta" aria-label="Дата договора">
+                </div>
+                <div class="form-group">
+                  <label for="dcena-input">Сумма (USD) <span class="required">*</span></label>
+                  <input id="dcena-input" type="number" name="cena_kontrakta" step="0.01" min="0" required aria-label="Сумма договора" placeholder="250000" aria-required="true">
+                </div>
+              </div>
+              <button type="submit" class="btn-submit">✚ Добавить договор</button>
             </form>
           </div>
           <div class="table-wrapper">
-            <table id="contract_stagesTable">
+            <table id="contract_mainTable" role="grid">
               <thead>
-                <tr>
-                  <th>Договор</th>
-                  <th>Этап</th>
-                  <th>Название</th>
-                  <th>Статус</th>
-                  <th>Действие</th>
+                <tr role="row">
+                  <th scope="col">Номер</th>
+                  <th scope="col">Тип</th>
+                  <th scope="col">Контрагент</th>
+                  <th scope="col">Статус</th>
+                  <th scope="col">Дата</th>
+                  <th scope="col">Сумма</th>
+                  <th scope="col">Действие</th>
                 </tr>
               </thead>
-              <tbody></tbody>
+              <tbody role="rowgroup"></tbody>
             </table>
           </div>
         </div>
       </div>
 
-      <!-- ACID-KTI Tab -->
-      <div id="acid_kti-tab" class="tab-content">
+      <!-- STAGES -->
+      <div id="contract_stages-tab" class="tab-content" role="tabpanel">
         <div class="content-panel">
-          <h2>ACID-KTI</h2>
+          <h2>⏳ Этапы подписания договоров</h2>
           <div class="form-section">
-            <form id="acid_ktiForm">
+            <form id="contract_stagesForm" novalidate>
               <div class="form-row">
                 <div class="form-group">
-                  <label>ACID (ID)</label>
-                  <input type="text" name="acid_id" placeholder="ACID ID" required>
+                  <label for="stg-kontr-input">ID договора <span class="required">*</span></label>
+                  <input id="stg-kontr-input" type="text" name="kontract_id" required aria-label="ID договора" placeholder="Contract ID" aria-required="true">
                 </div>
                 <div class="form-group">
-                  <label>Дата получения</label>
-                  <input type="date" name="data_polucheniya">
+                  <label for="stg-num-input">Номер этапа</label>
+                  <input id="stg-num-input" type="number" name="stage_number" min="1" aria-label="Номер этапа" placeholder="1">
                 </div>
               </div>
               <div class="form-row">
                 <div class="form-group">
-                  <label>Номер контракта</label>
-                  <input type="text" name="nomer_kontrakta">
+                  <label for="stg-name-input">Название этапа</label>
+                  <input id="stg-name-input" type="text" name="stage_name" aria-label="Название этапа" placeholder="Подпись руководителя">
                 </div>
                 <div class="form-group">
-                  <label>Сумма перевозки (USD)</label>
-                  <input type="number" name="summa_perevozki" step="0.01">
+                  <label for="stg-stat-input">Статус этапа</label>
+                  <select id="stg-stat-input" name="status" aria-label="Статус этапа">
+                    <option value="pending">⏳ Ожидание</option>
+                    <option value="active">▶ В процессе</option>
+                    <option value="completed">✓ Завершен</option>
+                  </select>
                 </div>
               </div>
-              <button type="submit" class="btn-submit">Добавить</button>
+              <button type="submit" class="btn-submit">✚ Добавить этап</button>
             </form>
           </div>
           <div class="table-wrapper">
-            <table id="acid_ktiTable">
+            <table id="contract_stagesTable" role="grid">
               <thead>
-                <tr>
-                  <th>ACID</th>
-                  <th>Дата получения</th>
-                  <th>Номер контракта</th>
-                  <th>Сумма</th>
-                  <th>Действие</th>
+                <tr role="row">
+                  <th scope="col">Договор</th>
+                  <th scope="col">Этап</th>
+                  <th scope="col">Название</th>
+                  <th scope="col">Статус</th>
+                  <th scope="col">Действие</th>
                 </tr>
               </thead>
-              <tbody></tbody>
+              <tbody role="rowgroup"></tbody>
             </table>
           </div>
         </div>
       </div>
 
-      <!-- Finance Tab -->
-      <div id="finance_ais_export-tab" class="tab-content">
+      <!-- ACID-KTI -->
+      <div id="acid_kti-tab" class="tab-content" role="tabpanel">
         <div class="content-panel">
-          <h2>Выгрузка АИС</h2>
+          <h2>🔗 Связь ACID-KTI</h2>
           <div class="form-section">
-            <form id="finance_ais_exportForm">
+            <form id="acid_ktiForm" novalidate>
               <div class="form-row">
                 <div class="form-group">
-                  <label>Дата</label>
-                  <input type="date" name="data" required>
+                  <label for="kti-acid-input">ACID (ID) <span class="required">*</span></label>
+                  <input id="kti-acid-input" type="text" name="acid_id" required aria-label="Номер ACID" placeholder="ACID-2026-001" aria-required="true">
                 </div>
                 <div class="form-group">
-                  <label>Номер</label>
-                  <input type="text" name="nomer">
+                  <label for="kti-date-input">Дата получения</label>
+                  <input id="kti-date-input" type="date" name="data_polucheniya" aria-label="Дата получения">
                 </div>
               </div>
               <div class="form-row">
                 <div class="form-group">
-                  <label>Организация</label>
-                  <input type="text" name="organizaciya">
+                  <label for="kti-dogn-input">Номер контракта</label>
+                  <input id="kti-dogn-input" type="text" name="nomer_kontrakta" aria-label="Номер контракта" placeholder="ДОГ-2026-001">
                 </div>
                 <div class="form-group">
-                  <label>Контрагент</label>
-                  <input type="text" name="kontragent">
+                  <label for="kti-sum-input">Сумма перевозки (USD)</label>
+                  <input id="kti-sum-input" type="number" name="summa_perevozki" step="0.01" min="0" aria-label="Сумма перевозки" placeholder="10000">
                 </div>
               </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Сумма (USD)</label>
-                  <input type="number" name="summa_usd" step="0.01">
-                </div>
-                <div class="form-group">
-                  <label>Статус</label>
-                  <input type="text" name="sostoyanie">
-                </div>
-              </div>
-              <button type="submit" class="btn-submit">Добавить запись</button>
+              <button type="submit" class="btn-submit">✚ Добавить связь</button>
             </form>
           </div>
           <div class="table-wrapper">
-            <table id="finance_ais_exportTable">
+            <table id="acid_ktiTable" role="grid">
               <thead>
-                <tr>
-                  <th>Дата</th>
-                  <th>Организация</th>
-                  <th>Контрагент</th>
-                  <th>Сумма</th>
-                  <th>Статус</th>
-                  <th>Действие</th>
+                <tr role="row">
+                  <th scope="col">ACID</th>
+                  <th scope="col">Дата получения</th>
+                  <th scope="col">Номер контракта</th>
+                  <th scope="col">Сумма</th>
+                  <th scope="col">Действие</th>
                 </tr>
               </thead>
-              <tbody></tbody>
+              <tbody role="rowgroup"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- FINANCE -->
+      <div id="finance_ais_export-tab" class="tab-content" role="tabpanel">
+        <div class="content-panel">
+          <h2>💰 Выгрузка АИС</h2>
+          <div class="form-section">
+            <form id="finance_ais_exportForm" novalidate>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="fin-date-input">Дата <span class="required">*</span></label>
+                  <input id="fin-date-input" type="date" name="data" required aria-label="Дата записи" aria-required="true">
+                </div>
+                <div class="form-group">
+                  <label for="fin-num-input">Номер</label>
+                  <input id="fin-num-input" type="text" name="nomer" aria-label="Номер записи" placeholder="2026-001">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="fin-org-input">Организация</label>
+                  <input id="fin-org-input" type="text" name="organizaciya" aria-label="Организация" placeholder="ООО/АО...">
+                </div>
+                <div class="form-group">
+                  <label for="fin-kontr-input">Контрагент</label>
+                  <input id="fin-kontr-input" type="text" name="kontragent" aria-label="Контрагент" placeholder="Контрагент">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="fin-sum-input">Сумма (USD) <span class="required">*</span></label>
+                  <input id="fin-sum-input" type="number" name="summa_usd" step="0.01" min="0" required aria-label="Сумма в USD" placeholder="100000" aria-required="true">
+                </div>
+                <div class="form-group">
+                  <label for="fin-stat-input">Статус</label>
+                  <input id="fin-stat-input" type="text" name="sostoyanie" aria-label="Статус записи" placeholder="Оплачено/Ожидание">
+                </div>
+              </div>
+              <button type="submit" class="btn-submit">✚ Добавить запись</button>
+            </form>
+          </div>
+          <div class="table-wrapper">
+            <table id="finance_ais_exportTable" role="grid">
+              <thead>
+                <tr role="row">
+                  <th scope="col">Дата</th>
+                  <th scope="col">Организация</th>
+                  <th scope="col">Контрагент</th>
+                  <th scope="col">Сумма</th>
+                  <th scope="col">Статус</th>
+                  <th scope="col">Действие</th>
+                </tr>
+              </thead>
+              <tbody role="rowgroup"></tbody>
             </table>
           </div>
         </div>
@@ -834,21 +1069,20 @@
     let token = null;
     let currentTab = 'acid_main';
 
-    // Login
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const login = document.getElementById('loginInput').value;
-      const password = document.getElementById('passwordInput').value;
+      const loginInput = document.getElementById('login-input');
+      const passwordInput = document.getElementById('password-input');
 
       try {
         const res = await fetch(`${API}/auth/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ login, password })
+          body: JSON.stringify({ login: loginInput.value, password: passwordInput.value })
         });
         const data = await res.json();
 
-        if (!res.ok) throw new Error(data.error || 'Login failed');
+        if (!res.ok) throw new Error(data.error || 'Ошибка входа');
 
         token = data.token;
         document.getElementById('userInfo').textContent = `${data.user.name} (${data.user.role})`;
@@ -878,9 +1112,16 @@
       };
       if (body) opts.body = JSON.stringify(body);
 
-      const res = await fetch(`${API}${path}`, opts);
-      if (!res.ok && res.status !== 201) throw new Error('API Error: ' + res.status);
-      return res.json();
+      try {
+        const res = await fetch(`${API}${path}`, opts);
+        if (!res.ok && res.status !== 201) {
+          const data = await res.json();
+          throw new Error(data.error || `API Error: ${res.status}`);
+        }
+        return await res.json();
+      } catch (err) {
+        throw err;
+      }
     }
 
     function showAlert(msg, type = 'success') {
@@ -892,9 +1133,13 @@
 
     function switchTab(btn, tab) {
       document.querySelectorAll('[id$="-tab"]').forEach(e => e.classList.remove('active'));
-      document.querySelectorAll('.tab-btn').forEach(e => e.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(e => {
+        e.classList.remove('active');
+        e.setAttribute('aria-selected', 'false');
+      });
       document.getElementById(`${tab}-tab`).classList.add('active');
       btn.classList.add('active');
+      btn.setAttribute('aria-selected', 'true');
       currentTab = tab;
       loadData(tab);
     }
@@ -906,7 +1151,7 @@
         tbody.innerHTML = '';
 
         if (!data.data || data.data.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 40px; color: #7c8fa3;">Нет данных</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 40px; color: var(--gray-text);">Нет данных</td></tr>';
           return;
         }
 
@@ -916,22 +1161,22 @@
           if (table === 'acid_main') {
             tr.innerHTML = `
               <td>${row.acid || '-'}</td>
-              <td><span class="badge ${row.status}">${row.status || '-'}</span></td>
+              <td><span class="badge ${row.status || 'pending'}">${row.status || '-'}</span></td>
               <td>${row.gruzootravitel || '-'}</td>
               <td>${row.postavshchik || '-'}</td>
               <td>${row.naimenovanie || '-'}</td>
               <td>${row.gw_kg || '-'}</td>
-              <td><button class="btn-delete" onclick="deleteRecord('${table}', '${row.id}')">Delete</button></td>
+              <td><button class="btn-delete" onclick="deleteRecord('${table}', '${row.id}')">🗑 Удалить</button></td>
             `;
           } else if (table === 'contract_main') {
             tr.innerHTML = `
               <td>${row.nomer_kontrakta || '-'}</td>
               <td>${row.tip_kontrakta || '-'}</td>
               <td>${row.kontragent || '-'}</td>
-              <td><span class="badge ${row.status}">${row.status || '-'}</span></td>
+              <td><span class="badge ${row.status || 'active'}">${row.status || '-'}</span></td>
               <td>${row.data_kontrakta || '-'}</td>
               <td>${row.cena_kontrakta ? row.cena_kontrakta.toFixed(2) : '-'}</td>
-              <td><button class="btn-delete" onclick="deleteRecord('${table}', '${row.id}')">Delete</button></td>
+              <td><button class="btn-delete" onclick="deleteRecord('${table}', '${row.id}')">🗑 Удалить</button></td>
             `;
           } else if (table === 'finance_ais_export') {
             tr.innerHTML = `
@@ -940,10 +1185,20 @@
               <td>${row.kontragent || '-'}</td>
               <td>${row.summa_usd ? row.summa_usd.toFixed(2) : '-'}</td>
               <td>${row.sostoyanie || '-'}</td>
-              <td><button class="btn-delete" onclick="deleteRecord('${table}', '${row.id}')">Delete</button></td>
+              <td><button class="btn-delete" onclick="deleteRecord('${table}', '${row.id}')">🗑 Удалить</button></td>
+            `;
+          } else if (table === 'acid_customs') {
+            tr.innerHTML = `
+              <td>${row.acid_id || '-'}</td>
+              <td>${row.nomer_dt || '-'}</td>
+              <td>${row.data_dt || '-'}</td>
+              <td><span class="badge ${row.custom_status || 'pending'}">${row.custom_status || '-'}</span></td>
+              <td><button class="btn-delete" onclick="deleteRecord('${table}', '${row.id}')">🗑 Удалить</button></td>
             `;
           } else {
-            tr.innerHTML = `<td colspan="10">Data format: ${JSON.stringify(row)}</td>`;
+            tr.innerHTML = `
+              <td colspan="10" style="text-align: center; color: var(--gray-text);">${JSON.stringify(row).substring(0, 50)}...</td>
+            `;
           }
           tbody.appendChild(tr);
         });
@@ -952,20 +1207,30 @@
       }
     }
 
-    // Form submissions
     ['acid_main', 'acid_logistics', 'acid_customs', 'contract_main', 'contract_stages', 'acid_kti', 'finance_ais_export'].forEach(table => {
       const form = document.getElementById(`${table}Form`);
       if (form) {
         form.addEventListener('submit', async (e) => {
           e.preventDefault();
+          
+          if (!form.checkValidity()) {
+            showAlert('Заполните все обязательные поля', 'error');
+            return;
+          }
+
           const fd = new FormData(e.target);
           const body = Object.fromEntries(fd);
 
           try {
+            const btn = e.target.querySelector('.btn-submit');
+            btn.disabled = true;
+            
             await api('POST', `/${table}`, body);
-            showAlert('Запись добавлена');
+            showAlert('✓ Запись добавлена успешно');
             e.target.reset();
             loadData(table);
+            
+            btn.disabled = false;
           } catch (err) {
             showAlert(err.message, 'error');
           }
@@ -974,10 +1239,10 @@
     });
 
     async function deleteRecord(table, id) {
-      if (!confirm('Удалить запись?')) return;
+      if (!confirm('⚠ Вы уверены? Действие необратимо.')) return;
       try {
         await api('DELETE', `/${table}/${id}`);
-        showAlert('Удалено');
+        showAlert('✓ Запись удалена');
         loadData(table);
       } catch (err) {
         showAlert(err.message, 'error');
