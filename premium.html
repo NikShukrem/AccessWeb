@@ -680,9 +680,9 @@
                 <div class="form-group">
                   <label for="status-select">Статус</label>
                   <select id="status-select" name="status" aria-label="Статус грузоотправки">
-                    <option value="pending">⏳ Ожидание</option>
-                    <option value="active">▶ Активно</option>
-                    <option value="completed">✓ Завершено</option>
+                    <option value="pending">Ожидание</option>
+                    <option value="active">Активно</option>
+                    <option value="completed">Завершено</option>
                   </select>
                 </div>
               </div>
@@ -722,7 +722,7 @@
                   <input id="mesta-input" type="number" name="kolichestvo_mest" min="1" aria-label="Количество мест" placeholder="1">
                 </div>
               </div>
-              <button type="submit" class="btn-submit">✚ Добавить груз</button>
+              <button type="submit" class="btn-submit">Добавить груз</button>
             </form>
           </div>
           <div class="table-wrapper">
@@ -770,7 +770,7 @@
                   <input id="mesto-input" type="text" name="mesto_pribytiya" aria-label="Место прибытия" placeholder="Порт/Город">
                 </div>
               </div>
-              <button type="submit" class="btn-submit">✚ Добавить</button>
+              <button type="submit" class="btn-submit">Добавить</button>
             </form>
           </div>
           <div class="table-wrapper">
@@ -815,13 +815,13 @@
                   <label for="customs-status">Статус таможни</label>
                   <select id="customs-status" name="custom_status" aria-label="Статус таможенного оформления">
                     <option value="">Выбрать</option>
-                    <option value="pending">⏳ Ожидание</option>
-                    <option value="cleared">✓ Очищено</option>
-                    <option value="released">✓ Выпущено</option>
+                    <option value="pending">Ожидание</option>
+                    <option value="cleared">Очищено</option>
+                    <option value="released">Выпущено</option>
                   </select>
                 </div>
               </div>
-              <button type="submit" class="btn-submit">✚ Добавить</button>
+              <button type="submit" class="btn-submit">Добавить</button>
             </form>
           </div>
           <div class="table-wrapper">
@@ -856,9 +856,9 @@
                   <label for="tip-input">Тип договора</label>
                   <select id="tip-input" name="tip_kontrakta" aria-label="Тип контракта">
                     <option value="">Выбрать тип</option>
-                    <option value="Строительство">🏗 Строительство</option>
-                    <option value="Поставка">📦 Поставка</option>
-                    <option value="Счёт">💳 Счёт-фактура</option>
+                    <option value="Строительство">Строительство</option>
+                    <option value="Поставка">Поставка</option>
+                    <option value="Счёт">Счёт-фактура</option>
                   </select>
                 </div>
               </div>
@@ -870,9 +870,9 @@
                 <div class="form-group">
                   <label for="dstat-input">Статус договора</label>
                   <select id="dstat-input" name="status" aria-label="Статус договора">
-                    <option value="active">▶ Активно</option>
-                    <option value="pending">⏳ Ожидание</option>
-                    <option value="completed">✓ Завершено</option>
+                    <option value="active">Активно</option>
+                    <option value="pending">Ожидание</option>
+                    <option value="completed">Завершено</option>
                   </select>
                 </div>
               </div>
@@ -886,7 +886,7 @@
                   <input id="dcena-input" type="number" name="cena_kontrakta" step="0.01" min="0" required aria-label="Сумма договора" placeholder="250000" aria-required="true">
                 </div>
               </div>
-              <button type="submit" class="btn-submit">✚ Добавить договор</button>
+              <button type="submit" class="btn-submit">Добавить договор</button>
             </form>
           </div>
           <div class="table-wrapper">
@@ -932,13 +932,13 @@
                 <div class="form-group">
                   <label for="stg-stat-input">Статус этапа</label>
                   <select id="stg-stat-input" name="status" aria-label="Статус этапа">
-                    <option value="pending">⏳ Ожидание</option>
-                    <option value="active">▶ В процессе</option>
-                    <option value="completed">✓ Завершен</option>
+                    <option value="pending">Ожидание</option>
+                    <option value="active">В процессе</option>
+                    <option value="completed">Завершен</option>
                   </select>
                 </div>
               </div>
-              <button type="submit" class="btn-submit">✚ Добавить этап</button>
+              <button type="submit" class="btn-submit">Добавить этап</button>
             </form>
           </div>
           <div class="table-wrapper">
@@ -984,7 +984,7 @@
                   <input id="kti-sum-input" type="number" name="summa_perevozki" step="0.01" min="0" aria-label="Сумма перевозки" placeholder="10000">
                 </div>
               </div>
-              <button type="submit" class="btn-submit">✚ Добавить связь</button>
+              <button type="submit" class="btn-submit">Добавить связь</button>
             </form>
           </div>
           <div class="table-wrapper">
@@ -1040,7 +1040,7 @@
                   <input id="fin-stat-input" type="text" name="sostoyanie" aria-label="Статус записи" placeholder="Оплачено/Ожидание">
                 </div>
               </div>
-              <button type="submit" class="btn-submit">✚ Добавить запись</button>
+              <button type="submit" class="btn-submit">Добавить запись</button>
             </form>
           </div>
           <div class="table-wrapper">
@@ -1166,7 +1166,7 @@
               <td>${row.postavshchik || '-'}</td>
               <td>${row.naimenovanie || '-'}</td>
               <td>${row.gw_kg || '-'}</td>
-              <td><button class="btn-delete" onclick="deleteRecord('${table}', '${row.id}')">🗑 Удалить</button></td>
+              <td><button class="btn-delete" onclick="deleteRecord('${table}', '${row.id}')">Удалить</button></td>
             `;
           } else if (table === 'contract_main') {
             tr.innerHTML = `
@@ -1176,7 +1176,7 @@
               <td><span class="badge ${row.status || 'active'}">${row.status || '-'}</span></td>
               <td>${row.data_kontrakta || '-'}</td>
               <td>${row.cena_kontrakta ? row.cena_kontrakta.toFixed(2) : '-'}</td>
-              <td><button class="btn-delete" onclick="deleteRecord('${table}', '${row.id}')">🗑 Удалить</button></td>
+              <td><button class="btn-delete" onclick="deleteRecord('${table}', '${row.id}')">Удалить</button></td>
             `;
           } else if (table === 'finance_ais_export') {
             tr.innerHTML = `
@@ -1185,7 +1185,7 @@
               <td>${row.kontragent || '-'}</td>
               <td>${row.summa_usd ? row.summa_usd.toFixed(2) : '-'}</td>
               <td>${row.sostoyanie || '-'}</td>
-              <td><button class="btn-delete" onclick="deleteRecord('${table}', '${row.id}')">🗑 Удалить</button></td>
+              <td><button class="btn-delete" onclick="deleteRecord('${table}', '${row.id}')">Удалить</button></td>
             `;
           } else if (table === 'acid_customs') {
             tr.innerHTML = `
@@ -1193,7 +1193,7 @@
               <td>${row.nomer_dt || '-'}</td>
               <td>${row.data_dt || '-'}</td>
               <td><span class="badge ${row.custom_status || 'pending'}">${row.custom_status || '-'}</span></td>
-              <td><button class="btn-delete" onclick="deleteRecord('${table}', '${row.id}')">🗑 Удалить</button></td>
+              <td><button class="btn-delete" onclick="deleteRecord('${table}', '${row.id}')">Удалить</button></td>
             `;
           } else {
             tr.innerHTML = `
@@ -1226,7 +1226,7 @@
             btn.disabled = true;
             
             await api('POST', `/${table}`, body);
-            showAlert('✓ Запись добавлена успешно');
+            showAlert('Запись добавлена успешно');
             e.target.reset();
             loadData(table);
             
@@ -1239,10 +1239,10 @@
     });
 
     async function deleteRecord(table, id) {
-      if (!confirm('⚠ Вы уверены? Действие необратимо.')) return;
+      if (!confirm('Вы уверены? Действие необратимо.')) return;
       try {
         await api('DELETE', `/${table}/${id}`);
-        showAlert('✓ Запись удалена');
+        showAlert('Запись удалена');
         loadData(table);
       } catch (err) {
         showAlert(err.message, 'error');
