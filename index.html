@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AccessWeb v3 - Управление логистикой</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     :root {
       --titan-primary: #1A3D5C;
@@ -244,36 +245,27 @@
     /* DASHBOARD */
     .dashboard-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 20px;
+      grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+      gap: 30px;
       margin-bottom: 30px;
     }
 
-    .stat-card {
+    .chart-card {
       background: white;
       border-radius: 12px;
-      padding: 20px;
+      padding: 30px;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     }
 
-    .stat-card h3 {
-      color: var(--gray-text);
-      font-size: 12px;
-      text-transform: uppercase;
-      margin-bottom: 12px;
-      letter-spacing: 0.5px;
-    }
-
-    .stat-card .value {
+    .chart-card h3 {
       color: var(--titan-primary);
-      font-size: 32px;
-      font-weight: 600;
+      margin-bottom: 20px;
+      font-size: 16px;
     }
 
-    .stat-card .label {
-      color: var(--gray-text);
-      font-size: 12px;
-      margin-top: 8px;
+    .chart-container {
+      position: relative;
+      height: 300px;
     }
 
     /* SECTIONS */
@@ -582,39 +574,33 @@
         <div id="dashboard" class="content-section active">
           <div class="header">
             <h2>Дашборд</h2>
-            <p>Обзор системы</p>
+            <p>Финансовая аналитика</p>
           </div>
 
           <div class="dashboard-grid">
-            <div class="stat-card">
-              <h3>Грузы в работе</h3>
-              <div class="value" id="stat-acid-pending">0</div>
-              <div class="label">записей</div>
+            <!-- CHART 1: Услуги, Оплаты, Задолженность -->
+            <div class="chart-card">
+              <h3>Финансовые метрики</h3>
+              <div class="chart-container">
+                <canvas id="metricsChart"></canvas>
+              </div>
             </div>
-            <div class="stat-card">
-              <h3>Грузы доставлены</h3>
-              <div class="value" id="stat-acid-completed">0</div>
-              <div class="label">записей</div>
+
+            <!-- CHART 2: Остатки по договорам -->
+            <div class="chart-card">
+              <h3>Остатки по договорам</h3>
+              <div class="chart-container">
+                <canvas id="balanceChart"></canvas>
+              </div>
             </div>
-            <div class="stat-card">
-              <h3>Всего грузов</h3>
-              <div class="value" id="stat-acid-total">0</div>
-              <div class="label">записей</div>
-            </div>
-            <div class="stat-card">
-              <h3>Активные договоры</h3>
-              <div class="value" id="stat-contracts-active">0</div>
-              <div class="label">договоров</div>
-            </div>
-            <div class="stat-card">
-              <h3>Просроченные договоры</h3>
-              <div class="value" id="stat-contracts-overdue" style="color: var(--titan-danger);">0</div>
-              <div class="label">договоров</div>
-            </div>
-            <div class="stat-card">
-              <h3>Финансов</h3>
-              <div class="value" id="stat-finance-total">0</div>
-              <div class="label">записей</div>
+          </div>
+
+          <!-- Stat: Грузы в работе -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px;">
+            <div class="chart-card" style="padding: 20px;">
+              <h3 style="font-size: 12px; text-transform: uppercase; color: var(--gray-text);">Грузы в работе</h3>
+              <div style="color: var(--titan-primary); font-size: 32px; font-weight: 600; margin-top: 12px;" id="stat-acid-pending">0</div>
+              <div style="color: var(--gray-text); font-size: 12px; margin-top: 8px;">записей</div>
             </div>
           </div>
         </div>
@@ -896,18 +882,36 @@
       document.getElementById('appScreen').style.display = 'none';
     }
 
+    let metricsChart = null;
+    let balanceChart = null;
+
     async function loadDashboard() {
       try {
         const acidData = await api('GET', '/acid');
         const contractData = await api('GET', '/contracts');
         const financeData = await api('GET', '/finance');
 
+        // STAT: Грузы в работе
         document.getElementById('stat-acid-pending').textContent = acidData.filter(r => r.status === 'pending').length;
-        document.getElementById('stat-acid-completed').textContent = acidData.filter(r => r.status === 'completed').length;
-        document.getElementById('stat-acid-total').textContent = acidData.length;
-        document.getElementById('stat-contracts-active').textContent = contractData.filter(r => r.status === 'active').length;
-        document.getElementById('stat-contracts-overdue').textContent = contractData.length;
-        document.getElementById('stat-finance-total').textContent = financeData.length;
+
+        // METRICS CHART
+        const services = acidData.reduce((sum, r) => sum + (parseFloat(r.stoimost_gruza) || 0), 0);
+        const payments = financeData.filter(r => r.status === 'completed').reduce((sum, r) => sum + (parseFloat(r.summa) || 0), 0);
+        const debt = services - payments;
+
+        renderMetricsChart(services, payments, Math.max(0, debt));
+
+        // BALANCE CHART (по договорам)
+        const balances = {};
+        contractData.forEach(c => {
+          const contractSum = parseFloat(c.summa) || 0;
+          const paid = financeData
+            .filter(f => f.nomer_kontrakta === c.nomer_kontrakta && f.status === 'completed')
+            .reduce((sum, f) => sum + (parseFloat(f.summa) || 0), 0);
+          balances[c.nomer_kontrakta] = Math.max(0, contractSum - paid);
+        });
+
+        renderBalanceChart(balances);
 
         renderAcidTable(acidData);
         renderContractTable(contractData);
@@ -915,6 +919,86 @@
       } catch (err) {
         showAlert(err.message, 'error');
       }
+    }
+
+    function renderMetricsChart(services, payments, debt) {
+      const ctx = document.getElementById('metricsChart').getContext('2d');
+      
+      if (metricsChart) metricsChart.destroy();
+      
+      metricsChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['Метрика'],
+          datasets: [
+            {
+              label: 'Оказанные услуги (USD)',
+              data: [services],
+              backgroundColor: 'rgba(26, 61, 92, 0.8)',
+              borderColor: '#1A3D5C',
+              borderWidth: 2
+            },
+            {
+              label: 'Оплаты (USD)',
+              data: [payments],
+              backgroundColor: 'rgba(39, 174, 96, 0.8)',
+              borderColor: '#27AE60',
+              borderWidth: 2
+            },
+            {
+              label: 'Задолженность (USD)',
+              data: [debt],
+              backgroundColor: 'rgba(192, 57, 43, 0.8)',
+              borderColor: '#C0392B',
+              borderWidth: 2
+            }
+          ]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom' }
+          },
+          scales: {
+            x: { beginAtZero: true }
+          }
+        }
+      });
+    }
+
+    function renderBalanceChart(balances) {
+      const ctx = document.getElementById('balanceChart').getContext('2d');
+      
+      if (balanceChart) balanceChart.destroy();
+      
+      const labels = Object.keys(balances).slice(0, 10);
+      const data = Object.values(balances).slice(0, 10);
+      const colors = [
+        '#1A3D5C', '#2E5C8D', '#4A7BB8', '#6C9FD6', '#8FB5E3',
+        '#A8C5EB', '#C1D5F3', '#DAE5FA', '#EDF0F7', '#F5F7FB'
+      ];
+
+      balanceChart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+          labels: labels.length > 0 ? labels : ['Нет данных'],
+          datasets: [{
+            data: data.length > 0 ? data : [1],
+            backgroundColor: labels.length > 0 ? colors.slice(0, labels.length) : ['#CCCCCC'],
+            borderColor: 'white',
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom' }
+          }
+        }
+      });
     }
 
     function renderAcidTable(rows) {
