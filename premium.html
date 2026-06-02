@@ -1169,10 +1169,10 @@
     function downloadTemplate(tableName) {
       const templates = {
         acid: {
-          headers: ['gruzootravitel*', 'postavshchik*', 'naimenovanie*', 'gw_kg', 'stoimost_gruza', 'status', 'etd', 'eta', 'nomer_dt', 'data_dt', 'custom_status', 'komentar', 'nomer_kontrakta'],
+          headers: ['acid*', 'gruzootravitel*', 'postavshchik*', 'naimenovanie*', 'gw_kg', 'stoimost_gruza', 'status', 'etd', 'eta', 'nomer_dt', 'data_dt', 'custom_status', 'komentar', 'nomer_kontrakta'],
           example: [
-            ['OOO Export', 'Supplier A', 'Электроника', '1500', '50000', 'pending', '2026-04-15', '2026-05-20', 'DT-001', '2026-04-01', 'cleared', 'Sample shipment', 'CONTRACT-001'],
-            ['Global Trade', 'Supplier B', 'Оборудование', '2000', '75000', 'completed', '2026-04-10', '2026-05-15', 'DT-002', '2026-03-28', 'processing', '', 'CONTRACT-002']
+            ['ACID-2026-100', 'OOO Export', 'Supplier A', 'Электроника', '1500', '50000', 'pending', '2026-04-15', '2026-05-20', 'DT-001', '2026-04-01', 'cleared', 'Sample shipment', 'CONTRACT-001'],
+            ['ACID-2026-101', 'Global Trade', 'Supplier B', 'Оборудование', '2000', '75000', 'completed', '2026-04-10', '2026-05-15', 'DT-002', '2026-03-28', 'processing', '', 'CONTRACT-002']
           ]
         },
         contracts: {
@@ -1239,7 +1239,7 @@
       }
 
       const tableMap = {
-        'acid': { table: 'acid', required: ['gruzootravitel', 'postavshchik', 'naimenovanie'] },
+        'acid': { table: 'acid', required: ['acid', 'gruzootravitel', 'postavshchik', 'naimenovanie'] },
         'contracts': { table: 'contracts', required: ['nomer_kontrakta', 'kontragent', 'data_nachala', 'data_okonchanya', 'summa'] },
         'finance': { table: 'finance', required: ['data', 'kontragent', 'valyuta', 'summa'] }
       };
