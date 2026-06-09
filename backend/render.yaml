@@ -1,16 +1,20 @@
 services:
   - type: web
     name: accessweb-backend
-    env: node
+    runtime: node
     rootDir: backend
     buildCommand: npm install
     startCommand: npm start
+    disk:
+      name: accessweb-data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
     envVars:
       - key: PORT
         value: 8080
       - key: DB_PATH
         value: /opt/render/project/src/data/accessweb.db
-      - key: CORS_ORIGIN
-        value: "*"
+      - key: ALLOWED_ORIGINS
+        value: https://nikshukrem.github.io,http://localhost:8080
       - key: JWT_SECRET
-        sync: false
+        generateValue: true

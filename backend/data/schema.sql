@@ -86,7 +86,7 @@ CREATE TABLE IF NOT EXISTS contracts (
   ds_data TEXT,
   cena_kontrakta REAL,
   valyuta TEXT DEFAULT 'USD',
-  summa_oplatы REAL,
+  summa_oplaty REAL,
   marshrut_to TEXT,
   vid_zakupki TEXT,
   lot_nomer TEXT,

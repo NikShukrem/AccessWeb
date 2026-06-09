@@ -1,9 +1,11 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AccessWeb v3 - Управление логистикой</title>
+  <!-- Set content="" to backend URL when deploying frontend separately (e.g. GitHub Pages) -->
+  <meta name="api-base" content="">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -665,11 +667,11 @@
       <form id="loginForm">
         <div class="form-group">
           <label>Логин</label>
-          <input type="text" value="admin" required>
+          <input type="text" autocomplete="username" required>
         </div>
         <div class="form-group">
           <label>Пароль</label>
-          <input type="password" value="admin123" required>
+          <input type="password" autocomplete="current-password" required>
         </div>
         <button type="submit">Войти</button>
       </form>
@@ -687,13 +689,13 @@
           <div class="nav-section-title">Отделы</div>
           <button class="nav-btn active" onclick="switchTab(this, 'dashboard')">Дашборд</button>
           <button class="nav-btn" onclick="switchTab(this, 'acid')">Грузы (ACID)</button>
-          <button class="nav-btn" onclick="switchTab(this, 'contracts')">Договоры</button>
-          <button class="nav-btn" onclick="switchTab(this, 'finance')">Финансы</button>
+          <button id="nav-contracts" class="nav-btn" onclick="switchTab(this, 'contracts')">Договоры</button>
+          <button id="nav-finance" class="nav-btn" onclick="switchTab(this, 'finance')">Финансы</button>
         </div>
 
         <div class="nav-section">
           <div class="nav-section-title">Действия</div>
-          <button class="nav-btn" onclick="openImportModal()">Импорт данных</button>
+          <button id="nav-import" class="nav-btn" onclick="openImportModal()">Импорт данных</button>
         </div>
 
         <div class="user-section">
@@ -712,8 +714,8 @@
         <!-- DASHBOARD TAB -->
         <div id="dashboard" class="content-section active">
           <div class="header">
-            <h2>Дашборд</h2>
-            <p>Финансовая аналитика</p>
+            <h2 id="dashboardTitle">Дашборд</h2>
+            <p id="dashboardSubtitle">Финансовая аналитика</p>
           </div>
 
           <div class="dashboard-grid">
@@ -793,9 +795,9 @@
             <h3>Все грузы</h3>
             <div class="search-bar">
               <input type="text" id="acidSearch" placeholder="Поиск по ACID, грузоотправителю..." onkeyup="filterAcidTable()">
-              <button class="btn-filter active" onclick="filterByStatus('all')">Все</button>
-              <button class="btn-filter" onclick="filterByStatus('pending')">В работе</button>
-              <button class="btn-filter" onclick="filterByStatus('completed')">Доставлены</button>
+              <button class="btn-filter active" onclick="filterByStatus('all', event)">Все</button>
+              <button class="btn-filter" onclick="filterByStatus('pending', event)">В работе</button>
+              <button class="btn-filter" onclick="filterByStatus('completed', event)">Доставлены</button>
             </div>
             <div class="table-wrapper">
               <table id="acidTable">
@@ -846,15 +848,15 @@
               <div class="form-row">
                 <div class="form-group">
                   <label>Дата начала</label>
-                  <input type="date" name="data_nachala">
+                  <input type="date" name="data_kontrakta">
                 </div>
                 <div class="form-group">
                   <label>Дата окончания</label>
-                  <input type="date" name="data_okonchanya">
+                  <input type="date" name="srok_deystviya">
                 </div>
                 <div class="form-group">
                   <label>Сумма</label>
-                  <input type="number" name="summa" step="0.01">
+                  <input type="number" name="cena_kontrakta" step="0.01">
                 </div>
               </div>
               <button type="submit" class="btn-submit">Добавить договор</button>
@@ -917,11 +919,11 @@
               <div class="form-row">
                 <div class="form-group">
                   <label>Сумма <span class="required">*</span></label>
-                  <input type="number" name="summa" step="0.01" required>
+                  <input type="number" name="summa_usd" step="0.01" required>
                 </div>
                 <div class="form-group">
-                  <label>Статус</label>
-                  <select name="status">
+                  <label>Состояние</label>
+                  <select name="sostoyanie">
                     <option value="pending">Ожидание</option>
                     <option value="completed">Завершено</option>
                   </select>
@@ -985,28 +987,60 @@
   </div>
 
   <script>
-    let authToken = null;
+    // ============================================================
+    // CONFIG
+    // ============================================================
+
+    const API_BASE = (() => {
+      const meta = document.querySelector('meta[name="api-base"]')?.content;
+      if (meta) return meta;
+      if (window.location.protocol === 'file:') return 'http://localhost:8080';
+      return window.location.origin;
+    })();
+
+    const RATES_TO_USD = { USD: 1, EUR: 1.08, EGP: 0.021, RUB: 0.011 };
+
+    // ============================================================
+    // STATE
+    // ============================================================
+
+    let authToken   = null;
+    let currentUser = null;
+    let isEgyptMode = false;
     let currentFilter = 'all';
+    let metricsChart  = null;
+    let balanceChart  = null;
+
+    // ============================================================
+    // API HELPER
+    // ============================================================
 
     async function api(method, path, body = null) {
-      const options = {
+      const opts = {
         method,
         headers: {
           'Authorization': `Bearer ${authToken}`,
           'Content-Type': 'application/json'
         }
       };
-      if (body) options.body = JSON.stringify(body);
-      const res = await fetch(`http://localhost:8080${path}`, options);
-      if (!res.ok) throw new Error(await res.text());
+      if (body) opts.body = JSON.stringify(body);
+      const res = await fetch(`${API_BASE}${path}`, opts);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(err.error || res.statusText);
+      }
       return res.json();
     }
+
+    // ============================================================
+    // UI HELPERS
+    // ============================================================
 
     function showAlert(msg, type = 'success') {
       const el = document.getElementById('alert');
       el.textContent = msg;
       el.className = `alert show ${type}`;
-      setTimeout(() => el.classList.remove('show'), 3000);
+      setTimeout(() => el.classList.remove('show'), 4000);
     }
 
     function switchTab(btn, tabId) {
@@ -1016,34 +1050,82 @@
       document.getElementById(tabId).classList.add('active');
     }
 
-    // LOGIN
+    // ============================================================
+    // EGYPT MODE
+    // ============================================================
+
+    function applyEgyptMode() {
+      ['nav-contracts', 'nav-finance', 'nav-import'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+      });
+      document.getElementById('dashboardTitle').textContent    = 'Грузы в пути';
+      document.getElementById('dashboardSubtitle').textContent = 'Статус отслеживания грузов';
+      const grid = document.querySelector('.dashboard-grid');
+      if (grid) grid.style.display = 'none';
+    }
+
+    function initUserUI(user) {
+      document.getElementById('userLogin').textContent = user.name || user.login;
+      const roleLabels = {
+        admin: 'Администратор', egypt: 'Египет (только чтение)',
+        logistics_support: 'Логистика', info_analytics: 'Аналитика',
+        operational_logistics: 'Оперативная логистика', director: 'Руководитель'
+      };
+      document.getElementById('userRole').textContent = roleLabels[user.role] || user.role;
+      if (user.is_egypt_mode || user.role === 'egypt') { isEgyptMode = true; applyEgyptMode(); }
+    }
+
+    // ============================================================
+    // AUTH
+    // ============================================================
+
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
+      const login = e.target[0].value.trim();
+      const pwd   = e.target[1].value;
+      if (!login || !pwd) return;
+      const btn = e.target.querySelector('button');
+      btn.disabled = true; btn.textContent = 'Вход...';
       try {
-        const [login, pwd] = [e.target[0].value, e.target[1].value];
-        const res = await fetch('http://localhost:8080/auth/login', {
+        const res  = await fetch(`${API_BASE}/auth/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ login, password: pwd })
         });
-        if (!res.ok) throw new Error('Неверные учетные данные');
-        authToken = (await res.json()).token;
-        localStorage.setItem('authToken', authToken);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Ошибка входа');
+        authToken   = data.token;
+        currentUser = data.user;
+        localStorage.setItem('authToken',   authToken);
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
         document.getElementById('loginScreen').style.display = 'none';
-        document.getElementById('appScreen').style.display = 'block';
-        document.getElementById('userLogin').textContent = login;
+        document.getElementById('appScreen').style.display   = 'block';
+        initUserUI(currentUser);
         loadDashboard();
       } catch (err) {
         showAlert(err.message, 'error');
+      } finally {
+        btn.disabled = false; btn.textContent = 'Войти';
       }
     });
 
     function logout() {
-      authToken = null;
+      authToken = null; currentUser = null; isEgyptMode = false; currentFilter = 'all';
       localStorage.removeItem('authToken');
+      localStorage.removeItem('currentUser');
+      ['nav-contracts', 'nav-finance', 'nav-import'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.style.display = '';
+      });
+      const grid = document.querySelector('.dashboard-grid');
+      if (grid) grid.style.display = '';
       document.getElementById('loginScreen').style.display = 'flex';
-      document.getElementById('appScreen').style.display = 'none';
+      document.getElementById('appScreen').style.display   = 'none';
     }
+
+    // ============================================================
+    // IMPORT MODAL
+    // ============================================================
 
     let selectedFile = null;
     let dragDropInitialized = false;
@@ -1053,10 +1135,7 @@
       document.getElementById('fileName').classList.remove('show');
       document.getElementById('btnImport').disabled = true;
       selectedFile = null;
-      if (!dragDropInitialized) {
-        setupDragDrop();
-        dragDropInitialized = true;
-      }
+      if (!dragDropInitialized) { setupDragDrop(); dragDropInitialized = true; }
     }
 
     function closeImportModal() {
@@ -1067,509 +1146,247 @@
       document.getElementById('dragDropZone').classList.remove('active');
     }
 
-    function showSelectedFileFromInput(event) {
-      const file = event.target.files[0];
-      if (file) {
-        selectedFile = file;
-        showSelectedFile(file);
-      }
-      // Очистить input после выбора
-      event.target.value = '';
+    function showSelectedFileFromInput(evt) {
+      const file = evt.target.files[0];
+      if (file) { selectedFile = file; showSelectedFile(file); }
+      evt.target.value = '';
     }
 
     function setupDragDrop() {
       const zone = document.getElementById('dragDropZone');
-      
-      zone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        zone.classList.add('active');
+      zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('active'); });
+      zone.addEventListener('dragleave', e => { e.preventDefault(); zone.classList.remove('active'); });
+      zone.addEventListener('drop', e => {
+        e.preventDefault(); zone.classList.remove('active');
+        if (e.dataTransfer.files.length > 0) { selectedFile = e.dataTransfer.files[0]; showSelectedFile(selectedFile); }
       });
-
-      zone.addEventListener('dragleave', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        zone.classList.remove('active');
-      });
-
-      zone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        zone.classList.remove('active');
-        const files = e.dataTransfer.files;
-        if (files.length > 0) {
-          selectedFile = files[0];
-          showSelectedFile(files[0]);
-        }
-      });
-
-      zone.addEventListener('click', () => {
-        document.getElementById('modalImportFile').click();
-      });
+      zone.addEventListener('click', () => document.getElementById('modalImportFile').click());
     }
 
     function showSelectedFile(file) {
-      const fileNameEl = document.getElementById('fileName');
-      fileNameEl.textContent = `✓ Файл выбран: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
-      fileNameEl.classList.add('show');
+      const el = document.getElementById('fileName');
+      el.textContent = `✓ Файл выбран: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+      el.classList.add('show');
       document.getElementById('btnImport').disabled = false;
-      selectedFile = file;
     }
 
     function processImportFile() {
-      if (!selectedFile) {
-        showAlert('Файл не выбран', 'error');
-        return;
-      }
-
-      const btnImport = document.getElementById('btnImport');
-      btnImport.disabled = true;
-      btnImport.textContent = 'Загрузка...';
-
-      importFileFromModal(selectedFile).then(() => {
-        btnImport.disabled = false;
-        btnImport.textContent = 'Импортировать';
-      }).catch((err) => {
-        btnImport.disabled = false;
-        btnImport.textContent = 'Импортировать';
-        console.error('Import error:', err);
+      if (!selectedFile) return showAlert('Файл не выбран', 'error');
+      const btn = document.getElementById('btnImport');
+      btn.disabled = true; btn.textContent = 'Загрузка...';
+      importFileFromModal(selectedFile).finally(() => {
+        btn.disabled = false; btn.textContent = 'Импортировать';
       });
     }
 
     async function importFileFromModal(file) {
+      const isExcel = /\.(xlsx|xls)$/i.test(file.name);
+      let rows;
+      try { rows = isExcel ? await readExcel(file) : await readCSV(file); }
+      catch (err) { return showAlert(`Ошибка чтения файла: ${err.message}`, 'error'); }
+
+      if (!rows || rows.length === 0) return showAlert('Файл пуст', 'error');
+
+      const headers   = Object.keys(rows[0]).map(h => h.toLowerCase().replace(/\*/g, '').trim());
+      const tableType = detectTableType(headers);
+      if (!tableType) return showAlert('Не удалось определить тип таблицы. Проверьте заголовки файла.', 'error');
+
+      const mapping    = getFieldMapping(tableType);
+      const mappedRows = rows.map(r => mapRow(r, mapping)).filter(r => Object.keys(r).length > 0);
+      if (mappedRows.length === 0) return showAlert('Нет данных для импорта', 'error');
+
+      try {
+        const result     = await api('POST', `/import/${tableType}`, { rows: mappedRows });
+        const skippedMsg = result.skipped ? `, пропущено: ${result.skipped}` : '';
+        showAlert(`✓ Импортировано ${result.imported} записей в "${tableType}"${skippedMsg}`, 'success');
+        loadDashboard(); closeImportModal();
+      } catch (err) {
+        showAlert(`Ошибка импорта: ${err.message}`, 'error');
+      }
+    }
+
+    function readExcel(file) {
       return new Promise((resolve, reject) => {
-        const isExcel = file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls');
-        
-        const processData = async (rows) => {
+        const reader = new FileReader();
+        reader.onload  = e => {
           try {
-            if (!rows || rows.length === 0) {
-              showAlert('Файл пуст', 'error');
-              resolve();
-              return;
-            }
-
-            // Определение типа таблицы по заголовкам
-            const firstRow = rows[0];
-            const headers = Object.keys(firstRow).map(h => h.toLowerCase().replace(/\*/g, '').trim());
-            
-            let tableType = null;
-            const acidFields = ['acid', 'грузоотправитель', 'поставщик', 'наименование'];
-            const contractsFields = ['nomer_kontrakta', 'номер контракта', 'контрагент', 'дата начала'];
-            const financeFields = ['дата', 'контрагент', 'валюта', 'сумма'];
-
-            if (headers.some(h => acidFields.some(f => h.includes(f.toLowerCase())))) {
-              tableType = 'acid';
-            } else if (headers.some(h => contractsFields.some(f => h.includes(f.toLowerCase())))) {
-              tableType = 'contracts';
-            } else if (headers.some(h => financeFields.some(f => h.includes(f.toLowerCase())))) {
-              tableType = 'finance';
-            }
-
-            if (!tableType) {
-              showAlert('Не удалось определить тип файла (ACID, Договоры или Финансы)', 'error');
-              resolve();
-              return;
-            }
-
-            // Конфигурация таблиц
-            const tableMap = {
-              'acid': { table: 'acid', required: ['acid', 'gruzootravitel', 'postavshchik', 'naimenovanie'] },
-              'contracts': { table: 'contracts', required: ['nomer_kontrakta', 'kontragent', 'data_kontrakta', 'srok_deystviya', 'cena_kontrakta'] },
-              'finance': { table: 'finance', required: ['data', 'kontragent', 'valyuta', 'summa_usd'] }
-            };
-
-            const config = tableMap[tableType];
-
-            // Маппирование полей (общее для всех таблиц)
-            const globalFieldMapping = {
-              'acid': ['acid', 'ACID номер', 'грузоотравитель_acid'],
-              'gruzootravitel': ['gruzootravitel', 'грузоотправитель', 'shipper'],
-              'postavshchik': ['postavshchik', 'поставщик', 'supplier'],
-              'naimenovanie': ['naimenovanie', 'наименование', 'description'],
-              'nomer_kontrakta': ['nomer_kontrakta', 'номер контракта', 'contract_number', 'договор', 'к-'],
-              'kontragent': ['kontragent', 'контрагент', 'counterparty'],
-              'data_kontrakta': ['data_kontrakta', 'дата начала', 'start_date', 'data_nachala'],
-              'srok_deystviya': ['srok_deystviya', 'дата окончания', 'end_date', 'data_okonchanya'],
-              'cena_kontrakta': ['cena_kontrakta', 'сумма', 'amount', 'total', 'summa'],
-              'summa_usd': ['summa_usd', 'сумма', 'amount', 'total', 'summa'],
-              'data': ['data', 'дата', 'date'],
-              'valyuta': ['valyuta', 'валюта', 'currency'],
-              'status': ['status', 'статус', 'state'],
-              'gw_kg': ['gw_kg', 'вес', 'weight_kg', 'kilograms'],
-              'stoimost_gruza': ['stoimost_gruza', 'стоимость груза', 'cargo_cost'],
-              'etd': ['etd', 'etd', 'планируемое отправление'],
-              'eta': ['eta', 'eta', 'планируемое прибытие']
-            };
-
-            // Функция для поиска правильного ключа в строке
-            const findFieldKey = (row, fieldName) => {
-              const aliases = globalFieldMapping[fieldName] || [fieldName];
-              for (const alias of aliases) {
-                for (const key in row) {
-                  if (key.toLowerCase().trim() === alias.toLowerCase().trim() || key.replace(/\*/g, '').toLowerCase().trim() === alias.toLowerCase().trim()) {
-                    return key;
-                  }
-                }
-              }
-              return null;
-            };
-
-            // Валидация и подготовка данных
-            const validRows = [];
-            for (let i = 0; i < rows.length; i++) {
-              const row = rows[i];
-              
-              // Преобразование в объект с нормальными ключами (только нужные для этой таблицы)
-              const cleanRowRaw = {};
-              for (const field of config.required) {
-                const key = findFieldKey(row, field);
-                if (key && row[key] !== null && row[key] !== undefined && row[key] !== '') {
-                  cleanRowRaw[field] = row[key];
-                }
-              }
-
-              // Проверка обязательных полей
-              for (const field of config.required) {
-                if (!cleanRowRaw[field] || cleanRowRaw[field].toString().trim() === '') {
-                  showAlert(`Строка ${i + 1}: отсутствует поле "${field}"`, 'error');
-                  resolve();
-                  return;
-                }
-              }
-
-              // Финальная очистка данных
-              const cleanRow = {};
-              for (const [key, value] of Object.entries(cleanRowRaw)) {
-                if (value !== null && value !== undefined && value !== '') {
-                  cleanRow[key] = value.toString().trim();
-                }
-              }
-
-              validRows.push(cleanRow);
-            }
-
-            // Импорт в БД
-            let imported = 0;
-            for (const row of validRows) {
-              try {
-                await api('POST', `/${config.table}`, row);
-                imported++;
-              } catch (err) {
-                showAlert(`Ошибка при импорте строки: ${err.message}`, 'error');
-                resolve();
-                return;
-              }
-            }
-
-            showAlert(`✓ Импортировано ${imported} записей в таблицу "${tableType}"`, 'success');
-            loadDashboard();
-            closeImportModal();
-            resolve();
-          } catch (err) {
-            showAlert(`Ошибка обработки: ${err.message}`, 'error');
-            resolve();
-          }
+            const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+            resolve(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' }));
+          } catch (err) { reject(err); }
         };
-
-        if (isExcel) {
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            try {
-              const data = new Uint8Array(e.target.result);
-              const workbook = XLSX.read(data, { type: 'array' });
-              const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-              const rows = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
-              processData(rows);
-            } catch (err) {
-              showAlert(`Ошибка чтения Excel: ${err.message}`, 'error');
-              resolve();
-            }
-          };
-          reader.onerror = () => {
-            showAlert(`Ошибка чтения файла`, 'error');
-            resolve();
-          };
-          reader.readAsArrayBuffer(file);
-        } else {
-          Papa.parse(file, {
-            header: true,
-            skipEmptyLines: true,
-            complete: (results) => {
-              processData(results.data);
-            },
-            error: (error) => {
-              showAlert(`Ошибка чтения CSV: ${error.message}`, 'error');
-              resolve();
-            }
-          });
-        }
+        reader.onerror = () => reject(new Error('Ошибка чтения файла'));
+        reader.readAsArrayBuffer(file);
       });
     }
 
-    let metricsChart = null;
-    let balanceChart = null;
+    function readCSV(file) {
+      return new Promise((resolve, reject) => {
+        Papa.parse(file, { header: true, skipEmptyLines: true, complete: r => resolve(r.data), error: err => reject(err) });
+      });
+    }
+
+    function detectTableType(headers) {
+      const has = (...terms) => terms.some(t => headers.some(h => h.includes(t)));
+      if (has('acid', 'грузоотправитель', 'gruzootravitel'))                              return 'acid';
+      if (has('nomer_kontrakta', 'cena_kontrakta', 'номер контракта', 'srok_deystviya'))         return 'contracts';
+      if (has('summa_usd', 'kti_data', 'organizaciya', 'организация', 'sostoyanie'))                           return 'finance';
+      return null;
+    }
+
+    function getFieldMapping(tableType) {
+      const maps = {
+        acid: {
+          acid:            ['acid', 'acid номер'],
+          gruzootravitel:  ['gruzootravitel', 'грузоотправитель', 'shipper'],
+          postavshchik:    ['postavshchik', 'поставщик', 'supplier'],
+          naimenovanie:    ['naimenovanie', 'наименование', 'description', 'cargo'],
+          status:          ['status', 'статус'],
+          gw_kg:           ['gw_kg', 'вес', 'weight'],
+          stoimost_gruza:  ['stoimost_gruza', 'стоимость груза', 'cargo_cost'],
+          valyuta:         ['valyuta', 'валюта', 'currency'],
+          etd:             ['etd', 'планируемое отправление'],
+          eta:             ['eta', 'планируемое прибытие'],
+          nomer_kontrakta: ['nomer_kontrakta', 'контракт', 'contract', 'договор'],
+          nomer_dt:        ['nomer_dt', '№дт', 'dt_number'],
+          data_dt:         ['data_dt', 'дата дт', 'dt_date'],
+          custom_status:   ['custom_status', 'таможенный статус'],
+          komentar:        ['komentar', 'комментарий', 'comment'],
+        },
+        contracts: {
+          nomer_kontrakta: ['nomer_kontrakta', 'номер контракта', 'contract_number', 'договор'],
+          kontragent:      ['kontragent', 'контрагент', 'counterparty'],
+          data_kontrakta:  ['data_kontrakta', 'дата начала', 'start_date', 'data_nachala'],
+          srok_deystviya:  ['srok_deystviya', 'дата окончания', 'end_date', 'data_okonchanya'],
+          cena_kontrakta:  ['cena_kontrakta', 'сумма', 'amount', 'summa'],
+          status:          ['status', 'статус'],
+          valyuta:         ['valyuta', 'валюта', 'currency'],
+          komentar:        ['komentar', 'комментарий'],
+        },
+        finance: {
+          data:          ['data', 'дата', 'date'],
+          kontragent:    ['kontragent', 'контрагент', 'counterparty'],
+          valyuta:       ['valyuta', 'валюта', 'currency'],
+          summa_usd:     ['summa_usd', 'сумма', 'amount', 'summa'],
+          sostoyanie:    ['sostoyanie', 'status', 'статус', 'состояние'],
+          organizaciya:  ['organizaciya', 'организация', 'organization'],
+          kti_data:      ['kti_data', 'дата кти', 'kti_date'],
+          otvetstvennyy: ['otvetstvennyy', 'ответственный', 'responsible'],
+        }
+      };
+      return maps[tableType] || {};
+    }
+
+    function mapRow(row, mapping) {
+      const result = {};
+      for (const [target, aliases] of Object.entries(mapping)) {
+        for (const alias of aliases) {
+          for (const key of Object.keys(row)) {
+            if (key.replace(/\*/g, '').toLowerCase().trim() === alias.toLowerCase().trim()) {
+              const val = row[key];
+              if (val !== null && val !== undefined && String(val).trim() !== '') {
+                result[target] = String(val).trim();
+              }
+              break;
+            }
+          }
+          if (result[target] !== undefined) break;
+        }
+      }
+      return result;
+    }
+
+    // ============================================================
+    // DASHBOARD
+    // ============================================================
 
     async function loadDashboard() {
       try {
         const acidData = await api('GET', '/acid');
-        const contractData = await api('GET', '/contracts');
-        const financeData = await api('GET', '/finance');
+        document.getElementById('stat-acid-pending').textContent =
+          acidData.filter(r => r.status === 'pending').length;
 
-        // STAT: Грузы в работе
-        document.getElementById('stat-acid-pending').textContent = acidData.filter(r => r.status === 'pending').length;
+        if (isEgyptMode) { renderAcidTable(acidData); return; }
 
-        // METRICS CHART
-        const services = acidData.reduce((sum, r) => sum + (parseFloat(r.stoimost_gruza) || 0), 0);
-        const payments = financeData.filter(r => r.status === 'completed').reduce((sum, r) => sum + (parseFloat(r.summa) || 0), 0);
-        const debt = services - payments;
+        const [contractData, financeData] = await Promise.all([
+          api('GET', '/contracts'),
+          api('GET', '/finance')
+        ]);
 
-        renderMetricsChart(acidData, financeData, contractData);
+        renderMetricsChart(acidData, financeData);
 
-        // BALANCE CHART (по договорам)
         const balances = {};
         contractData.forEach(c => {
-          const contractSum = parseFloat(c.summa) || 0;
-          const paid = financeData
-            .filter(f => f.nomer_kontrakta === c.nomer_kontrakta && f.status === 'completed')
-            .reduce((sum, f) => sum + (parseFloat(f.summa) || 0), 0);
-          balances[c.nomer_kontrakta] = Math.max(0, contractSum - paid);
+          const total = parseFloat(c.cena_kontrakta) || 0;
+          const paid  = financeData
+            .filter(f => f.dogovor_kontragenta === c.nomer_kontrakta && f.sostoyanie === 'completed')
+            .reduce((s, f) => s + (parseFloat(f.summa_usd) || 0) * (RATES_TO_USD[f.valyuta] || 1), 0);
+          if (total > 0) balances[c.nomer_kontrakta || c.id] = Math.max(0, total - paid);
         });
-
         renderBalanceChart(balances);
 
         renderAcidTable(acidData);
         renderContractTable(contractData);
         renderFinanceTable(financeData);
-      } catch (err) {
-        showAlert(err.message, 'error');
-      }
+      } catch (err) { showAlert(err.message, 'error'); }
     }
 
-    function renderMetricsChart(acidData, financeData, contractData) {
+    function renderMetricsChart(acidData, financeData) {
       const ctx = document.getElementById('metricsChart').getContext('2d');
-      
       if (metricsChart) metricsChart.destroy();
-      
-      // Генерируем timeline задолженности (май 2025 - июнь 2026)
       const months = [];
-      const startDate = new Date(2025, 4, 1); // май 2025
-      const endDate = new Date(2026, 5, 30); // июнь 2026
-
-      for (let d = new Date(startDate); d <= endDate; d.setMonth(d.getMonth() + 1)) {
-        const monthLabel = d.toLocaleDateString('ru-RU', { year: 'numeric', month: 'long' });
+      for (let d = new Date(2025, 4, 1), end = new Date(2026, 5, 30); d <= end; d.setMonth(d.getMonth() + 1)) {
+        const label    = d.toLocaleDateString('ru-RU', { year: 'numeric', month: 'short' });
         const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-
-        // Считаем услуги на конец месяца
-        const services = acidData
-          .filter(r => {
-            const date = r.etd ? new Date(r.etd) : null;
-            return date && date <= monthEnd;
-          })
-          .reduce((sum, r) => sum + (parseFloat(r.stoimost_gruza) || 0), 0);
-
-        // Считаем платежи на конец месяца
-        const payments = financeData
-          .filter(f => {
-            const date = f.data ? new Date(f.data) : null;
-            return f.status === 'completed' && date && date <= monthEnd;
-          })
-          .reduce((sum, f) => sum + (parseFloat(f.summa) || 0), 0);
-
-        const debt = Math.max(0, services - payments);
-        months.push({ label: monthLabel, debt: debt });
+        const services = acidData.filter(r => r.etd && new Date(r.etd) <= monthEnd).reduce((s, r) => s + (parseFloat(r.stoimost_gruza) || 0), 0);
+        const payments = financeData.filter(f => f.sostoyanie === 'completed' && f.data && new Date(f.data) <= monthEnd)
+          .reduce((s, f) => s + (parseFloat(f.summa_usd) || 0) * (RATES_TO_USD[f.valyuta] || 1), 0);
+        months.push({ label, debt: Math.max(0, services - payments) });
       }
-
-      const labels = months.map(d => d.label);
-      const data = months.map(d => d.debt);
-
       metricsChart = new Chart(ctx, {
         type: 'line',
         data: {
-          labels: labels,
-          datasets: [{
-            label: 'Задолженность (USD)',
-            data: data,
-            borderColor: '#C0392B',
-            backgroundColor: 'rgba(192, 57, 43, 0.1)',
-            borderWidth: 3,
-            fill: true,
-            tension: 0.4, // Гладкие сплайны
-            pointRadius: 5,
-            pointBackgroundColor: '#C0392B',
-            pointBorderColor: 'white',
-            pointBorderWidth: 2,
-            pointHoverRadius: 7
-          }]
+          labels: months.map(m => m.label),
+          datasets: [{ label: 'Задолженность (USD)', data: months.map(m => m.debt), borderColor: '#C0392B', backgroundColor: 'rgba(192,57,43,0.1)', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 3, pointBackgroundColor: '#C0392B', pointBorderColor: 'white', pointBorderWidth: 2 }]
         },
         options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: true, position: 'top' },
-            tooltip: {
-              callbacks: {
-                label: (context) => {
-                  return `${context.dataset.label}: $${context.parsed.y.toLocaleString('ru-RU', { maximumFractionDigits: 0 })}`;
-                }
-              }
-            }
-          },
-          scales: {
-            y: {
-              beginAtZero: true,
-              ticks: {
-                callback: (value) => `$${value.toLocaleString('ru-RU', { maximumFractionDigits: 0 })}`
-              }
-            }
-          }
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: true, position: 'top' }, tooltip: { callbacks: { label: c => `$${c.parsed.y.toLocaleString('ru-RU', { maximumFractionDigits: 0 })}` } } },
+          scales: { y: { beginAtZero: true, ticks: { callback: v => `$${v.toLocaleString('ru-RU', { maximumFractionDigits: 0 })}` } } }
         }
       });
     }
 
     function renderBalanceChart(balances) {
       const ctx = document.getElementById('balanceChart').getContext('2d');
-      
       if (balanceChart) balanceChart.destroy();
-      
-      const entries = Object.entries(balances)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10);
-      
-      const labels = entries.map(e => e[0]);
-      const data = entries.map(e => e[1]);
-      
-      const colors = [
-        '#E67E22', '#3498DB', '#2ECC71', '#9B59B6',
-        '#E74C3C', '#1ABC9C', '#F39C12', '#34495E',
-        '#27AE60', '#C0392B'
-      ];
-      
+      const entries = Object.entries(balances).sort((a, b) => b[1] - a[1]).slice(0, 10);
+      if (!entries.length) return;
+      const colors = ['#E67E22','#3498DB','#2ECC71','#9B59B6','#E74C3C','#1ABC9C','#F39C12','#34495E','#27AE60','#C0392B'];
       balanceChart = new Chart(ctx, {
         type: 'pie',
-        data: {
-          labels: labels,
-          datasets: [{
-            data: data,
-            backgroundColor: colors.slice(0, labels.length),
-            borderColor: '#fff',
-            borderWidth: 2
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { position: 'bottom' },
-            tooltip: {
-              callbacks: {
-                label: (context) => {
-                  return `$${context.parsed.toLocaleString('ru-RU', { maximumFractionDigits: 0 })}`;
-                }
-              }
-            }
-          }
-        }
+        data: { labels: entries.map(e => e[0]), datasets: [{ data: entries.map(e => e[1]), backgroundColor: colors.slice(0, entries.length), borderColor: '#fff', borderWidth: 2 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: c => `$${c.parsed.toLocaleString('ru-RU', { maximumFractionDigits: 0 })}` } } } }
       });
     }
 
-    function generateDebtTimeline(acidData, financeData, contractData) {
-      // Генерируем точки данных с май 2025 по июнь 2026 (14 месяцев)
-      const months = [];
-      const startDate = new Date(2025, 4, 1); // май 2025
-      const endDate = new Date(2026, 5, 30); // июнь 2026
-
-      for (let d = new Date(startDate); d <= endDate; d.setMonth(d.getMonth() + 1)) {
-        const monthLabel = d.toLocaleDateString('ru-RU', { year: 'numeric', month: 'long' });
-        const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-
-        // Считаем услуги на конец месяца
-        const services = acidData
-          .filter(r => {
-            const date = r.etd ? new Date(r.etd) : null;
-            return date && date <= monthEnd;
-          })
-          .reduce((sum, r) => sum + (parseFloat(r.stoimost_gruza) || 0), 0);
-
-        // Считаем платежи на конец месяца
-        const payments = financeData
-          .filter(f => {
-            const date = f.data ? new Date(f.data) : null;
-            return f.status === 'completed' && date && date <= monthEnd;
-          })
-          .reduce((sum, f) => sum + (parseFloat(f.summa) || 0), 0);
-
-        const debt = Math.max(0, services - payments);
-        months.push({ label: monthLabel, debt: debt });
-      }
-
-      return months;
-    }
-
-    function renderDebtTimelineChart(debtData) {
-      const ctx = document.getElementById('balanceChart').getContext('2d');
-      
-      if (balanceChart) balanceChart.destroy();
-      
-      const labels = debtData.map(d => d.label);
-      const data = debtData.map(d => d.debt);
-
-      balanceChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: labels,
-          datasets: [{
-            label: 'Задолженность (USD)',
-            data: data,
-            borderColor: '#C0392B',
-            backgroundColor: 'rgba(192, 57, 43, 0.1)',
-            borderWidth: 3,
-            fill: true,
-            tension: 0.4, // Гладкие сплайны
-            pointRadius: 5,
-            pointBackgroundColor: '#C0392B',
-            pointBorderColor: 'white',
-            pointBorderWidth: 2,
-            pointHoverRadius: 7
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: true, position: 'top' },
-            tooltip: {
-              callbacks: {
-                label: (context) => {
-                  return `${context.dataset.label}: $${context.parsed.y.toLocaleString('ru-RU', { maximumFractionDigits: 0 })}`;
-                }
-              }
-            }
-          },
-          scales: {
-            y: {
-              beginAtZero: true,
-              ticks: {
-                callback: (value) => `$${value.toLocaleString('ru-RU', { maximumFractionDigits: 0 })}`
-              }
-            }
-          }
-        }
-      });
-    }
+    // ============================================================
+    // TABLE RENDERING
+    // ============================================================
 
     function renderAcidTable(rows) {
       const tbody = document.querySelector('#acidTable tbody');
+      // Egypt mode: show all columns but without delete button (read-only account)
+      const showDelete = !isEgyptMode;
       tbody.innerHTML = rows.map(r => `
-        <tr data-status="${r.status}">
+        <tr data-status="${r.status || 'pending'}">
           <td>${r.acid || '-'}</td>
           <td>${r.gruzootravitel || '-'}</td>
           <td>${r.postavshchik || '-'}</td>
           <td>${r.naimenovanie || '-'}</td>
-          <td>${r.gw_kg ? r.gw_kg.toFixed(2) : '-'}</td>
-          <td><span class="badge ${r.status}">${r.status === 'pending' ? 'В работе' : 'Доставлено'}</span></td>
-          <td><button class="btn-delete" onclick="deleteAcid('${r.id}')">Удалить</button></td>
-        </tr>
-      `).join('');
+          <td>${parseFloat(r.gw_kg || 0).toFixed(2)}</td>
+          <td><span class="badge ${r.status === 'completed' ? 'completed' : 'pending'}">${r.status === 'completed' ? 'Доставлено' : 'В работе'}</span></td>
+          ${showDelete ? `<td><button class="btn-delete" onclick="deleteRecord('acid','${r.id}')">Удалить</button></td>` : ''}
+        </tr>`).join('');
     }
 
     function renderContractTable(rows) {
@@ -1578,219 +1395,150 @@
         <tr>
           <td>${r.nomer_kontrakta || '-'}</td>
           <td>${r.kontragent || '-'}</td>
-          <td><span class="badge ${r.status === 'active' ? 'pending' : 'completed'}">${r.status || '-'}</span></td>
-          <td>${r.data_nachala || '-'}</td>
-          <td>${r.data_okonchanya || '-'}</td>
-          <td>${r.summa ? r.summa.toFixed(2) : '-'}</td>
-          <td><button class="btn-delete" onclick="deleteContract('${r.id}')">Удалить</button></td>
-        </tr>
-      `).join('');
+          <td><span class="badge ${r.status === 'active' ? 'pending' : 'completed'}">${r.status === 'active' ? 'Активен' : 'Завершён'}</span></td>
+          <td>${r.data_kontrakta || '-'}</td>
+          <td>${r.srok_deystviya || '-'}</td>
+          <td>$${parseFloat(r.cena_kontrakta || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 })}</td>
+          <td><button class="btn-delete" onclick="deleteRecord('contracts','${r.id}')">Удалить</button></td>
+        </tr>`).join('');
     }
 
     function renderFinanceTable(rows) {
       const tbody = document.querySelector('#financeTable tbody');
-      tbody.innerHTML = rows.map(r => `
-        <tr>
-          <td>${r.data || '-'}</td>
-          <td>${r.kontragent || '-'}</td>
-          <td>${r.valyuta || 'USD'}</td>
-          <td>${r.summa ? r.summa.toFixed(2) : '-'}</td>
-          <td>$${r.summa ? (r.summa * 0.032).toFixed(2) : '-'}</td>
-          <td><span class="badge ${r.status === 'pending' ? 'pending' : 'completed'}">${r.status || '-'}</span></td>
-          <td><button class="btn-delete" onclick="deleteFinance('${r.id}')">Удалить</button></td>
-        </tr>
-      `).join('');
+      tbody.innerHTML = rows.map(r => {
+        const amount = parseFloat(r.summa_usd || 0);
+        const rate   = RATES_TO_USD[r.valyuta] || 1;
+        const usd    = r.valyuta === 'USD' ? amount : amount * rate;
+        const state  = r.sostoyanie;
+        return `
+          <tr>
+            <td>${r.data || '-'}</td>
+            <td>${r.kontragent || '-'}</td>
+            <td>${r.valyuta || 'USD'}</td>
+            <td>${amount.toLocaleString('ru-RU', { maximumFractionDigits: 2 })}</td>
+            <td>$${usd.toLocaleString('ru-RU', { maximumFractionDigits: 2 })}</td>
+            <td><span class="badge ${state === 'completed' ? 'completed' : 'pending'}">${state === 'completed' ? 'Завершено' : 'Ожидание'}</span></td>
+            <td><button class="btn-delete" onclick="deleteRecord('finance','${r.id}')">Удалить</button></td>
+          </tr>`;
+      }).join('');
     }
+
+    // ============================================================
+    // FILTERS
+    // ============================================================
 
     function filterAcidTable() {
       const search = document.getElementById('acidSearch').value.toLowerCase();
-      const rows = document.querySelectorAll('#acidTable tbody tr');
-      rows.forEach(row => {
-        const text = row.textContent.toLowerCase();
-        const status = row.dataset.status;
-        const matchesSearch = text.includes(search);
-        const matchesFilter = currentFilter === 'all' || status === currentFilter;
-        row.style.display = matchesSearch && matchesFilter ? '' : 'none';
+      document.querySelectorAll('#acidTable tbody tr').forEach(row => {
+        row.style.display = row.textContent.toLowerCase().includes(search) && (currentFilter === 'all' || row.dataset.status === currentFilter) ? '' : 'none';
       });
     }
 
-    function filterByStatus(status) {
+    function filterByStatus(status, evt) {
       currentFilter = status;
       document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
-      event.target.classList.add('active');
+      if (evt && evt.target) evt.target.classList.add('active');
       filterAcidTable();
     }
 
     function filterContractTable() {
-      const search = document.getElementById('contractSearch').value.toLowerCase();
-      document.querySelectorAll('#contractTable tbody tr').forEach(row => {
-        row.style.display = row.textContent.toLowerCase().includes(search) ? '' : 'none';
-      });
+      const s = document.getElementById('contractSearch').value.toLowerCase();
+      document.querySelectorAll('#contractTable tbody tr').forEach(r => { r.style.display = r.textContent.toLowerCase().includes(s) ? '' : 'none'; });
     }
 
     function filterFinanceTable() {
-      const search = document.getElementById('financeSearch').value.toLowerCase();
-      document.querySelectorAll('#financeTable tbody tr').forEach(row => {
-        row.style.display = row.textContent.toLowerCase().includes(search) ? '' : 'none';
-      });
+      const s = document.getElementById('financeSearch').value.toLowerCase();
+      document.querySelectorAll('#financeTable tbody tr').forEach(r => { r.style.display = r.textContent.toLowerCase().includes(s) ? '' : 'none'; });
     }
 
+    // ============================================================
     // FORMS
-    document.getElementById('acidForm').addEventListener('submit', async (e) => {
+    // ============================================================
+
+    document.getElementById('acidForm').addEventListener('submit', async e => {
       e.preventDefault();
-      try {
-        const formData = new FormData(e.target);
-        const body = Object.fromEntries(formData);
-        body.id = `acid-${Date.now()}`;
-        await api('POST', '/acid', body);
-        showAlert('Груз добавлен успешно');
-        e.target.reset();
-        loadDashboard();
-      } catch (err) {
-        showAlert(err.message, 'error');
-      }
+      try { await api('POST', '/acid', Object.fromEntries(new FormData(e.target))); showAlert('Груз добавлен'); e.target.reset(); loadDashboard(); }
+      catch (err) { showAlert(err.message, 'error'); }
     });
 
-    document.getElementById('contractForm').addEventListener('submit', async (e) => {
+    document.getElementById('contractForm').addEventListener('submit', async e => {
       e.preventDefault();
-      try {
-        const formData = new FormData(e.target);
-        const body = Object.fromEntries(formData);
-        body.id = `contract-${Date.now()}`;
-        await api('POST', '/contracts', body);
-        showAlert('Договор добавлен успешно');
-        e.target.reset();
-        loadDashboard();
-      } catch (err) {
-        showAlert(err.message, 'error');
-      }
+      try { await api('POST', '/contracts', Object.fromEntries(new FormData(e.target))); showAlert('Договор добавлен'); e.target.reset(); loadDashboard(); }
+      catch (err) { showAlert(err.message, 'error'); }
     });
 
-    document.getElementById('financeForm').addEventListener('submit', async (e) => {
+    document.getElementById('financeForm').addEventListener('submit', async e => {
       e.preventDefault();
-      try {
-        const formData = new FormData(e.target);
-        const body = Object.fromEntries(formData);
-        body.id = `finance-${Date.now()}`;
-        await api('POST', '/finance', body);
-        showAlert('Запись добавлена успешно');
-        e.target.reset();
-        loadDashboard();
-      } catch (err) {
-        showAlert(err.message, 'error');
-      }
+      try { await api('POST', '/finance', Object.fromEntries(new FormData(e.target))); showAlert('Запись добавлена'); e.target.reset(); loadDashboard(); }
+      catch (err) { showAlert(err.message, 'error'); }
     });
 
-    async function deleteAcid(id) {
-      if (!confirm('Удалить?')) return;
-      try {
-        await api('DELETE', `/acid/${id}`);
-        showAlert('Груз удален');
-        loadDashboard();
-      } catch (err) {
-        showAlert(err.message, 'error');
-      }
+    // ============================================================
+    // DELETE
+    // ============================================================
+
+    async function deleteRecord(table, id) {
+      if (!confirm('Удалить запись?')) return;
+      try { await api('DELETE', `/${table}/${id}`); showAlert('Удалено'); loadDashboard(); }
+      catch (err) { showAlert(err.message, 'error'); }
     }
 
-    async function deleteContract(id) {
-      if (!confirm('Удалить?')) return;
-      try {
-        await api('DELETE', `/contracts/${id}`);
-        showAlert('Договор удален');
-        loadDashboard();
-      } catch (err) {
-        showAlert(err.message, 'error');
-      }
-    }
-
-    async function deleteFinance(id) {
-      if (!confirm('Удалить?')) return;
-      try {
-        await api('DELETE', `/finance/${id}`);
-        showAlert('Запись удалена');
-        loadDashboard();
-      } catch (err) {
-        showAlert(err.message, 'error');
-      }
-    }
+    // ============================================================
+    // EXPORT
+    // ============================================================
 
     function downloadTemplate(tableName) {
       const templates = {
-        acid: {
-          headers: ['acid*', 'gruzootravitel*', 'postavshchik*', 'naimenovanie*', 'gw_kg', 'stoimost_gruza', 'status', 'etd', 'eta', 'nomer_dt', 'data_dt', 'custom_status', 'komentar', 'nomer_kontrakta'],
-          example: [
-            ['ACID-2026-100', 'OOO Export', 'Supplier A', 'Электроника', '1500', '50000', 'pending', '2026-04-15', '2026-05-20', 'DT-001', '2026-04-01', 'cleared', 'Sample shipment', 'CONTRACT-001'],
-            ['ACID-2026-101', 'Global Trade', 'Supplier B', 'Оборудование', '2000', '75000', 'completed', '2026-04-10', '2026-05-15', 'DT-002', '2026-03-28', 'processing', '', 'CONTRACT-002']
-          ]
-        },
-        contracts: {
-          headers: ['nomer_kontrakta*', 'kontragent*', 'data_nachala*', 'data_okonchanya*', 'status', 'summa*'],
-          example: [
-            ['CONTRACT-001', 'TransCargo Ltd', '2026-01-15', '2026-12-31', 'active', '100000'],
-            ['CONTRACT-002', 'ElectroSupply Inc', '2026-02-01', '2026-06-30', 'active', '250000']
-          ]
-        },
-        finance: {
-          headers: ['data*', 'kontragent*', 'valyuta*', 'summa*', 'status'],
-          example: [
-            ['2026-04-20', 'TransCargo Ltd', 'USD', '5000', 'completed'],
-            ['2026-04-19', 'ElectroSupply Inc', 'EUR', '8500', 'pending']
-          ]
-        }
+        acid:      { headers: ['acid*','gruzootravitel*','postavshchik*','naimenovanie*','gw_kg','stoimost_gruza','valyuta','status','etd','eta','nomer_kontrakta','nomer_dt','data_dt','custom_status','komentar'], example: [['ACID-2026-001','OOO Export','Supplier A','Электроника','1500','50000','USD','pending','2026-04-15','2026-05-20','CONTRACT-001','DT-001','2026-04-01','cleared','Пример']] },
+        contracts: { headers: ['nomer_kontrakta*','kontragent*','data_kontrakta*','srok_deystviya*','cena_kontrakta*','valyuta','status'], example: [['CONTRACT-001','TransCargo Ltd','2026-01-15','2026-12-31','100000','USD','active']] },
+        finance:   { headers: ['data*','kontragent*','valyuta*','summa_usd*','sostoyanie','organizaciya','kti_data'], example: [['2026-04-20','TransCargo Ltd','USD','5000','completed','ООО Логистика','2026-04-01']] }
       };
-
-      const template = templates[tableName];
-      if (!template) {
-        showAlert('Неизвестная таблица', 'error');
-        return;
-      }
-
-      const rows = [template.headers, ...template.example];
-      const csv = rows.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
-      
-      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = `template_${tableName}_${new Date().toISOString().split('T')[0]}.csv`;
-      link.click();
-      showAlert('Шаблон загружен', 'success');
+      const t = templates[tableName];
+      if (!t) return showAlert('Неизвестная таблица', 'error');
+      const csv = [t.headers, ...t.example].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+      const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })), download: `template_${tableName}_${new Date().toISOString().split('T')[0]}.csv` });
+      a.click(); showAlert('Шаблон загружен');
     }
 
     function exportCurrentTable() {
-      const activeTab = document.querySelector('.content-section.active').id;
-      
-      if (activeTab === 'dashboard') {
-        showAlert('Экспорт недоступен для Дашборда', 'info');
-        return;
-      }
-      
-      const tableMap = {
-        'acid': 'acid',
-        'contracts': 'contracts',
-        'finance': 'finance'
-      };
-      
-      const table = tableMap[activeTab];
-      if (table) {
-        downloadTemplate(table);
-      }
+      const activeTab = document.querySelector('.content-section.active')?.id;
+      const tableId   = ({ acid: 'acidTable', contracts: 'contractTable', finance: 'financeTable' })[activeTab];
+      if (!tableId) return showAlert('Выберите раздел для экспорта', 'error');
+      const table   = document.getElementById(tableId);
+      const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim()).slice(0, -1);
+      const dataRows = Array.from(table.querySelectorAll('tbody tr'))
+        .filter(r => r.style.display !== 'none')
+        .map(r => Array.from(r.querySelectorAll('td')).slice(0, headers.length).map(td => `"${td.textContent.trim().replace(/"/g, '""')}"`));
+      if (!dataRows.length) return showAlert('Нет данных для экспорта', 'error');
+      const csv = [headers.map(h => `"${h}"`), ...dataRows].map(r => r.join(',')).join('\n');
+      const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })), download: `${activeTab}_export_${new Date().toISOString().split('T')[0]}.csv` });
+      a.click(); showAlert('Экспорт завершён');
     }
 
-    async function importFile(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      importFileFromModal(file);
+    async function importFile(evt) {
+      const file = evt.target.files[0]; if (!file) return;
+      await importFileFromModal(file);
     }
+
+    // ============================================================
+    // SESSION RESTORE
+    // ============================================================
 
     window.addEventListener('load', () => {
-      const saved = localStorage.getItem('authToken');
-      if (saved) {
-        authToken = saved;
-        document.getElementById('loginScreen').style.display = 'none';
-        document.getElementById('appScreen').style.display = 'block';
-        document.getElementById('userLogin').textContent = 'admin';
-        loadDashboard();
+      const savedToken = localStorage.getItem('authToken');
+      const savedUser  = localStorage.getItem('currentUser');
+      if (savedToken && savedUser) {
+        try {
+          authToken   = savedToken;
+          currentUser = JSON.parse(savedUser);
+          document.getElementById('loginScreen').style.display = 'none';
+          document.getElementById('appScreen').style.display   = 'block';
+          initUserUI(currentUser);
+          loadDashboard();
+        } catch {
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('currentUser');
+        }
       }
     });
   </script>
