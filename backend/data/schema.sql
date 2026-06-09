@@ -1,7 +1,12 @@
--- AccessWeb v3.0 - Redesigned Schema
--- Unified ACID table with 40+ columns, simplified contracts & finance
+-- AccessWeb v3.1 - Normalized Schema
+-- Business: cargo import management into Egypt
+-- Tables in dependency order: users → counterparties → contracts → contract_stages
+--                                                    ↘ acid → acid_kti → ais_transactions
+--                                                               ↗
+--                                               ais_imports ↗
+-- notifications
 
--- Users table
+-- ===== USERS =====
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   login TEXT UNIQUE NOT NULL,
@@ -10,154 +15,262 @@ CREATE TABLE IF NOT EXISTS users (
   role TEXT DEFAULT 'user',
   department TEXT,
   is_egypt_mode BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- ===== UNIFIED ACID TABLE (40+ columns) =====
-CREATE TABLE IF NOT EXISTS acid (
+-- ===== COUNTERPARTIES (suppliers, carriers, importers, etc.) =====
+CREATE TABLE IF NOT EXISTS counterparties (
   id TEXT PRIMARY KEY,
-  acid TEXT UNIQUE NOT NULL,
-  nomer_ais TEXT,
-  initial_request_number TEXT,
-  shipment_type TEXT,
-  gruzootravitel TEXT,
-  postavshchik TEXT,
-  importer_name TEXT,
-  kontragent TEXT,
+  name TEXT NOT NULL,
+  short_name TEXT,
+  country TEXT,
+  type TEXT DEFAULT 'other'
+    CHECK(type IN ('supplier','carrier','importer','contractor','other')),
   registration_number TEXT,
   vat_number TEXT,
-  naimenovanie TEXT,
+  contact_person TEXT,
+  email TEXT,
+  phone TEXT,
+  notes TEXT,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ===== CONTRACTS =====
+CREATE TABLE IF NOT EXISTS contracts (
+  id TEXT PRIMARY KEY,
+  contract_number TEXT UNIQUE NOT NULL,
+  type TEXT DEFAULT 'supply'
+    CHECK(type IN ('supply','main_construction','invoice','service')),
+  counterparty_id TEXT REFERENCES counterparties(id) ON DELETE SET NULL,
+  counterparty TEXT,                         -- denormalized display name
+  name TEXT,
+  contract_date TEXT,
+  validity_period TEXT,
+  ds_number TEXT,
+  ds_date TEXT,
+  amount REAL DEFAULT 0,                     -- base contract amount
+  amount_with_ds REAL DEFAULT 0,             -- amount including supplementary agreements
+  currency TEXT DEFAULT 'USD',
+  paid_amount REAL DEFAULT 0,
+  route_to TEXT,
+  procurement_type TEXT,
+  lot_number TEXT,
+  status TEXT DEFAULT 'active'
+    CHECK(status IN ('draft','active','completed','expired','suspended')),
+  currency_control TEXT,
+  notes TEXT,
+  link TEXT,
+  limit_balance REAL DEFAULT 0,
+  responsible_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+  responsible TEXT,                          -- denormalized
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ===== CONTRACT STAGES =====
+CREATE TABLE IF NOT EXISTS contract_stages (
+  id TEXT PRIMARY KEY,
+  contract_id TEXT NOT NULL REFERENCES contracts(id) ON DELETE CASCADE,
+  stage_number INTEGER,
+  stage_name TEXT,
+  substage_name TEXT,
+  responsible_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+  responsible TEXT,                          -- denormalized
+  planned_date TEXT,
+  actual_date TEXT,
+  status TEXT DEFAULT 'pending'
+    CHECK(status IN ('pending','in_progress','completed','overdue')),
+  notes TEXT,
+  sort_order INTEGER DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ===== ACID (cargo shipments tracked by ACID code) =====
+CREATE TABLE IF NOT EXISTS acid (
+  id TEXT PRIMARY KEY,
+  acid TEXT UNIQUE NOT NULL,                 -- the ACID tracking code
+  ais_number TEXT,
+  initial_request_number TEXT,
+  shipment_type TEXT,
+  shipper_id TEXT REFERENCES counterparties(id) ON DELETE SET NULL,
+  shipper TEXT,                              -- denormalized
+  supplier_id TEXT REFERENCES counterparties(id) ON DELETE SET NULL,
+  supplier TEXT,                             -- denormalized
+  importer_name TEXT,
+  registration_number TEXT,
+  vat_number TEXT,
+  name TEXT,                                 -- cargo name
   gw_kg REAL,
-  kolichestvo_mest INTEGER,
-  kolichestvo_konteynerov INTEGER,
-  tip_perevozki TEXT,
-  stoimost_gruza REAL,
-  valyuta TEXT DEFAULT 'USD',
-  summa_perevozki REAL,
-  strana_otpravleniya TEXT,
-  port_otpravleniya TEXT,
+  packages_qty INTEGER,
+  containers_qty INTEGER,
+  transport_type TEXT,
+  cargo_cost REAL,
+  currency TEXT DEFAULT 'USD',
+  shipping_cost REAL,
   incoterms TEXT,
-  mesto_postavki TEXT,
-  sudno TEXT,
+  departure_country TEXT,
+  departure_port TEXT,
+  delivery_place TEXT,
+  arrival_place TEXT,
+  vessel TEXT,
   shipping_line TEXT,
   bol_number TEXT,
   bol_date TEXT,
-  perevozchik TEXT,
+  carrier TEXT,
   etd TEXT,
   eta TEXT,
-  data_postavki TEXT,
-  data_pribytiya_egypt TEXT,
-  mesto_pribytiya TEXT,
-  data_zaprosa_osvobozhdeniya TEXT,
-  kurator_osvobozhdeniya TEXT,
-  data_polucheniya_osvobozhdeniya TEXT,
+  delivery_date TEXT,
+  egypt_arrival_date TEXT,
+  release_request_date TEXT,
+  release_curator TEXT,
+  release_received_date TEXT,
   do_released TEXT,
-  rezhim_vvoza TEXT,
-  nomer_dt TEXT,
-  data_dt TEXT,
-  data_vypuska_dt TEXT,
-  data_dostavki_na_ploschad TEXT,
+  import_mode TEXT,
+  dt_number TEXT,
+  dt_date TEXT,
+  dt_release_date TEXT,
+  delivery_to_site_date TEXT,
   custom_status TEXT,
-  naznachenie TEXT,
-  kurator_upo TEXT,
-  invoiz_zagruzhen BOOLEAN DEFAULT FALSE,
-  prodlen_do TEXT,
-  primechanie TEXT,
-  status TEXT DEFAULT 'pending',
-  otvetstvennyy TEXT,
-  komentar TEXT,
-  kontract_id TEXT,
-  nomer_kontrakta TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY(kontract_id) REFERENCES contracts(id),
-  FOREIGN KEY(nomer_kontrakta) REFERENCES contracts(nomer_kontrakta)
-);
-
--- ===== CONTRACTS TABLE =====
-CREATE TABLE IF NOT EXISTS contracts (
-  id TEXT PRIMARY KEY,
-  nomer_kontrakta TEXT UNIQUE NOT NULL,
-  tip_kontrakta TEXT,
-  kontragent TEXT,
-  nazvanie TEXT,
-  data_kontrakta TEXT,
-  srok_deystviya TEXT,
-  ds_data TEXT,
-  cena_kontrakta REAL,
-  valyuta TEXT DEFAULT 'USD',
-  summa_oplaty REAL,
-  marshrut_to TEXT,
-  vid_zakupki TEXT,
-  lot_nomer TEXT,
-  status TEXT DEFAULT 'active',
-  valyutnyy_kontrol TEXT,
-  komentar TEXT,
-  ssylka TEXT,
-  ostatok_limita REAL,
+  purpose TEXT,
+  upo_curator_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+  upo_curator TEXT,                          -- denormalized
+  invoice_uploaded BOOLEAN DEFAULT FALSE,
+  extended_to TEXT,
+  status TEXT DEFAULT 'pending'
+    CHECK(status IN ('pending','in_transit','customs','delivered','cancelled')),
+  responsible_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+  responsible TEXT,                          -- denormalized
+  notes TEXT,
+  comment TEXT,
+  contract_id TEXT REFERENCES contracts(id) ON DELETE SET NULL,
+  contract_number TEXT,                      -- denormalized
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- ===== CONTRACT STAGES TABLE =====
-CREATE TABLE IF NOT EXISTS contract_stages (
+-- ===== ACID_KTI (annual KTI linking table) =====
+CREATE TABLE IF NOT EXISTS acid_kti (
   id TEXT PRIMARY KEY,
-  kontract_id TEXT NOT NULL,
-  stage_number INTEGER,
-  stage_name TEXT,
-  status TEXT DEFAULT 'pending',
-  data_nachal TEXT,
-  data_okonch TEXT,
-  kurator TEXT,
-  komentar TEXT,
+  acid TEXT NOT NULL REFERENCES acid(acid) ON DELETE CASCADE,
+  kti_date TEXT NOT NULL,                    -- year of the KTI period
+  kti_number TEXT,
+  contract_ds_number TEXT,
+  amount_usd REAL,                           -- transport cost for this KTI period
+  ais_number TEXT,
+  notes TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY(kontract_id) REFERENCES contracts(id) ON DELETE CASCADE
+  UNIQUE(acid, kti_date)
 );
 
--- ===== FINANCE TABLE =====
-CREATE TABLE IF NOT EXISTS finance (
+-- ===== AIS_IMPORTS (import history log) =====
+CREATE TABLE IF NOT EXISTS ais_imports (
   id TEXT PRIMARY KEY,
-  data TEXT NOT NULL,
-  nomer TEXT,
-  data_raskhoda TEXT,
-  kti_data TEXT,
-  valyuta TEXT DEFAULT 'USD',
-  summa_usd REAL,
-  organizaciya TEXT,
-  kontragent TEXT,
-  kontragent_kratko TEXT,
-  dogovor_kontragenta TEXT,
-  data_dogovora_kontragenta TEXT,
-  dogovor_i_data TEXT,
-  proyekt TEXT,
-  sostoyanie TEXT,
+  import_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  file_name TEXT,
+  table_type TEXT CHECK(table_type IN ('acid','transactions')),
+  total_rows INTEGER DEFAULT 0,
+  imported_rows INTEGER DEFAULT 0,
+  skipped_rows INTEGER DEFAULT 0,
+  errors TEXT,                               -- JSON array of error strings
+  imported_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ===== AIS_TRANSACTIONS (replaces old "finance" table) =====
+CREATE TABLE IF NOT EXISTS ais_transactions (
+  id TEXT PRIMARY KEY,
+  date TEXT,
+  number TEXT,
+  expense_date TEXT,
+  kti_date TEXT,
+  currency TEXT DEFAULT 'USD',
+  amount REAL DEFAULT 0,
+  amount_usd REAL DEFAULT 0,
+  organization TEXT,
+  counterparty TEXT,
+  counterparty_short TEXT,
+  counterparty_id TEXT REFERENCES counterparties(id) ON DELETE SET NULL,
+  contract_number TEXT,
+  contract_date TEXT,
+  contract_id TEXT REFERENCES contracts(id) ON DELETE SET NULL,
+  project TEXT,
+  status TEXT DEFAULT 'pending'
+    CHECK(status IN ('pending','paid','overdue','cancelled')),
   cfo TEXT,
-  otvetstvennyy TEXT,
-  srochnyy_platezh BOOLEAN DEFAULT FALSE,
+  responsible TEXT,
+  responsible_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+  urgent BOOLEAN DEFAULT FALSE,
+  acid_link TEXT REFERENCES acid(acid) ON DELETE SET NULL,  -- filled after matching
+  kti_id TEXT REFERENCES acid_kti(id) ON DELETE SET NULL,  -- filled after matching
+  ais_import_id TEXT REFERENCES ais_imports(id) ON DELETE SET NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- ===== NOTIFICATIONS TABLE =====
+-- ===== NOTIFICATIONS =====
 CREATE TABLE IF NOT EXISTS notifications (
   id TEXT PRIMARY KEY,
-  user_id TEXT,
+  user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
   title TEXT,
   message TEXT,
-  type TEXT,
+  type TEXT DEFAULT 'info'
+    CHECK(type IN ('info','warning','error','success')),
+  entity_type TEXT CHECK(entity_type IN ('contract','cargo','transaction','stage')),
+  entity_id TEXT,
   is_read BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ===== INDEXES FOR PERFORMANCE =====
-CREATE INDEX IF NOT EXISTS idx_acid_status ON acid(status);
-CREATE INDEX IF NOT EXISTS idx_acid_gruzootravitel ON acid(gruzootravitel);
-CREATE INDEX IF NOT EXISTS idx_acid_kontract ON acid(kontract_id);
-CREATE INDEX IF NOT EXISTS idx_acid_nomer ON acid(acid);
-CREATE INDEX IF NOT EXISTS idx_contracts_status ON contracts(status);
-CREATE INDEX IF NOT EXISTS idx_contracts_nomer ON contracts(nomer_kontrakta);
-CREATE INDEX IF NOT EXISTS idx_finance_data ON finance(data);
-CREATE INDEX IF NOT EXISTS idx_contract_stages_kontract ON contract_stages(kontract_id);
+-- users
 CREATE INDEX IF NOT EXISTS idx_users_login ON users(login);
+
+-- counterparties
+CREATE INDEX IF NOT EXISTS idx_counterparties_name ON counterparties(name);
+CREATE INDEX IF NOT EXISTS idx_counterparties_type ON counterparties(type);
+CREATE INDEX IF NOT EXISTS idx_counterparties_active ON counterparties(is_active);
+
+-- contracts
+CREATE INDEX IF NOT EXISTS idx_contracts_number ON contracts(contract_number);
+CREATE INDEX IF NOT EXISTS idx_contracts_status ON contracts(status);
+CREATE INDEX IF NOT EXISTS idx_contracts_counterparty ON contracts(counterparty_id);
+CREATE INDEX IF NOT EXISTS idx_contracts_responsible ON contracts(responsible_id);
+CREATE INDEX IF NOT EXISTS idx_contracts_validity ON contracts(validity_period);
+
+-- contract_stages
+CREATE INDEX IF NOT EXISTS idx_stages_contract ON contract_stages(contract_id);
+CREATE INDEX IF NOT EXISTS idx_stages_status ON contract_stages(status);
+CREATE INDEX IF NOT EXISTS idx_stages_planned_date ON contract_stages(planned_date);
+CREATE INDEX IF NOT EXISTS idx_stages_responsible ON contract_stages(responsible_id);
+
+-- acid
+CREATE INDEX IF NOT EXISTS idx_acid_code ON acid(acid);
+CREATE INDEX IF NOT EXISTS idx_acid_status ON acid(status);
+CREATE INDEX IF NOT EXISTS idx_acid_contract ON acid(contract_id);
+CREATE INDEX IF NOT EXISTS idx_acid_responsible ON acid(responsible_id);
+CREATE INDEX IF NOT EXISTS idx_acid_eta ON acid(eta);
+CREATE INDEX IF NOT EXISTS idx_acid_egypt_arrival ON acid(egypt_arrival_date);
+CREATE INDEX IF NOT EXISTS idx_acid_ais_number ON acid(ais_number);
+CREATE INDEX IF NOT EXISTS idx_acid_shipper ON acid(shipper_id);
+CREATE INDEX IF NOT EXISTS idx_acid_supplier ON acid(supplier_id);
+
+-- acid_kti
+CREATE INDEX IF NOT EXISTS idx_acid_kti_acid ON acid_kti(acid);
+CREATE INDEX IF NOT EXISTS idx_acid_kti_date ON acid_kti(kti_date);
+
+-- ais_transactions
+CREATE INDEX IF NOT EXISTS idx_transactions_date ON ais_transactions(date);
+CREATE INDEX IF NOT EXISTS idx_transactions_contract ON ais_transactions(contract_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_counterparty ON ais_transactions(counterparty_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_status ON ais_transactions(status);
+CREATE INDEX IF NOT EXISTS idx_transactions_acid_link ON ais_transactions(acid_link);
+CREATE INDEX IF NOT EXISTS idx_transactions_import ON ais_transactions(ais_import_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_urgent ON ais_transactions(urgent);
+
+-- notifications
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(is_read);

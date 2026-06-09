@@ -35,39 +35,68 @@ const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
 // Column whitelist per table — prevents SQL injection via column names from request body
 const ALLOWED_COLUMNS = {
   acid: new Set([
-    'acid', 'nomer_ais', 'initial_request_number', 'shipment_type', 'gruzootravitel',
-    'postavshchik', 'importer_name', 'kontragent', 'registration_number', 'vat_number',
-    'naimenovanie', 'gw_kg', 'kolichestvo_mest', 'kolichestvo_konteynerov', 'tip_perevozki',
-    'stoimost_gruza', 'valyuta', 'summa_perevozki', 'strana_otpravleniya', 'port_otpravleniya',
-    'incoterms', 'mesto_postavki', 'sudno', 'shipping_line', 'bol_number', 'bol_date',
-    'perevozchik', 'etd', 'eta', 'data_postavki', 'data_pribytiya_egypt', 'mesto_pribytiya',
-    'data_zaprosa_osvobozhdeniya', 'kurator_osvobozhdeniya', 'data_polucheniya_osvobozhdeniya',
-    'do_released', 'rezhim_vvoza', 'nomer_dt', 'data_dt', 'data_vypuska_dt',
-    'data_dostavki_na_ploschad', 'custom_status', 'naznachenie', 'kurator_upo',
-    'invoiz_zagruzhen', 'prodlen_do', 'primechanie', 'status', 'otvetstvennyy',
-    'komentar', 'kontract_id', 'nomer_kontrakta'
+    'acid', 'ais_number', 'initial_request_number', 'shipment_type',
+    'shipper_id', 'shipper', 'supplier_id', 'supplier',
+    'importer_name', 'registration_number', 'vat_number',
+    'name', 'gw_kg', 'packages_qty', 'containers_qty',
+    'transport_type', 'cargo_cost', 'currency', 'shipping_cost',
+    'incoterms', 'departure_country', 'departure_port', 'delivery_place', 'arrival_place',
+    'vessel', 'shipping_line', 'bol_number', 'bol_date', 'carrier',
+    'etd', 'eta', 'delivery_date', 'egypt_arrival_date',
+    'release_request_date', 'release_curator', 'release_received_date',
+    'do_released', 'import_mode',
+    'dt_number', 'dt_date', 'dt_release_date', 'delivery_to_site_date', 'custom_status',
+    'purpose', 'upo_curator_id', 'upo_curator',
+    'invoice_uploaded', 'extended_to',
+    'status', 'responsible_id', 'responsible',
+    'notes', 'comment',
+    'contract_id', 'contract_number'
   ]),
   contracts: new Set([
-    'nomer_kontrakta', 'tip_kontrakta', 'kontragent', 'nazvanie', 'data_kontrakta',
-    'srok_deystviya', 'ds_data', 'cena_kontrakta', 'valyuta', 'summa_oplaty',
-    'marshrut_to', 'vid_zakupki', 'lot_nomer', 'status', 'valyutnyy_kontrol',
-    'komentar', 'ssylka', 'ostatok_limita'
+    'contract_number', 'type', 'counterparty_id', 'counterparty',
+    'name', 'contract_date', 'validity_period',
+    'ds_number', 'ds_date',
+    'amount', 'amount_with_ds', 'currency', 'paid_amount',
+    'route_to', 'procurement_type', 'lot_number',
+    'status', 'currency_control', 'notes', 'link', 'limit_balance',
+    'responsible_id', 'responsible'
   ]),
   contract_stages: new Set([
-    'kontract_id', 'stage_number', 'stage_name', 'status',
-    'data_nachal', 'data_okonch', 'kurator', 'komentar'
+    'contract_id', 'stage_number', 'stage_name', 'substage_name',
+    'responsible_id', 'responsible',
+    'planned_date', 'actual_date',
+    'status', 'notes', 'sort_order'
   ]),
-  finance: new Set([
-    'data', 'nomer', 'data_raskhoda', 'kti_data', 'valyuta', 'summa_usd',
-    'organizaciya', 'kontragent', 'kontragent_kratko', 'dogovor_kontragenta',
-    'data_dogovora_kontragenta', 'dogovor_i_data', 'proyekt', 'sostoyanie',
-    'cfo', 'otvetstvennyy', 'srochnyy_platezh'
+  counterparties: new Set([
+    'name', 'short_name', 'country', 'type',
+    'registration_number', 'vat_number',
+    'contact_person', 'email', 'phone', 'notes',
+    'is_active'
+  ]),
+  ais_transactions: new Set([
+    'date', 'number', 'expense_date', 'kti_date',
+    'currency', 'amount', 'amount_usd',
+    'organization',
+    'counterparty', 'counterparty_short', 'counterparty_id',
+    'contract_number', 'contract_date', 'contract_id',
+    'project', 'status', 'cfo',
+    'responsible', 'responsible_id',
+    'urgent', 'acid_link', 'kti_id', 'ais_import_id'
+  ]),
+  acid_kti: new Set([
+    'acid', 'kti_date', 'kti_number', 'contract_ds_number',
+    'amount_usd', 'ais_number', 'notes'
+  ]),
+  ais_imports: new Set([
+    'file_name', 'table_type', 'total_rows', 'imported_rows', 'skipped_rows',
+    'errors', 'imported_by'
   ])
 };
 
-const VALID_TABLES = new Set(['acid', 'contracts', 'contract_stages', 'finance']);
-
-// Role permissions are defined in ROLE_PERMISSIONS (see middleware section)
+const VALID_TABLES = new Set([
+  'acid', 'contracts', 'contract_stages',
+  'counterparties', 'ais_transactions', 'acid_kti', 'ais_imports'
+]);
 
 let db = null;
 
@@ -147,11 +176,11 @@ async function initDB() {
   // Cache 8 MB in memory for faster reads
   await db.exec('PRAGMA cache_size=-8000');
 
+  // Run migrations before schema so old tables are dropped/renamed first
+  await runMigrations();
+
   const schema = fs.readFileSync(join(__dirname, '../data/schema.sql'), 'utf8');
   await db.exec(schema);
-
-  // Run migrations for existing databases
-  await runMigrations();
 
   // Seed default users if not present
   await seedUsers();
@@ -160,17 +189,35 @@ async function initDB() {
 }
 
 async function runMigrations() {
-  // Fix Cyrillic typo in contracts table (summa_oplatы → summa_oplaty)
-  // SQLite ALTER TABLE RENAME COLUMN requires SQLite 3.25+
-  try {
-    const cols = await db.all("PRAGMA table_info(contracts)");
-    const hasOld = cols.some(c => c.name === 'summa_oplatы');
-    if (hasOld) {
-      await db.exec('ALTER TABLE contracts RENAME COLUMN "summa_oplatы" TO summa_oplaty');
-      console.log('Migration: renamed summa_oplatы → summa_oplaty');
+  // Check whether we need to migrate from the old Cyrillic-column schema to the
+  // new normalized English-column schema. The presence of the "counterparties"
+  // table is the migration-version marker.
+  const hasNewSchema = await db.get(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name='counterparties'"
+  );
+
+  if (!hasNewSchema) {
+    console.log('Migration: upgrading to v3.1 normalized schema…');
+
+    // Drop old tables in reverse-dependency order so FK constraints do not block
+    await db.exec('PRAGMA foreign_keys=OFF');
+
+    const oldTables = [
+      'notifications',
+      'finance',
+      'contract_stages',
+      'acid',
+      'contracts',
+      'users',         // will be recreated by schema.sql — no data to preserve yet
+    ];
+
+    for (const t of oldTables) {
+      await db.exec(`DROP TABLE IF EXISTS "${t}"`);
+      console.log(`Migration: dropped old table "${t}"`);
     }
-  } catch {
-    // Column already correct or SQLite version too old — safe to ignore
+
+    await db.exec('PRAGMA foreign_keys=ON');
+    console.log('Migration: old tables dropped, new schema will be applied by schema.sql');
   }
 }
 
@@ -196,10 +243,10 @@ async function seedUsers() {
   }
 
   const defaultUsers = [
-    { login: 'director',     password: 'director123',  name: 'Директор',                    role: 'director' },
-    { login: 'logistics',    password: 'logistics123',  name: 'Логистическая поддержка',     role: 'logistics_support' },
-    { login: 'analytics',    password: 'analytics123',  name: 'Информационная аналитика',    role: 'info_analytics' },
-    { login: 'oplogistics',  password: 'oplog123',      name: 'Оперативная логистика',       role: 'operational_logistics' },
+    { login: 'director',    password: 'director123',  name: 'Директор',                 role: 'director' },
+    { login: 'logistics',   password: 'logistics123', name: 'Логистическая поддержка',  role: 'logistics_support' },
+    { login: 'analytics',   password: 'analytics123', name: 'Информационная аналитика', role: 'info_analytics' },
+    { login: 'oplogistics', password: 'oplog123',     name: 'Оперативная логистика',    role: 'operational_logistics' },
   ];
 
   for (const u of defaultUsers) {
@@ -229,16 +276,47 @@ function auth(req, res, next) {
 }
 
 // Role-based access control
-// tables: '*' = all, array = whitelist
+// tables: '*' = all tables, array = whitelist of allowed tables
 // write:  true = all tables, array = only listed tables, false = read-only
-// import: true = allowed, false = not allowed
+// import: true = all tables, array = only listed tables, false = not allowed
+// delete: true = allowed, false = not allowed (only admin)
 const ROLE_PERMISSIONS = {
-  admin:                { tables: '*',                              write: true,                   import: true },
-  egypt:                { tables: ['acid'],                         write: false,                  import: false },
-  director:             { tables: '*',                              write: false,                  import: false },
-  logistics_support:    { tables: ['acid', 'contracts', 'finance'], write: ['acid', 'contracts'],  import: ['acid', 'contracts'] },
-  info_analytics:       { tables: '*',                              write: false,                  import: false },
-  operational_logistics:{ tables: ['acid', 'contracts'],            write: ['acid'],               import: ['acid'] },
+  admin: {
+    tables: '*',
+    write: true,
+    import: true,
+    delete: true
+  },
+  director: {
+    tables: '*',
+    write: true,
+    import: false,
+    delete: false
+  },
+  logistics_support: {
+    tables: ['contracts', 'contract_stages', 'counterparties', 'ais_transactions', 'acid', 'acid_kti'],
+    write: ['contracts', 'contract_stages', 'counterparties', 'ais_transactions'],
+    import: ['ais_transactions'],
+    delete: false
+  },
+  info_analytics: {
+    tables: '*',
+    write: ['acid', 'contracts', 'contract_stages', 'counterparties', 'ais_transactions', 'acid_kti'],
+    import: true,
+    delete: false
+  },
+  operational_logistics: {
+    tables: ['acid', 'acid_kti', 'contracts', 'ais_transactions', 'counterparties'],
+    write: ['acid', 'acid_kti'],
+    import: ['acid', 'acid_kti'],
+    delete: false
+  },
+  egypt: {
+    tables: ['acid'],
+    write: false,
+    import: false,
+    delete: false
+  },
 };
 
 function checkAccess(req, res, next) {
@@ -248,11 +326,20 @@ function checkAccess(req, res, next) {
 
   if (!perm) return res.status(403).json({ error: 'Роль не найдена' });
 
+  // Table access check
   if (table && perm.tables !== '*' && !perm.tables.includes(table)) {
     return res.status(403).json({ error: 'Нет доступа к этой таблице' });
   }
 
-  const isWrite = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method);
+  const isWrite = ['POST', 'PUT', 'PATCH'].includes(req.method);
+  const isDelete = req.method === 'DELETE';
+
+  if (isDelete) {
+    if (!perm.delete) {
+      return res.status(403).json({ error: 'Удаление запрещено для вашей роли' });
+    }
+  }
+
   if (isWrite) {
     if (perm.write === false) return res.status(403).json({ error: 'Только чтение' });
     if (Array.isArray(perm.write) && table && !perm.write.includes(table)) {
@@ -277,8 +364,6 @@ function checkImport(req, res, next) {
 
   next();
 }
-
-function egyptReadOnly(req, res, next) { next(); } // kept for compatibility, replaced by checkAccess
 
 function sanitizeColumns(table, data) {
   const allowed = ALLOWED_COLUMNS[table];
@@ -332,6 +417,103 @@ app.get('/auth/me', auth, async (req, res) => {
     if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
     res.json({ user });
   } catch (err) {
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// ============== DASHBOARD ==============
+
+app.get('/dashboard', auth, async (req, res) => {
+  try {
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+
+    const [
+      contractStats,
+      cargoStats,
+      transactionStats,
+      overdueStages,
+      recentCargos
+    ] = await Promise.all([
+      // Contracts summary
+      db.get(`
+        SELECT
+          COUNT(*) AS total,
+          SUM(CASE WHEN status = 'active'    THEN 1 ELSE 0 END) AS active,
+          SUM(CASE WHEN status = 'expired'   THEN 1 ELSE 0 END) AS expired,
+          COALESCE(SUM(amount), 0)         AS total_amount,
+          COALESCE(SUM(paid_amount), 0)    AS total_paid,
+          COALESCE(SUM(limit_balance), 0)  AS limit_balance_sum
+        FROM contracts
+      `),
+      // Cargo summary
+      db.get(`
+        SELECT
+          COUNT(*) AS total,
+          SUM(CASE WHEN status = 'in_transit' THEN 1 ELSE 0 END) AS in_transit,
+          SUM(CASE WHEN status = 'customs'    THEN 1 ELSE 0 END) AS customs,
+          SUM(CASE WHEN status = 'delivered'  THEN 1 ELSE 0 END) AS delivered,
+          SUM(CASE WHEN eta < ? AND status NOT IN ('delivered','cancelled') THEN 1 ELSE 0 END) AS overdue
+        FROM acid
+      `, [today]),
+      // Transactions summary
+      db.get(`
+        SELECT
+          COALESCE(SUM(amount_usd), 0)                                              AS total_usd,
+          COALESCE(SUM(CASE WHEN status = 'pending' THEN amount_usd ELSE 0 END), 0) AS pending_usd,
+          SUM(CASE WHEN urgent = 1 THEN 1 ELSE 0 END)                               AS urgent_count
+        FROM ais_transactions
+      `),
+      // Top 5 overdue stages
+      db.all(`
+        SELECT
+          c.contract_number,
+          cs.stage_name,
+          cs.planned_date,
+          cs.responsible,
+          CAST(julianday(?) - julianday(cs.planned_date) AS INTEGER) AS days_overdue
+        FROM contract_stages cs
+        JOIN contracts c ON c.id = cs.contract_id
+        WHERE cs.status NOT IN ('completed')
+          AND cs.planned_date < ?
+          AND cs.planned_date IS NOT NULL
+          AND cs.planned_date != ''
+        ORDER BY cs.planned_date ASC
+        LIMIT 5
+      `, [today, today]),
+      // Last 5 cargos by created_at
+      db.all(`
+        SELECT * FROM acid
+        ORDER BY created_at DESC
+        LIMIT 5
+      `)
+    ]);
+
+    res.json({
+      contracts: {
+        total:             contractStats.total         || 0,
+        active:            contractStats.active        || 0,
+        expired:           contractStats.expired       || 0,
+        total_amount:      contractStats.total_amount  || 0,
+        total_paid:        contractStats.total_paid    || 0,
+        limit_balance_sum: contractStats.limit_balance_sum || 0
+      },
+      cargo: {
+        total:      cargoStats.total      || 0,
+        in_transit: cargoStats.in_transit || 0,
+        customs:    cargoStats.customs    || 0,
+        delivered:  cargoStats.delivered  || 0,
+        overdue:    cargoStats.overdue    || 0
+      },
+      transactions: {
+        total_usd:    transactionStats.total_usd    || 0,
+        pending_usd:  transactionStats.pending_usd  || 0,
+        urgent_count: transactionStats.urgent_count || 0
+      },
+      overdue_stages: overdueStages,
+      recent_cargos:  recentCargos
+    });
+  } catch (err) {
+    console.error('Dashboard error:', err);
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });
@@ -438,6 +620,7 @@ app.post('/import/:table', auth, checkImport, async (req, res) => {
 
     let imported = 0;
     let skipped = 0;
+    const errors = [];
 
     // Wrap in transaction for atomicity and 10-50x speed improvement
     await db.exec('BEGIN TRANSACTION');
@@ -457,7 +640,8 @@ app.post('/import/:table', auth, checkImport, async (req, res) => {
             [id, ...columns.map(k => data[k])]
           );
           imported++;
-        } catch {
+        } catch (rowErr) {
+          errors.push(rowErr.message);
           skipped++;
         }
       }
@@ -467,7 +651,26 @@ app.post('/import/:table', auth, checkImport, async (req, res) => {
       throw err;
     }
 
-    res.json({ imported, skipped });
+    // Log import to ais_imports
+    try {
+      await db.run(
+        `INSERT INTO ais_imports (id, table_type, total_rows, imported_rows, skipped_rows, errors, imported_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          uuidv4(),
+          table === 'ais_transactions' ? 'transactions' : table,
+          rows.length,
+          imported,
+          skipped,
+          errors.length > 0 ? JSON.stringify(errors) : null,
+          req.user.id
+        ]
+      );
+    } catch {
+      // Non-fatal: import already committed, just log silently
+    }
+
+    res.json({ imported, skipped, errors: errors.slice(0, 20) });
   } catch (err) {
     console.error('Import error:', err);
     res.status(500).json({ error: 'Ошибка импорта' });
