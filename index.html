@@ -526,6 +526,50 @@
       .dashboard-grid { grid-template-columns: 1fr; }
     }
 
+    /* METRIC CARDS (dashboard) */
+    .metric-card {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .metric-card h3 {
+      color: var(--titan-primary);
+      margin-bottom: 12px;
+      font-size: 16px;
+    }
+
+    .metric-big {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--titan-primary);
+      margin-bottom: 12px;
+    }
+
+    .text-danger {
+      color: var(--titan-danger);
+      font-weight: 600;
+    }
+
+    .section-card {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      margin-bottom: 24px;
+    }
+
+    .section-card h3 {
+      color: var(--titan-primary);
+      margin-bottom: 16px;
+      font-size: 16px;
+    }
+
+    .row-danger {
+      background: rgba(192, 57, 43, 0.07);
+    }
+
     /* IMPORT MODAL */
     .modal-overlay {
       display: none;
@@ -693,12 +737,8 @@
       <div class="sidebar">
         <h1>AccessWeb</h1>
         
-        <div class="nav-section">
-          <div class="nav-section-title">Отделы</div>
-          <button class="nav-btn active" onclick="switchTab(this, 'dashboard')">Дашборд</button>
-          <button class="nav-btn" onclick="switchTab(this, 'acid')">Грузы (ACID)</button>
-          <button id="nav-contracts" class="nav-btn" onclick="switchTab(this, 'contracts')">Договоры</button>
-          <button id="nav-finance" class="nav-btn" onclick="switchTab(this, 'finance')">Финансы</button>
+        <div class="nav-section" id="navMenu">
+          <!-- Populated by buildNav(role) -->
         </div>
 
         <div class="nav-section">
@@ -722,35 +762,11 @@
         <!-- DASHBOARD TAB -->
         <div id="dashboard" class="content-section active">
           <div class="header">
-            <h2 id="dashboardTitle">Дашборд</h2>
-            <p id="dashboardSubtitle">Финансовая аналитика</p>
+            <h2>Дашборд</h2>
+            <p>Сводная аналитика по логистике</p>
           </div>
-
-          <div class="dashboard-grid">
-            <!-- CHART 1: Задолженность по времени -->
-            <div class="chart-card">
-              <h3>Задолженность по времени (май 2025 - июнь 2026)</h3>
-              <div class="chart-container">
-                <canvas id="metricsChart"></canvas>
-              </div>
-            </div>
-
-            <!-- CHART 2: Остатки по договорам -->
-            <div class="chart-card">
-              <h3>Остатки по договорам</h3>
-              <div class="chart-container">
-                <canvas id="balanceChart"></canvas>
-              </div>
-            </div>
-          </div>
-
-          <!-- Stat: Грузы в работе -->
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px;">
-            <div class="chart-card" style="padding: 20px;">
-              <h3 style="font-size: 12px; text-transform: uppercase; color: var(--gray-text);">Грузы в работе</h3>
-              <div style="color: var(--titan-primary); font-size: 32px; font-weight: 600; margin-top: 12px;" id="stat-acid-pending">0</div>
-              <div style="color: var(--gray-text); font-size: 12px; margin-top: 8px;">записей</div>
-            </div>
+          <div id="dashboardContent">
+            <p style="color: var(--gray-text);">Загрузка...</p>
           </div>
         </div>
 
@@ -761,7 +777,7 @@
             <p>Отслеживание грузов от производства до доставки</p>
           </div>
 
-          <div class="form-section">
+          <div class="form-section" id="acidFormSection">
             <h3>Добавить новый груз</h3>
             <form id="acidForm">
               <div class="form-row">
@@ -770,29 +786,56 @@
                   <input type="text" name="acid" required>
                 </div>
                 <div class="form-group">
-                  <label>Грузоотправитель <span class="required">*</span></label>
-                  <input type="text" name="gruzootravitel" required>
+                  <label>Название груза</label>
+                  <input type="text" name="name">
                 </div>
                 <div class="form-group">
-                  <label>Поставщик <span class="required">*</span></label>
-                  <input type="text" name="postavshchik" required>
+                  <label>Грузоотправитель</label>
+                  <input type="text" name="shipper">
                 </div>
               </div>
               <div class="form-row">
                 <div class="form-group">
-                  <label>Наименование груза <span class="required">*</span></label>
-                  <input type="text" name="naimenovanie" required>
+                  <label>Поставщик</label>
+                  <input type="text" name="supplier">
+                </div>
+                <div class="form-group">
+                  <label>Импортёр</label>
+                  <input type="text" name="importer_name">
+                </div>
+                <div class="form-group">
+                  <label>Вес (кг)</label>
+                  <input type="number" name="gw_kg" step="0.01">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>ETD</label>
+                  <input type="date" name="etd">
+                </div>
+                <div class="form-group">
+                  <label>ETA</label>
+                  <input type="date" name="eta">
                 </div>
                 <div class="form-group">
                   <label>Статус</label>
                   <select name="status">
                     <option value="pending">В работе</option>
-                    <option value="completed">Доставлено</option>
+                    <option value="in_transit">В пути</option>
+                    <option value="customs">На таможне</option>
+                    <option value="delivered">Доставлено</option>
+                    <option value="cancelled">Отменено</option>
                   </select>
                 </div>
+              </div>
+              <div class="form-row">
                 <div class="form-group">
-                  <label>Вес (кг)</label>
-                  <input type="number" name="gw_kg" step="0.01">
+                  <label>Ответственный</label>
+                  <input type="text" name="responsible">
+                </div>
+                <div class="form-group">
+                  <label>№ Договора</label>
+                  <input type="text" name="contract_number">
                 </div>
               </div>
               <button type="submit" class="btn-submit">Добавить груз</button>
@@ -805,18 +848,61 @@
               <input type="text" id="acidSearch" placeholder="Поиск по ACID, грузоотправителю..." onkeyup="filterAcidTable()">
               <button class="btn-filter active" onclick="filterByStatus('all', event)">Все</button>
               <button class="btn-filter" onclick="filterByStatus('pending', event)">В работе</button>
-              <button class="btn-filter" onclick="filterByStatus('completed', event)">Доставлены</button>
+              <button class="btn-filter" onclick="filterByStatus('in_transit', event)">В пути</button>
+              <button class="btn-filter" onclick="filterByStatus('customs', event)">Таможня</button>
+              <button class="btn-filter" onclick="filterByStatus('delivered', event)">Доставлены</button>
             </div>
             <div class="table-wrapper">
               <table id="acidTable">
                 <thead>
                   <tr>
                     <th>ACID</th>
+                    <th>АИС №</th>
+                    <th>Тип груза</th>
                     <th>Грузоотправитель</th>
                     <th>Поставщик</th>
-                    <th>Наименование</th>
-                    <th>Вес (кг)</th>
+                    <th>Импортёр</th>
+                    <th>Название</th>
+                    <th>Вес кг</th>
+                    <th>Мест</th>
+                    <th>Контейнеров</th>
+                    <th>Тип перевозки</th>
+                    <th>Стоимость груза</th>
+                    <th>Валюта</th>
+                    <th>Стоимость доставки</th>
+                    <th>Страна отпр.</th>
+                    <th>Порт отпр.</th>
+                    <th>Инкотермс</th>
+                    <th>Место доставки</th>
+                    <th>Судно</th>
+                    <th>Линия</th>
+                    <th>BOL №</th>
+                    <th>Дата BOL</th>
+                    <th>Перевозчик</th>
+                    <th>ETD</th>
+                    <th>ETA</th>
+                    <th>Дата доставки</th>
+                    <th>Прибытие Египет</th>
+                    <th>Место прибытия</th>
+                    <th>Запрос освобождения</th>
+                    <th>Куратор освобождения</th>
+                    <th>Получено освобождение</th>
+                    <th>DO</th>
+                    <th>Режим ввоза</th>
+                    <th>№ ДТ</th>
+                    <th>Дата ДТ</th>
+                    <th>Дата выпуска ДТ</th>
+                    <th>Доставка на площадь</th>
+                    <th>Статус таможни</th>
+                    <th>Назначение</th>
+                    <th>Куратор УПО</th>
+                    <th>Инвойс загружен</th>
+                    <th>Продлён до</th>
                     <th>Статус</th>
+                    <th>Ответственный</th>
+                    <th>Примечания</th>
+                    <th>Комментарий</th>
+                    <th>№ Договора</th>
                     <th>Действие</th>
                   </tr>
                 </thead>
@@ -839,32 +925,59 @@
               <div class="form-row">
                 <div class="form-group">
                   <label>Номер договора <span class="required">*</span></label>
-                  <input type="text" name="nomer_kontrakta" required>
+                  <input type="text" name="contract_number" required>
                 </div>
                 <div class="form-group">
-                  <label>Контрагент <span class="required">*</span></label>
-                  <input type="text" name="kontragent" required>
+                  <label>Тип</label>
+                  <select name="type">
+                    <option value="supply">Поставка</option>
+                    <option value="main_construction">Генподряд</option>
+                    <option value="invoice">Инвойс</option>
+                    <option value="service">Услуги</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Контрагент</label>
+                  <input type="text" name="counterparty">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Название</label>
+                  <input type="text" name="name">
+                </div>
+                <div class="form-group">
+                  <label>Дата договора</label>
+                  <input type="date" name="contract_date">
+                </div>
+                <div class="form-group">
+                  <label>Действует до</label>
+                  <input type="date" name="validity_period">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Сумма</label>
+                  <input type="number" name="amount" step="0.01">
+                </div>
+                <div class="form-group">
+                  <label>Валюта</label>
+                  <select name="currency">
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                    <option value="RUB">RUB</option>
+                    <option value="EGP">EGP</option>
+                  </select>
                 </div>
                 <div class="form-group">
                   <label>Статус</label>
                   <select name="status">
                     <option value="active">Активен</option>
-                    <option value="completed">Завершен</option>
+                    <option value="draft">Черновик</option>
+                    <option value="completed">Завершён</option>
+                    <option value="expired">Истёк</option>
+                    <option value="suspended">Приостановлен</option>
                   </select>
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Дата начала</label>
-                  <input type="date" name="data_kontrakta">
-                </div>
-                <div class="form-group">
-                  <label>Дата окончания</label>
-                  <input type="date" name="srok_deystviya">
-                </div>
-                <div class="form-group">
-                  <label>Сумма</label>
-                  <input type="number" name="cena_kontrakta" step="0.01">
                 </div>
               </div>
               <button type="submit" class="btn-submit">Добавить договор</button>
@@ -880,12 +993,26 @@
               <table id="contractTable">
                 <thead>
                   <tr>
-                    <th>Номер</th>
+                    <th>№ договора</th>
+                    <th>Тип</th>
                     <th>Контрагент</th>
-                    <th>Статус</th>
-                    <th>Дата начала</th>
-                    <th>Дата окончания</th>
+                    <th>Название</th>
+                    <th>Дата</th>
+                    <th>Действует до</th>
+                    <th>DS</th>
                     <th>Сумма</th>
+                    <th>С DS</th>
+                    <th>Валюта</th>
+                    <th>Оплачено</th>
+                    <th>Остаток лимита</th>
+                    <th>Маршрут</th>
+                    <th>Закупка</th>
+                    <th>Лот</th>
+                    <th>Статус</th>
+                    <th>Валютный контроль</th>
+                    <th>Ответственный</th>
+                    <th>Ссылка</th>
+                    <th>Примечания</th>
                     <th>Действие</th>
                   </tr>
                 </thead>
@@ -895,67 +1022,74 @@
           </div>
         </div>
 
-        <!-- FINANCE TAB -->
-        <div id="finance" class="content-section">
+        <!-- TRANSACTIONS TAB -->
+        <div id="transactions" class="content-section" style="display:none;">
           <div class="header">
-            <h2>Финансы</h2>
-            <p>Учет расходов с автоматическим расчетом USD</p>
-          </div>
-
-          <div class="form-section">
-            <h3>Добавить финансовую запись</h3>
-            <form id="financeForm">
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Дата <span class="required">*</span></label>
-                  <input type="date" name="data" required>
-                </div>
-                <div class="form-group">
-                  <label>Контрагент <span class="required">*</span></label>
-                  <input type="text" name="kontragent" required>
-                </div>
-                <div class="form-group">
-                  <label>Валюта</label>
-                  <select name="valyuta">
-                    <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
-                    <option value="RUB">RUB</option>
-                    <option value="EGP">EGP</option>
-                  </select>
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Сумма <span class="required">*</span></label>
-                  <input type="number" name="summa_usd" step="0.01" required>
-                </div>
-                <div class="form-group">
-                  <label>Состояние</label>
-                  <select name="sostoyanie">
-                    <option value="pending">Ожидание</option>
-                    <option value="completed">Завершено</option>
-                  </select>
-                </div>
-              </div>
-              <button type="submit" class="btn-submit">Добавить запись</button>
-            </form>
+            <h2>Транзакции (АИС)</h2>
+            <p>Учёт платежей и транзакций</p>
           </div>
 
           <div class="table-section">
-            <h3>Все финансовые записи</h3>
+            <h3>Все транзакции</h3>
             <div class="search-bar">
-              <input type="text" id="financeSearch" placeholder="Поиск по контрагенту, валюте..." onkeyup="filterFinanceTable()">
+              <input type="text" id="transactionsSearch" placeholder="Поиск по контрагенту, организации..." onkeyup="filterTransactionsTable()">
             </div>
             <div class="table-wrapper">
-              <table id="financeTable">
+              <table id="transactionsTable">
                 <thead>
                   <tr>
                     <th>Дата</th>
-                    <th>Контрагент</th>
+                    <th>№</th>
+                    <th>Дата расхода</th>
+                    <th>КТИ дата</th>
                     <th>Валюта</th>
                     <th>Сумма</th>
-                    <th>USD</th>
+                    <th>Сумма USD</th>
+                    <th>Организация</th>
+                    <th>Контрагент</th>
+                    <th>Контрагент кратко</th>
+                    <th>№ договора</th>
+                    <th>Проект</th>
                     <th>Статус</th>
+                    <th>ЦФО</th>
+                    <th>Ответственный</th>
+                    <th>Срочный</th>
+                    <th>ACID</th>
+                    <th>Действие</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- COUNTERPARTIES TAB -->
+        <div id="counterparties" class="content-section" style="display:none;">
+          <div class="header">
+            <h2>Контрагенты</h2>
+            <p>Справочник контрагентов</p>
+          </div>
+
+          <div class="table-section">
+            <h3>Все контрагенты</h3>
+            <div class="search-bar">
+              <input type="text" id="counterpartiesSearch" placeholder="Поиск по названию, стране..." onkeyup="filterCounterpartiesTable()">
+            </div>
+            <div class="table-wrapper">
+              <table id="counterpartiesTable">
+                <thead>
+                  <tr>
+                    <th>Название</th>
+                    <th>Краткое</th>
+                    <th>Страна</th>
+                    <th>Тип</th>
+                    <th>ИНН/VAT</th>
+                    <th>Контакт</th>
+                    <th>Email</th>
+                    <th>Телефон</th>
+                    <th>Активный</th>
+                    <th>Примечания</th>
                     <th>Действие</th>
                   </tr>
                 </thead>
@@ -977,6 +1111,18 @@
       <div class="modal-header">
         <h2>Импорт данных</h2>
         <p>Перетащите файл или нажмите для выбора</p>
+      </div>
+
+      <div class="form-group" style="margin-bottom:16px;">
+        <label style="display:block;margin-bottom:6px;font-weight:600;color:var(--titan-primary);">Таблица для импорта</label>
+        <select id="importTableSelect" style="width:100%;padding:10px;border:2px solid var(--gray-border);border-radius:6px;font-size:14px;">
+          <option value="">— автоопределение —</option>
+          <option value="acid">Грузы (ACID)</option>
+          <option value="contracts">Договоры</option>
+          <option value="counterparties">Контрагенты</option>
+          <option value="ais_transactions">Транзакции (АИС)</option>
+          <option value="acid_kti">ACID КТИ</option>
+        </select>
       </div>
 
       <div class="drag-drop-zone" id="dragDropZone">
@@ -1011,6 +1157,15 @@
 
     const RATES_TO_USD = { USD: 1, EUR: 1.08, EGP: 0.021, RUB: 0.011 };
 
+    const ROLE_PERMISSIONS = {
+      admin:                 { import: true },
+      director:              { import: false },
+      logistics_support:     { import: ['ais_transactions'] },
+      info_analytics:        { import: true },
+      operational_logistics: { import: ['acid'] },
+      egypt:                 { import: false },
+    };
+
     // ============================================================
     // STATE
     // ============================================================
@@ -1019,8 +1174,6 @@
     let currentUser = null;
     let isEgyptMode = false;
     let currentFilter = 'all';
-    let metricsChart  = null;
-    let balanceChart  = null;
 
     // ============================================================
     // API HELPER
@@ -1043,6 +1196,13 @@
       return res.json();
     }
 
+    // Convenience alias for GET requests
+    async function apiFetch(path) {
+      return api('GET', path);
+    }
+
+    function fmtNum(n) { return n ? Number(n).toLocaleString('ru-RU') : '0'; }
+
     // ============================================================
     // UI HELPERS
     // ============================================================
@@ -1056,24 +1216,83 @@
 
     function switchTab(btn, tabId) {
       document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
-      document.getElementById(tabId).classList.add('active');
+      if (btn) btn.classList.add('active');
+      document.querySelectorAll('.content-section').forEach(s => {
+        s.classList.remove('active');
+        s.style.display = 'none';
+      });
+      const panel = document.getElementById(tabId);
+      if (panel) { panel.classList.add('active'); panel.style.display = ''; }
+
+      if (tabId === 'dashboard') {
+        loadDashboard();
+      } else if (tabId === 'acid') {
+        loadTable('acid').then(rows => renderAcidTable(rows));
+      } else if (tabId === 'contracts') {
+        loadTable('contracts').then(rows => renderContractTable(rows));
+      } else if (tabId === 'transactions') {
+        loadTable('ais_transactions').then(rows => renderTransactionsTable(rows));
+      } else if (tabId === 'counterparties') {
+        loadTable('counterparties').then(rows => renderCounterpartiesTable(rows));
+      }
+    }
+
+    async function loadTable(tableName) {
+      try {
+        return await api('GET', `/${tableName}`);
+      } catch (err) {
+        showAlert(err.message, 'error');
+        return [];
+      }
     }
 
     // ============================================================
-    // EGYPT MODE
+    // NAVIGATION
     // ============================================================
 
-    function applyEgyptMode() {
-      ['nav-contracts', 'nav-finance', 'nav-import'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.style.display = 'none';
+    function buildNav(role) {
+      const navMenu = document.getElementById('navMenu');
+      const items = [];
+
+      if (role === 'egypt') {
+        items.push({ label: 'Грузы (ACID)', tab: 'acid' });
+      } else {
+        if (['admin','director'].includes(role)) items.push({ label: 'Дашборд', tab: 'dashboard' });
+        items.push({ label: 'Грузы (ACID)', tab: 'acid' });
+        if (['admin','director','logistics_support','info_analytics'].includes(role)) {
+          items.push({ label: 'Договоры', tab: 'contracts' });
+          items.push({ label: 'Контрагенты', tab: 'counterparties' });
+        }
+        if (['admin','director','logistics_support','info_analytics'].includes(role)) {
+          items.push({ label: 'Транзакции', tab: 'transactions' });
+        }
+      }
+
+      navMenu.innerHTML = items.map((item, i) =>
+        `<button class="nav-btn${i===0?' active':''}" onclick="switchTab(this,'${item.tab}')">${item.label}</button>`
+      ).join('');
+
+      // Import button visibility
+      const perm = ROLE_PERMISSIONS[role];
+      if (perm && perm.import !== false) {
+        document.getElementById('nav-import').style.display = '';
+      } else {
+        document.getElementById('nav-import').style.display = 'none';
+      }
+
+      // Show the first tab panel, hide others
+      document.querySelectorAll('.content-section').forEach(s => {
+        s.classList.remove('active');
+        s.style.display = 'none';
       });
-      document.getElementById('dashboardTitle').textContent    = 'Грузы в пути';
-      document.getElementById('dashboardSubtitle').textContent = 'Статус отслеживания грузов';
-      const grid = document.querySelector('.dashboard-grid');
-      if (grid) grid.style.display = 'none';
+      if (items.length > 0) {
+        const firstPanel = document.getElementById(items[0].tab);
+        if (firstPanel) { firstPanel.classList.add('active'); firstPanel.style.display = ''; }
+      }
+    }
+
+    function applyEgyptMode() {
+      // Egypt mode handled by buildNav — show only acid tab, no import
     }
 
     function initUserUI(user) {
@@ -1084,7 +1303,8 @@
         operational_logistics: 'Оперативная логистика', director: 'Руководитель'
       };
       document.getElementById('userRole').textContent = roleLabels[user.role] || user.role;
-      if (user.is_egypt_mode || user.role === 'egypt') { isEgyptMode = true; applyEgyptMode(); }
+      if (user.is_egypt_mode || user.role === 'egypt') { isEgyptMode = true; }
+      buildNav(user.role);
     }
 
     // ============================================================
@@ -1125,11 +1345,9 @@
       authToken = null; currentUser = null; isEgyptMode = false; currentFilter = 'all';
       localStorage.removeItem('authToken');
       localStorage.removeItem('currentUser');
-      ['nav-contracts', 'nav-finance', 'nav-import'].forEach(id => {
-        const el = document.getElementById(id); if (el) el.style.display = '';
-      });
-      const grid = document.querySelector('.dashboard-grid');
-      if (grid) grid.style.display = '';
+      // Reset nav menu
+      const navMenu = document.getElementById('navMenu');
+      if (navMenu) navMenu.innerHTML = '';
       document.getElementById('loginScreen').style.display = 'flex';
       document.getElementById('appScreen').style.display   = 'none';
     }
@@ -1145,6 +1363,8 @@
       document.getElementById('importModal').classList.add('active');
       document.getElementById('fileName').classList.remove('show');
       document.getElementById('btnImport').disabled = true;
+      const sel = document.getElementById('importTableSelect');
+      if (sel) sel.value = '';
       selectedFile = null;
       if (!dragDropInitialized) { setupDragDrop(); dragDropInitialized = true; }
     }
@@ -1209,8 +1429,8 @@
       try {
         const result     = await api('POST', `/import/${tableType}`, { rows: mappedRows });
         const skippedMsg = result.skipped ? `, пропущено: ${result.skipped}` : '';
-        showAlert(`✓ Импортировано ${result.imported} записей в "${tableType}"${skippedMsg}`, 'success');
-        loadDashboard(); closeImportModal();
+        showAlert(`Импортировано ${result.imported} записей в "${tableType}"${skippedMsg}`, 'success');
+        closeImportModal();
       } catch (err) {
         showAlert(`Ошибка импорта: ${err.message}`, 'error');
       }
@@ -1237,51 +1457,119 @@
     }
 
     function detectTableType(headers) {
+      // Check if a table type was manually selected in the modal
+      const manualSelect = document.getElementById('importTableSelect');
+      if (manualSelect && manualSelect.value) return manualSelect.value;
+
       const has = (...terms) => terms.some(t => headers.some(h => h.includes(t)));
-      if (has('acid', 'грузоотправитель', 'gruzootravitel'))                              return 'acid';
-      if (has('nomer_kontrakta', 'cena_kontrakta', 'номер контракта', 'srok_deystviya'))         return 'contracts';
-      if (has('summa_usd', 'kti_data', 'organizaciya', 'организация', 'sostoyanie'))                           return 'finance';
+      if (has('acid', 'грузоотправитель', 'shipper', 'gruzootravitel'))    return 'acid';
+      if (has('contract_number', 'nomer_kontrakta', 'validity_period', 'srok_deystviya'))  return 'contracts';
+      if (has('amount_usd', 'kti_date', 'organization', 'organizaciya', 'counterparty_short')) return 'ais_transactions';
+      if (has('vat_number', 'short_name', 'contact_person'))                return 'counterparties';
+      if (has('kti_number', 'contract_ds_number', 'kti_date') && has('acid')) return 'acid_kti';
       return null;
     }
 
     function getFieldMapping(tableType) {
       const maps = {
         acid: {
-          acid:            ['acid', 'acid номер'],
-          gruzootravitel:  ['gruzootravitel', 'грузоотправитель', 'shipper'],
-          postavshchik:    ['postavshchik', 'поставщик', 'supplier'],
-          naimenovanie:    ['naimenovanie', 'наименование', 'description', 'cargo'],
-          status:          ['status', 'статус'],
-          gw_kg:           ['gw_kg', 'вес', 'weight'],
-          stoimost_gruza:  ['stoimost_gruza', 'стоимость груза', 'cargo_cost'],
-          valyuta:         ['valyuta', 'валюта', 'currency'],
-          etd:             ['etd', 'планируемое отправление'],
-          eta:             ['eta', 'планируемое прибытие'],
-          nomer_kontrakta: ['nomer_kontrakta', 'контракт', 'contract', 'договор'],
-          nomer_dt:        ['nomer_dt', '№дт', 'dt_number'],
-          data_dt:         ['data_dt', 'дата дт', 'dt_date'],
-          custom_status:   ['custom_status', 'таможенный статус'],
-          komentar:        ['komentar', 'комментарий', 'comment'],
+          acid:                ['acid', 'acid номер', 'acid_number'],
+          name:                ['name', 'наименование', 'название', 'cargo', 'description'],
+          shipper:             ['shipper', 'грузоотправитель', 'gruzootravitel'],
+          supplier:            ['supplier', 'поставщик', 'postavshchik'],
+          importer_name:       ['importer_name', 'импортёр', 'importer'],
+          status:              ['status', 'статус'],
+          gw_kg:               ['gw_kg', 'вес', 'weight'],
+          packages_qty:        ['packages_qty', 'мест', 'kolichestvo_mest'],
+          containers_qty:      ['containers_qty', 'контейнеров', 'kolichestvo_konteynerov'],
+          transport_type:      ['transport_type', 'тип перевозки', 'tip_perevozki'],
+          cargo_cost:          ['cargo_cost', 'стоимость груза', 'stoimost_gruza'],
+          currency:            ['currency', 'валюта', 'valyuta'],
+          shipping_cost:       ['shipping_cost', 'стоимость доставки', 'summa_perevozki'],
+          departure_country:   ['departure_country', 'страна отправления', 'strana_otpravleniya'],
+          departure_port:      ['departure_port', 'порт отправления', 'port_otpravleniya'],
+          delivery_place:      ['delivery_place', 'место доставки', 'mesto_postavki'],
+          vessel:              ['vessel', 'судно', 'sudno'],
+          carrier:             ['carrier', 'перевозчик', 'perevozchik'],
+          etd:                 ['etd', 'планируемое отправление'],
+          eta:                 ['eta', 'планируемое прибытие'],
+          delivery_date:       ['delivery_date', 'дата доставки', 'data_postavki'],
+          egypt_arrival_date:  ['egypt_arrival_date', 'прибытие египет', 'data_pribytiya_egypt'],
+          arrival_place:       ['arrival_place', 'место прибытия', 'mesto_pribytiya'],
+          release_request_date: ['release_request_date', 'data_zaprosa_osvobozhdeniya'],
+          release_curator:     ['release_curator', 'kurator_osvobozhdeniya'],
+          release_received_date: ['release_received_date', 'data_polucheniya_osvobozhdeniya'],
+          import_mode:         ['import_mode', 'режим ввоза', 'rezhim_vvoza'],
+          dt_number:           ['dt_number', '№дт', 'nomer_dt', 'dt_number'],
+          dt_date:             ['dt_date', 'дата дт', 'data_dt'],
+          dt_release_date:     ['dt_release_date', 'дата выпуска дт', 'data_vypuska_dt'],
+          delivery_to_site_date: ['delivery_to_site_date', 'доставка на площадь', 'data_dostavki_na_ploschad'],
+          custom_status:       ['custom_status', 'таможенный статус'],
+          purpose:             ['purpose', 'назначение', 'naznachenie'],
+          upo_curator:         ['upo_curator', 'куратор упо', 'kurator_upo'],
+          extended_to:         ['extended_to', 'продлён до', 'prodlen_do'],
+          responsible:         ['responsible', 'ответственный', 'otvetstvennyy'],
+          notes:               ['notes', 'примечания', 'primechanie'],
+          comment:             ['comment', 'комментарий', 'komentar'],
+          contract_number:     ['contract_number', 'контракт', 'договор', 'nomer_kontrakta', 'kontract_id'],
         },
         contracts: {
-          nomer_kontrakta: ['nomer_kontrakta', 'номер контракта', 'contract_number', 'договор'],
-          kontragent:      ['kontragent', 'контрагент', 'counterparty'],
-          data_kontrakta:  ['data_kontrakta', 'дата начала', 'start_date', 'data_nachala'],
-          srok_deystviya:  ['srok_deystviya', 'дата окончания', 'end_date', 'data_okonchanya'],
-          cena_kontrakta:  ['cena_kontrakta', 'сумма', 'amount', 'summa'],
-          status:          ['status', 'статус'],
-          valyuta:         ['valyuta', 'валюта', 'currency'],
-          komentar:        ['komentar', 'комментарий'],
+          contract_number:     ['contract_number', 'номер договора', 'nomer_kontrakta', 'договор'],
+          type:                ['type', 'тип', 'tip_kontrakta'],
+          counterparty:        ['counterparty', 'контрагент', 'kontragent'],
+          name:                ['name', 'название', 'nazvanie'],
+          contract_date:       ['contract_date', 'дата договора', 'data_kontrakta'],
+          validity_period:     ['validity_period', 'действует до', 'srok_deystviya'],
+          amount:              ['amount', 'сумма', 'cena_kontrakta', 'summa'],
+          currency:            ['currency', 'валюта', 'valyuta'],
+          procurement_type:    ['procurement_type', 'вид закупки', 'vid_zakupki'],
+          lot_number:          ['lot_number', 'лот', 'lot_nomer'],
+          currency_control:    ['currency_control', 'валютный контроль', 'valyutnyy_kontrol'],
+          status:              ['status', 'статус'],
+          notes:               ['notes', 'примечания', 'komentar'],
+          link:                ['link', 'ссылка', 'ssylka'],
+          limit_balance:       ['limit_balance', 'остаток лимита', 'ostatok_limita'],
+          responsible:         ['responsible', 'ответственный'],
         },
-        finance: {
-          data:          ['data', 'дата', 'date'],
-          kontragent:    ['kontragent', 'контрагент', 'counterparty'],
-          valyuta:       ['valyuta', 'валюта', 'currency'],
-          summa_usd:     ['summa_usd', 'сумма', 'amount', 'summa'],
-          sostoyanie:    ['sostoyanie', 'status', 'статус', 'состояние'],
-          organizaciya:  ['organizaciya', 'организация', 'organization'],
-          kti_data:      ['kti_data', 'дата кти', 'kti_date'],
-          otvetstvennyy: ['otvetstvennyy', 'ответственный', 'responsible'],
+        ais_transactions: {
+          date:                ['date', 'дата', 'data'],
+          number:              ['number', '№', 'номер'],
+          expense_date:        ['expense_date', 'дата расхода'],
+          kti_date:            ['kti_date', 'кти дата', 'kti_data'],
+          currency:            ['currency', 'валюта', 'valyuta'],
+          amount:              ['amount', 'сумма', 'summa'],
+          amount_usd:          ['amount_usd', 'сумма usd', 'summa_usd'],
+          organization:        ['organization', 'организация', 'organizaciya'],
+          counterparty:        ['counterparty', 'контрагент', 'kontragent'],
+          counterparty_short:  ['counterparty_short', 'контрагент кратко'],
+          contract_number:     ['contract_number', 'номер договора', 'nomer_kontrakta'],
+          project:             ['project', 'проект'],
+          status:              ['status', 'статус', 'sostoyanie'],
+          cfo:                 ['cfo', 'цфо'],
+          responsible:         ['responsible', 'ответственный', 'otvetstvennyy'],
+          urgent:              ['urgent', 'срочный'],
+          acid_link:           ['acid_link', 'acid'],
+        },
+        counterparties: {
+          name:                ['name', 'название', 'наименование'],
+          short_name:          ['short_name', 'краткое', 'short'],
+          country:             ['country', 'страна'],
+          type:                ['type', 'тип'],
+          vat_number:          ['vat_number', 'инн', 'vat', 'ваt_number'],
+          contact_person:      ['contact_person', 'контакт', 'contact'],
+          email:               ['email', 'e-mail'],
+          phone:               ['phone', 'телефон'],
+          notes:               ['notes', 'примечания'],
+          is_active:           ['is_active', 'активный', 'active'],
+        },
+        acid_kti: {
+          acid:                ['acid', 'acid_number'],
+          kti_date:            ['kti_date', 'kti дата'],
+          kti_number:          ['kti_number', '№ кти'],
+          contract_ds_number:  ['contract_ds_number', 'ds'],
+          amount_usd:          ['amount_usd', 'сумма usd'],
+          ais_number:          ['ais_number', 'аис №'],
+          notes:               ['notes', 'примечания'],
         }
       };
       return maps[tableType] || {};
@@ -1311,127 +1599,214 @@
     // ============================================================
 
     async function loadDashboard() {
+      if (isEgyptMode) { switchTab(null, 'acid'); return; }
+
       try {
-        const acidData = await api('GET', '/acid');
-        document.getElementById('stat-acid-pending').textContent =
-          acidData.filter(r => r.status === 'pending').length;
+        const data = await apiFetch('/dashboard');
 
-        if (isEgyptMode) { renderAcidTable(acidData); return; }
-
-        const [contractData, financeData] = await Promise.all([
-          api('GET', '/contracts'),
-          api('GET', '/finance')
-        ]);
-
-        renderMetricsChart(acidData, financeData);
-
-        const balances = {};
-        contractData.forEach(c => {
-          const total = parseFloat(c.cena_kontrakta) || 0;
-          const paid  = financeData
-            .filter(f => f.dogovor_kontragenta === c.nomer_kontrakta && f.sostoyanie === 'completed')
-            .reduce((s, f) => s + (parseFloat(f.summa_usd) || 0) * (RATES_TO_USD[f.valyuta] || 1), 0);
-          if (total > 0) balances[c.nomer_kontrakta || c.id] = Math.max(0, total - paid);
-        });
-        renderBalanceChart(balances);
-
-        renderAcidTable(acidData);
-        renderContractTable(contractData);
-        renderFinanceTable(financeData);
-      } catch (err) { showAlert(err.message, 'error'); }
-    }
-
-    function renderMetricsChart(acidData, financeData) {
-      const ctx = document.getElementById('metricsChart').getContext('2d');
-      if (metricsChart) metricsChart.destroy();
-      const months = [];
-      for (let d = new Date(2025, 4, 1), end = new Date(2026, 5, 30); d <= end; d.setMonth(d.getMonth() + 1)) {
-        const label    = d.toLocaleDateString('ru-RU', { year: 'numeric', month: 'short' });
-        const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-        const services = acidData.filter(r => r.etd && new Date(r.etd) <= monthEnd).reduce((s, r) => s + (parseFloat(r.stoimost_gruza) || 0), 0);
-        const payments = financeData.filter(f => f.sostoyanie === 'completed' && f.data && new Date(f.data) <= monthEnd)
-          .reduce((s, f) => s + (parseFloat(f.summa_usd) || 0) * (RATES_TO_USD[f.valyuta] || 1), 0);
-        months.push({ label, debt: Math.max(0, services - payments) });
+        document.getElementById('dashboardContent').innerHTML = `
+          <div class="dashboard-grid">
+            <div class="chart-card">
+              <h3>Договоры</h3>
+              <div style="font-size:28px;font-weight:700;color:var(--titan-primary);margin:12px 0;">${data.contracts.active} активных</div>
+              <div>Всего: ${data.contracts.total} | Истекло: ${data.contracts.expired}</div>
+              <div>Объём: $${fmtNum(data.contracts.total_amount)}</div>
+              <div>Оплачено: $${fmtNum(data.contracts.total_paid)}</div>
+              <div>Остаток лимита: $${fmtNum(data.contracts.limit_balance_sum)}</div>
+            </div>
+            <div class="chart-card">
+              <h3>Грузы</h3>
+              <div style="font-size:28px;font-weight:700;color:var(--titan-primary);margin:12px 0;">${data.cargo.total} грузов</div>
+              <div>В пути: ${data.cargo.in_transit}</div>
+              <div>На таможне: ${data.cargo.customs}</div>
+              <div>Доставлено: ${data.cargo.delivered}</div>
+              <div style="${data.cargo.overdue > 0 ? 'color:var(--titan-danger);font-weight:600;' : ''}">Просрочено: ${data.cargo.overdue}</div>
+            </div>
+            <div class="chart-card">
+              <h3>Платежи</h3>
+              <div style="font-size:28px;font-weight:700;color:var(--titan-primary);margin:12px 0;">$${fmtNum(data.transactions.total_usd)}</div>
+              <div>Ожидает оплаты: $${fmtNum(data.transactions.pending_usd)}</div>
+              <div style="${data.transactions.urgent_count > 0 ? 'color:var(--titan-danger);font-weight:600;' : ''}">Срочных: ${data.transactions.urgent_count}</div>
+            </div>
+          </div>
+          ${data.overdue_stages.length > 0 ? `
+          <div class="table-section">
+            <h3>Просроченные этапы договоров (топ-5)</h3>
+            <div class="table-wrapper">
+              <table class="data-table"><thead><tr>
+                <th>Договор</th><th>Этап</th><th>Плановая дата</th><th>Ответственный</th><th>Просрочка</th>
+              </tr></thead><tbody>
+                ${data.overdue_stages.map(s => `<tr style="background:rgba(192,57,43,0.07);">
+                  <td>${s.contract_number || '—'}</td>
+                  <td>${s.stage_name || '—'}</td>
+                  <td>${s.planned_date || '—'}</td>
+                  <td>${s.responsible || '—'}</td>
+                  <td style="color:var(--titan-danger);font-weight:600;">${s.days_overdue} дн.</td>
+                </tr>`).join('')}
+              </tbody></table>
+            </div>
+          </div>` : ''}
+          ${data.recent_cargos.length > 0 ? `
+          <div class="table-section">
+            <h3>Последние грузы</h3>
+            <div class="table-wrapper">
+              <table class="data-table"><thead><tr>
+                <th>ACID</th><th>Название</th><th>Статус</th><th>ETA</th><th>Ответственный</th>
+              </tr></thead><tbody>
+                ${data.recent_cargos.map(c => `<tr>
+                  <td>${c.acid || '—'}</td>
+                  <td>${c.name || '—'}</td>
+                  <td>${c.status || '—'}</td>
+                  <td>${c.eta || '—'}</td>
+                  <td>${c.responsible || '—'}</td>
+                </tr>`).join('')}
+              </tbody></table>
+            </div>
+          </div>` : ''}
+        `;
+      } catch (err) {
+        showAlert(err.message, 'error');
+        document.getElementById('dashboardContent').innerHTML = '<p style="color:var(--titan-danger);">Ошибка загрузки дашборда</p>';
       }
-      metricsChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: months.map(m => m.label),
-          datasets: [{ label: 'Задолженность (USD)', data: months.map(m => m.debt), borderColor: '#C0392B', backgroundColor: 'rgba(192,57,43,0.1)', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 3, pointBackgroundColor: '#C0392B', pointBorderColor: 'white', pointBorderWidth: 2 }]
-        },
-        options: {
-          responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { display: true, position: 'top' }, tooltip: { callbacks: { label: c => `$${c.parsed.y.toLocaleString('ru-RU', { maximumFractionDigits: 0 })}` } } },
-          scales: { y: { beginAtZero: true, ticks: { callback: v => `$${v.toLocaleString('ru-RU', { maximumFractionDigits: 0 })}` } } }
-        }
-      });
-    }
-
-    function renderBalanceChart(balances) {
-      const ctx = document.getElementById('balanceChart').getContext('2d');
-      if (balanceChart) balanceChart.destroy();
-      const entries = Object.entries(balances).sort((a, b) => b[1] - a[1]).slice(0, 10);
-      if (!entries.length) return;
-      const colors = ['#E67E22','#3498DB','#2ECC71','#9B59B6','#E74C3C','#1ABC9C','#F39C12','#34495E','#27AE60','#C0392B'];
-      balanceChart = new Chart(ctx, {
-        type: 'pie',
-        data: { labels: entries.map(e => e[0]), datasets: [{ data: entries.map(e => e[1]), backgroundColor: colors.slice(0, entries.length), borderColor: '#fff', borderWidth: 2 }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: c => `$${c.parsed.toLocaleString('ru-RU', { maximumFractionDigits: 0 })}` } } } }
-      });
     }
 
     // ============================================================
     // TABLE RENDERING
     // ============================================================
 
+    const ACID_STATUS_LABELS = {
+      pending: 'В работе', in_transit: 'В пути', customs: 'Таможня',
+      delivered: 'Доставлено', cancelled: 'Отменено'
+    };
+
     function renderAcidTable(rows) {
       const tbody = document.querySelector('#acidTable tbody');
-      // Egypt mode: show all columns but without delete button (read-only account)
       const showDelete = !isEgyptMode;
       tbody.innerHTML = rows.map(r => `
         <tr data-status="${r.status || 'pending'}">
           <td>${r.acid || '-'}</td>
-          <td>${r.gruzootravitel || '-'}</td>
-          <td>${r.postavshchik || '-'}</td>
-          <td>${r.naimenovanie || '-'}</td>
-          <td>${parseFloat(r.gw_kg || 0).toFixed(2)}</td>
-          <td><span class="badge ${r.status === 'completed' ? 'completed' : 'pending'}">${r.status === 'completed' ? 'Доставлено' : 'В работе'}</span></td>
-          ${showDelete ? `<td><button class="btn-delete" onclick="deleteRecord('acid','${r.id}')">Удалить</button></td>` : ''}
+          <td>${r.ais_number || '-'}</td>
+          <td>${r.shipment_type || '-'}</td>
+          <td>${r.shipper || '-'}</td>
+          <td>${r.supplier || '-'}</td>
+          <td>${r.importer_name || '-'}</td>
+          <td>${r.name || '-'}</td>
+          <td>${r.gw_kg != null ? parseFloat(r.gw_kg).toFixed(2) : '-'}</td>
+          <td>${r.packages_qty || '-'}</td>
+          <td>${r.containers_qty || '-'}</td>
+          <td>${r.transport_type || '-'}</td>
+          <td>${r.cargo_cost != null ? fmtNum(r.cargo_cost) : '-'}</td>
+          <td>${r.currency || '-'}</td>
+          <td>${r.shipping_cost != null ? fmtNum(r.shipping_cost) : '-'}</td>
+          <td>${r.departure_country || '-'}</td>
+          <td>${r.departure_port || '-'}</td>
+          <td>${r.incoterms || '-'}</td>
+          <td>${r.delivery_place || '-'}</td>
+          <td>${r.vessel || '-'}</td>
+          <td>${r.shipping_line || '-'}</td>
+          <td>${r.bol_number || '-'}</td>
+          <td>${r.bol_date || '-'}</td>
+          <td>${r.carrier || '-'}</td>
+          <td>${r.etd || '-'}</td>
+          <td>${r.eta || '-'}</td>
+          <td>${r.delivery_date || '-'}</td>
+          <td>${r.egypt_arrival_date || '-'}</td>
+          <td>${r.arrival_place || '-'}</td>
+          <td>${r.release_request_date || '-'}</td>
+          <td>${r.release_curator || '-'}</td>
+          <td>${r.release_received_date || '-'}</td>
+          <td>${r.do_released || '-'}</td>
+          <td>${r.import_mode || '-'}</td>
+          <td>${r.dt_number || '-'}</td>
+          <td>${r.dt_date || '-'}</td>
+          <td>${r.dt_release_date || '-'}</td>
+          <td>${r.delivery_to_site_date || '-'}</td>
+          <td>${r.custom_status || '-'}</td>
+          <td>${r.purpose || '-'}</td>
+          <td>${r.upo_curator || '-'}</td>
+          <td>${r.invoice_uploaded ? 'Да' : 'Нет'}</td>
+          <td>${r.extended_to || '-'}</td>
+          <td><span class="badge ${r.status === 'delivered' ? 'completed' : (r.status === 'cancelled' ? 'danger' : 'pending')}">${ACID_STATUS_LABELS[r.status] || r.status || 'В работе'}</span></td>
+          <td>${r.responsible || '-'}</td>
+          <td>${r.notes || '-'}</td>
+          <td>${r.comment || '-'}</td>
+          <td>${r.contract_number || '-'}</td>
+          ${showDelete ? `<td><button class="btn-delete" onclick="deleteRecord('acid','${r.id}')">Удалить</button></td>` : '<td>—</td>'}
         </tr>`).join('');
     }
 
     function renderContractTable(rows) {
       const tbody = document.querySelector('#contractTable tbody');
+      const statusLabels = { draft: 'Черновик', active: 'Активен', completed: 'Завершён', expired: 'Истёк', suspended: 'Приостановлен' };
       tbody.innerHTML = rows.map(r => `
         <tr>
-          <td>${r.nomer_kontrakta || '-'}</td>
-          <td>${r.kontragent || '-'}</td>
-          <td><span class="badge ${r.status === 'active' ? 'pending' : 'completed'}">${r.status === 'active' ? 'Активен' : 'Завершён'}</span></td>
-          <td>${r.data_kontrakta || '-'}</td>
-          <td>${r.srok_deystviya || '-'}</td>
-          <td>$${parseFloat(r.cena_kontrakta || 0).toLocaleString('ru-RU', { maximumFractionDigits: 2 })}</td>
+          <td>${r.contract_number || '-'}</td>
+          <td>${r.type || '-'}</td>
+          <td>${r.counterparty || '-'}</td>
+          <td>${r.name || '-'}</td>
+          <td>${r.contract_date || '-'}</td>
+          <td>${r.validity_period || '-'}</td>
+          <td>${r.ds_number || '-'}</td>
+          <td>${r.amount != null ? fmtNum(r.amount) : '-'}</td>
+          <td>${r.amount_with_ds != null ? fmtNum(r.amount_with_ds) : '-'}</td>
+          <td>${r.currency || '-'}</td>
+          <td>${r.paid_amount != null ? fmtNum(r.paid_amount) : '-'}</td>
+          <td>${r.limit_balance != null ? fmtNum(r.limit_balance) : '-'}</td>
+          <td>${r.route_to || '-'}</td>
+          <td>${r.procurement_type || '-'}</td>
+          <td>${r.lot_number || '-'}</td>
+          <td><span class="badge ${r.status === 'active' ? 'pending' : (r.status === 'completed' ? 'completed' : 'danger')}">${statusLabels[r.status] || r.status || '-'}</span></td>
+          <td>${r.currency_control || '-'}</td>
+          <td>${r.responsible || '-'}</td>
+          <td>${r.link ? `<a href="${r.link}" target="_blank">Ссылка</a>` : '-'}</td>
+          <td>${r.notes || '-'}</td>
           <td><button class="btn-delete" onclick="deleteRecord('contracts','${r.id}')">Удалить</button></td>
         </tr>`).join('');
     }
 
-    function renderFinanceTable(rows) {
-      const tbody = document.querySelector('#financeTable tbody');
-      tbody.innerHTML = rows.map(r => {
-        const amount = parseFloat(r.summa_usd || 0);
-        const rate   = RATES_TO_USD[r.valyuta] || 1;
-        const usd    = r.valyuta === 'USD' ? amount : amount * rate;
-        const state  = r.sostoyanie;
-        return `
-          <tr>
-            <td>${r.data || '-'}</td>
-            <td>${r.kontragent || '-'}</td>
-            <td>${r.valyuta || 'USD'}</td>
-            <td>${amount.toLocaleString('ru-RU', { maximumFractionDigits: 2 })}</td>
-            <td>$${usd.toLocaleString('ru-RU', { maximumFractionDigits: 2 })}</td>
-            <td><span class="badge ${state === 'completed' ? 'completed' : 'pending'}">${state === 'completed' ? 'Завершено' : 'Ожидание'}</span></td>
-            <td><button class="btn-delete" onclick="deleteRecord('finance','${r.id}')">Удалить</button></td>
-          </tr>`;
-      }).join('');
+    function renderTransactionsTable(rows) {
+      const tbody = document.querySelector('#transactionsTable tbody');
+      const statusLabels = { pending: 'Ожидание', paid: 'Оплачено', overdue: 'Просрочено', cancelled: 'Отменено' };
+      tbody.innerHTML = rows.map(r => `
+        <tr>
+          <td>${r.date || '-'}</td>
+          <td>${r.number || '-'}</td>
+          <td>${r.expense_date || '-'}</td>
+          <td>${r.kti_date || '-'}</td>
+          <td>${r.currency || '-'}</td>
+          <td>${r.amount != null ? fmtNum(r.amount) : '-'}</td>
+          <td>${r.amount_usd != null ? fmtNum(r.amount_usd) : '-'}</td>
+          <td>${r.organization || '-'}</td>
+          <td>${r.counterparty || '-'}</td>
+          <td>${r.counterparty_short || '-'}</td>
+          <td>${r.contract_number || '-'}</td>
+          <td>${r.project || '-'}</td>
+          <td><span class="badge ${r.status === 'paid' ? 'completed' : (r.status === 'overdue' ? 'danger' : 'pending')}">${statusLabels[r.status] || r.status || '-'}</span></td>
+          <td>${r.cfo || '-'}</td>
+          <td>${r.responsible || '-'}</td>
+          <td>${r.urgent ? 'Да' : 'Нет'}</td>
+          <td>${r.acid_link || '-'}</td>
+          <td><button class="btn-delete" onclick="deleteRecord('ais_transactions','${r.id}')">Удалить</button></td>
+        </tr>`).join('');
+    }
+
+    function renderCounterpartiesTable(rows) {
+      const tbody = document.querySelector('#counterpartiesTable tbody');
+      const typeLabels = { supplier: 'Поставщик', carrier: 'Перевозчик', importer: 'Импортёр', contractor: 'Подрядчик', other: 'Прочее' };
+      tbody.innerHTML = rows.map(r => `
+        <tr>
+          <td>${r.name || '-'}</td>
+          <td>${r.short_name || '-'}</td>
+          <td>${r.country || '-'}</td>
+          <td>${typeLabels[r.type] || r.type || '-'}</td>
+          <td>${r.vat_number || '-'}</td>
+          <td>${r.contact_person || '-'}</td>
+          <td>${r.email || '-'}</td>
+          <td>${r.phone || '-'}</td>
+          <td>${r.is_active ? 'Да' : 'Нет'}</td>
+          <td>${r.notes || '-'}</td>
+          <td><button class="btn-delete" onclick="deleteRecord('counterparties','${r.id}')">Удалить</button></td>
+        </tr>`).join('');
     }
 
     // ============================================================
@@ -1457,9 +1832,14 @@
       document.querySelectorAll('#contractTable tbody tr').forEach(r => { r.style.display = r.textContent.toLowerCase().includes(s) ? '' : 'none'; });
     }
 
-    function filterFinanceTable() {
-      const s = document.getElementById('financeSearch').value.toLowerCase();
-      document.querySelectorAll('#financeTable tbody tr').forEach(r => { r.style.display = r.textContent.toLowerCase().includes(s) ? '' : 'none'; });
+    function filterTransactionsTable() {
+      const s = document.getElementById('transactionsSearch').value.toLowerCase();
+      document.querySelectorAll('#transactionsTable tbody tr').forEach(r => { r.style.display = r.textContent.toLowerCase().includes(s) ? '' : 'none'; });
+    }
+
+    function filterCounterpartiesTable() {
+      const s = document.getElementById('counterpartiesSearch').value.toLowerCase();
+      document.querySelectorAll('#counterpartiesTable tbody tr').forEach(r => { r.style.display = r.textContent.toLowerCase().includes(s) ? '' : 'none'; });
     }
 
     // ============================================================
@@ -1468,19 +1848,23 @@
 
     document.getElementById('acidForm').addEventListener('submit', async e => {
       e.preventDefault();
-      try { await api('POST', '/acid', Object.fromEntries(new FormData(e.target))); showAlert('Груз добавлен'); e.target.reset(); loadDashboard(); }
+      try {
+        await api('POST', '/acid', Object.fromEntries(new FormData(e.target)));
+        showAlert('Груз добавлен');
+        e.target.reset();
+        loadTable('acid').then(rows => renderAcidTable(rows));
+      }
       catch (err) { showAlert(err.message, 'error'); }
     });
 
     document.getElementById('contractForm').addEventListener('submit', async e => {
       e.preventDefault();
-      try { await api('POST', '/contracts', Object.fromEntries(new FormData(e.target))); showAlert('Договор добавлен'); e.target.reset(); loadDashboard(); }
-      catch (err) { showAlert(err.message, 'error'); }
-    });
-
-    document.getElementById('financeForm').addEventListener('submit', async e => {
-      e.preventDefault();
-      try { await api('POST', '/finance', Object.fromEntries(new FormData(e.target))); showAlert('Запись добавлена'); e.target.reset(); loadDashboard(); }
+      try {
+        await api('POST', '/contracts', Object.fromEntries(new FormData(e.target)));
+        showAlert('Договор добавлен');
+        e.target.reset();
+        loadTable('contracts').then(rows => renderContractTable(rows));
+      }
       catch (err) { showAlert(err.message, 'error'); }
     });
 
@@ -1500,9 +1884,11 @@
 
     function downloadTemplate(tableName) {
       const templates = {
-        acid:      { headers: ['acid*','gruzootravitel*','postavshchik*','naimenovanie*','gw_kg','stoimost_gruza','valyuta','status','etd','eta','nomer_kontrakta','nomer_dt','data_dt','custom_status','komentar'], example: [['ACID-2026-001','OOO Export','Supplier A','Электроника','1500','50000','USD','pending','2026-04-15','2026-05-20','CONTRACT-001','DT-001','2026-04-01','cleared','Пример']] },
-        contracts: { headers: ['nomer_kontrakta*','kontragent*','data_kontrakta*','srok_deystviya*','cena_kontrakta*','valyuta','status'], example: [['CONTRACT-001','TransCargo Ltd','2026-01-15','2026-12-31','100000','USD','active']] },
-        finance:   { headers: ['data*','kontragent*','valyuta*','summa_usd*','sostoyanie','organizaciya','kti_data'], example: [['2026-04-20','TransCargo Ltd','USD','5000','completed','ООО Логистика','2026-04-01']] }
+        acid:             { headers: ['acid*','name','shipper','supplier','importer_name','gw_kg','cargo_cost','currency','status','etd','eta','contract_number','dt_number','dt_date','custom_status','notes'], example: [['ACID-2026-001','Электроника','OOO Export','Supplier A','Importer Ltd','1500','50000','USD','pending','2026-04-15','2026-05-20','CONTRACT-001','DT-001','2026-04-01','cleared','Пример']] },
+        contracts:        { headers: ['contract_number*','counterparty','name','contract_date','validity_period','amount','currency','status','procurement_type','lot_number','notes'], example: [['CONTRACT-001','TransCargo Ltd','Поставка оборудования','2026-01-15','2026-12-31','100000','USD','active','open','1','']] },
+        ais_transactions: { headers: ['date*','counterparty*','currency*','amount*','amount_usd','status','organization','contract_number','kti_date','responsible'], example: [['2026-04-20','TransCargo Ltd','USD','5000','5000','pending','ООО Логистика','CONTRACT-001','2026-04-01','Иванов']] },
+        counterparties:   { headers: ['name*','short_name','country','type','vat_number','contact_person','email','phone','notes'], example: [['TransCargo Ltd','TransCargo','RU','supplier','1234567890','Иван Иванов','ivan@example.com','+7999000000','Основной поставщик']] },
+        acid_kti:         { headers: ['acid*','kti_date*','kti_number','amount_usd','ais_number','notes'], example: [['ACID-2026-001','2026','KTI-001','5000','AIS-001','']] }
       };
       const t = templates[tableName];
       if (!t) return showAlert('Неизвестная таблица', 'error');
@@ -1513,7 +1899,7 @@
 
     function exportCurrentTable() {
       const activeTab = document.querySelector('.content-section.active')?.id;
-      const tableId   = ({ acid: 'acidTable', contracts: 'contractTable', finance: 'financeTable' })[activeTab];
+      const tableId   = ({ acid: 'acidTable', contracts: 'contractTable', transactions: 'transactionsTable', counterparties: 'counterpartiesTable' })[activeTab];
       if (!tableId) return showAlert('Выберите раздел для экспорта', 'error');
       const table   = document.getElementById(tableId);
       const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim()).slice(0, -1);
