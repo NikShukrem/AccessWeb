@@ -67,10 +67,7 @@ const ALLOWED_COLUMNS = {
 
 const VALID_TABLES = new Set(['acid', 'contracts', 'contract_stages', 'finance']);
 
-// Roles that can write data
-const WRITER_ROLES = new Set(['admin', 'info_analytics', 'logistics_support', 'operational_logistics', 'director']);
-// Roles that can delete
-const DELETER_ROLES = new Set(['admin', 'info_analytics']);
+// Role permissions are defined in ROLE_PERMISSIONS (see middleware section)
 
 let db = null;
 
@@ -197,6 +194,25 @@ async function seedUsers() {
     );
     console.log('Egypt user created (login: egypt / egypt2024)');
   }
+
+  const defaultUsers = [
+    { login: 'director',     password: 'director123',  name: 'Директор',                    role: 'director' },
+    { login: 'logistics',    password: 'logistics123',  name: 'Логистическая поддержка',     role: 'logistics_support' },
+    { login: 'analytics',    password: 'analytics123',  name: 'Информационная аналитика',    role: 'info_analytics' },
+    { login: 'oplogistics',  password: 'oplog123',      name: 'Оперативная логистика',       role: 'operational_logistics' },
+  ];
+
+  for (const u of defaultUsers) {
+    const exists = await db.get('SELECT id FROM users WHERE login = ?', u.login);
+    if (!exists) {
+      const hash = await bcryptjs.hash(u.password, 10);
+      await db.run(
+        `INSERT INTO users (id, login, password_hash, name, role) VALUES (?, ?, ?, ?, ?)`,
+        [uuidv4(), u.login, hash, u.name, u.role]
+      );
+      console.log(`User created: ${u.login} / ${u.password} (${u.role})`);
+    }
+  }
 }
 
 // ============== MIDDLEWARE ==============
@@ -212,13 +228,57 @@ function auth(req, res, next) {
   }
 }
 
-// Egypt account is read-only for acid table only
-function egyptReadOnly(req, res, next) {
-  if (req.user.role === 'egypt' && req.method !== 'GET') {
-    return res.status(403).json({ error: 'Аккаунт Египет — только чтение' });
+// Role-based access control
+// tables: '*' = all, array = whitelist
+// write:  true = all tables, array = only listed tables, false = read-only
+// import: true = allowed, false = not allowed
+const ROLE_PERMISSIONS = {
+  admin:                { tables: '*',                              write: true,                   import: true },
+  egypt:                { tables: ['acid'],                         write: false,                  import: false },
+  director:             { tables: '*',                              write: false,                  import: false },
+  logistics_support:    { tables: ['acid', 'contracts', 'finance'], write: ['acid', 'contracts'],  import: ['acid', 'contracts'] },
+  info_analytics:       { tables: '*',                              write: false,                  import: false },
+  operational_logistics:{ tables: ['acid', 'contracts'],            write: ['acid'],               import: ['acid'] },
+};
+
+function checkAccess(req, res, next) {
+  const role = req.user.role;
+  const table = req.params.table;
+  const perm = ROLE_PERMISSIONS[role];
+
+  if (!perm) return res.status(403).json({ error: 'Роль не найдена' });
+
+  if (table && perm.tables !== '*' && !perm.tables.includes(table)) {
+    return res.status(403).json({ error: 'Нет доступа к этой таблице' });
   }
+
+  const isWrite = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method);
+  if (isWrite) {
+    if (perm.write === false) return res.status(403).json({ error: 'Только чтение' });
+    if (Array.isArray(perm.write) && table && !perm.write.includes(table)) {
+      return res.status(403).json({ error: 'Нет прав на запись в эту таблицу' });
+    }
+  }
+
   next();
 }
+
+function checkImport(req, res, next) {
+  const role = req.user.role;
+  const table = req.params.table;
+  const perm = ROLE_PERMISSIONS[role];
+
+  if (!perm) return res.status(403).json({ error: 'Роль не найдена' });
+
+  if (perm.import === false) return res.status(403).json({ error: 'Импорт запрещён' });
+  if (Array.isArray(perm.import) && !perm.import.includes(table)) {
+    return res.status(403).json({ error: 'Импорт в эту таблицу запрещён' });
+  }
+
+  next();
+}
+
+function egyptReadOnly(req, res, next) { next(); } // kept for compatibility, replaced by checkAccess
 
 function sanitizeColumns(table, data) {
   const allowed = ALLOWED_COLUMNS[table];
@@ -278,15 +338,10 @@ app.get('/auth/me', auth, async (req, res) => {
 
 // ============== CRUD ==============
 
-app.get('/:table', auth, egyptReadOnly, async (req, res) => {
+app.get('/:table', auth, checkAccess, async (req, res) => {
   try {
     const { table } = req.params;
     if (!VALID_TABLES.has(table)) return res.status(400).json({ error: 'Неверная таблица' });
-
-    // Egypt account can only read acid
-    if (req.user.role === 'egypt' && table !== 'acid') {
-      return res.status(403).json({ error: 'Доступ запрещён' });
-    }
 
     const limit = Math.min(parseInt(req.query.limit) || 500, 2000);
     const offset = parseInt(req.query.offset) || 0;
@@ -299,14 +354,10 @@ app.get('/:table', auth, egyptReadOnly, async (req, res) => {
   }
 });
 
-app.post('/:table', auth, egyptReadOnly, async (req, res) => {
+app.post('/:table', auth, checkAccess, async (req, res) => {
   try {
     const { table } = req.params;
     if (!VALID_TABLES.has(table)) return res.status(400).json({ error: 'Неверная таблица' });
-
-    if (!WRITER_ROLES.has(req.user.role)) {
-      return res.status(403).json({ error: 'Нет прав на запись' });
-    }
 
     const data = sanitizeColumns(table, req.body);
     const columns = Object.keys(data);
@@ -331,14 +382,10 @@ app.post('/:table', auth, egyptReadOnly, async (req, res) => {
   }
 });
 
-app.put('/:table/:id', auth, egyptReadOnly, async (req, res) => {
+app.put('/:table/:id', auth, checkAccess, async (req, res) => {
   try {
     const { table, id } = req.params;
     if (!VALID_TABLES.has(table)) return res.status(400).json({ error: 'Неверная таблица' });
-
-    if (!WRITER_ROLES.has(req.user.role)) {
-      return res.status(403).json({ error: 'Нет прав на запись' });
-    }
 
     const data = sanitizeColumns(table, req.body);
     const columns = Object.keys(data);
@@ -358,14 +405,10 @@ app.put('/:table/:id', auth, egyptReadOnly, async (req, res) => {
   }
 });
 
-app.delete('/:table/:id', auth, async (req, res) => {
+app.delete('/:table/:id', auth, checkAccess, async (req, res) => {
   try {
     const { table, id } = req.params;
     if (!VALID_TABLES.has(table)) return res.status(400).json({ error: 'Неверная таблица' });
-
-    if (!DELETER_ROLES.has(req.user.role)) {
-      return res.status(403).json({ error: 'Нет прав на удаление' });
-    }
 
     await db.run(`DELETE FROM ${table} WHERE id = ?`, [id]);
     res.json({ success: true });
@@ -378,15 +421,11 @@ app.delete('/:table/:id', auth, async (req, res) => {
 // ============== BATCH IMPORT ==============
 // Single HTTP request for the entire file — critical for slow Egypt internet
 
-app.post('/import/:table', auth, async (req, res) => {
+app.post('/import/:table', auth, checkImport, async (req, res) => {
   try {
     const { table } = req.params;
     if (!VALID_TABLES.has(table) || table === 'contract_stages') {
       return res.status(400).json({ error: 'Неверная таблица' });
-    }
-
-    if (!WRITER_ROLES.has(req.user.role)) {
-      return res.status(403).json({ error: 'Нет прав на импорт' });
     }
 
     const { rows } = req.body;
