@@ -1,6 +1,0 @@
-Номер,Предмет,Контрагент,Тип,Характер закупки,Особенности,Дата,Окончание,Статус,Протокол,Лимит,Валюта оплаты,Сумма оплаты,Остаток Лимита,Валютный контроль,ДС Дата,Ссылка,Комментарий,Стадия договора
-CONTRACT-001,Услуги логистики,TransCargo Ltd,Service,Regular,Standard,2026-01-15,2026-12-31,Active,Protocol-001,100000,USD,45000,55000,Required,2026-01-20,https://example.com/c1,Standard logistics contract,In Progress
-CONTRACT-002,Поставка оборудования,ElectroSupply Inc,Supply,Tender,Urgent,2026-02-01,2026-06-30,Active,Protocol-002,250000,EUR,120000,130000,Required,2026-02-05,https://example.com/c2,Equipment delivery Q2,Pending Approval
-CONTRACT-003,Аренда складов,WarehouseSpaces Co,Lease,Regular,Long-term,2025-06-01,2026-12-31,Active,Protocol-003,500000,EGP,150000,350000,Approved,2025-07-01,https://example.com/c3,Warehouse lease agreement,Completed
-CONTRACT-004,Консалтинг,ConsultantsPro,Service,Quote,Strategic,2026-03-01,2026-05-31,Pending,Protocol-004,75000,USD,0,75000,Not Required,0,https://example.com/c4,Consulting services proposal,Draft
-CONTRACT-005,Поставка материалов,MaterialsGlobal,Supply,Framework,Competitive,2026-01-01,2026-12-31,Active,Protocol-005,1000000,USD,350000,650000,Required,2026-02-15,https://example.com/c5,Raw materials supply,Negotiation

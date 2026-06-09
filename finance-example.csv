@@ -1,6 +1,0 @@
-Дата,Номер КТИ,Дата расхода,КТИ/Дата,Валюта,Сумма,Организация,Контрагент,Договор,Дата договора,Проект,Состояние,Ответственный,Срочный платеж
-2026-04-20,KTI-2026-001,2026-04-19,KTI-2026-001/2026-04-19,EGP,15000,Company A,TransCargo Ltd,CONTRACT-001,2026-01-15,Logistics Q2,Paid,Ahmed,No
-2026-04-20,KTI-2026-002,2026-04-18,KTI-2026-002/2026-04-18,EUR,8500,Company B,ElectroSupply Inc,CONTRACT-002,2026-02-01,Equipment Import,Pending,Hassan,Yes
-2026-04-19,KTI-2026-001,2026-04-17,KTI-2026-001/2026-04-17,USD,5000,Company A,TransCargo Ltd,CONTRACT-001,2026-01-15,Logistics Q2,Paid,Mohsen,No
-2026-04-18,KTI-2026-003,2026-04-16,KTI-2026-003/2026-04-16,RUB,250000,Company C,MaterialsGlobal,CONTRACT-005,2026-01-01,Raw Materials,Processing,Fatima,No
-2026-04-17,KTI-2026-002,2026-04-15,KTI-2026-002/2026-04-15,EGP,42000,Company B,ElectroSupply Inc,CONTRACT-002,2026-02-01,Equipment Import,Completed,Karim,No
