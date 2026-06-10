@@ -1163,7 +1163,7 @@
       logistics_support:     { import: ['ais_transactions'] },
       info_analytics:        { import: true },
       operational_logistics: { import: ['acid'] },
-      egypt:                 { import: false },
+      egypt:                 { import: ['acid'] },
     };
 
     // ============================================================
@@ -1239,7 +1239,9 @@
 
     async function loadTable(tableName) {
       try {
-        return await api('GET', `/${tableName}`);
+        // Egypt gets smaller pages — faster on slow connection
+        const limit = (isEgyptMode && tableName === 'acid') ? 100 : 500;
+        return await api('GET', `/${tableName}?limit=${limit}`);
       } catch (err) {
         showAlert(err.message, 'error');
         return [];
@@ -1298,12 +1300,14 @@
     function initUserUI(user) {
       document.getElementById('userLogin').textContent = user.name || user.login;
       const roleLabels = {
-        admin: 'Администратор', egypt: 'Египет (только чтение)',
+        admin: 'Администратор', egypt: 'Сотрудник (Египет)',
         logistics_support: 'Логистика', info_analytics: 'Аналитика',
         operational_logistics: 'Оперативная логистика', director: 'Руководитель'
       };
       document.getElementById('userRole').textContent = roleLabels[user.role] || user.role;
-      if (user.is_egypt_mode || user.role === 'egypt') { isEgyptMode = true; }
+      // isEgyptMode controls UI simplification (hides delete, limits page size)
+      // Egypt can now write to ACID, but we still use isEgyptMode for UI simplicity
+      if (user.role === 'egypt') { isEgyptMode = true; }
       buildNav(user.role);
     }
 

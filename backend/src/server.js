@@ -313,8 +313,8 @@ const ROLE_PERMISSIONS = {
   },
   egypt: {
     tables: ['acid'],
-    write: false,
-    import: false,
+    write: ['acid'],
+    import: ['acid'],
     delete: false
   },
 };
@@ -684,7 +684,7 @@ async function start() {
     await initDB();
     app.listen(PORT, () => {
       console.log(`Server running on http://localhost:${PORT}`);
-      console.log(`Roles: admin/admin123 (full access), egypt/egypt2024 (cargo read-only)`);
+      console.log(`Roles: admin/admin123 (full access), egypt/egypt2024 (ACID full CRUD)`);
     });
   } catch (err) {
     console.error('Failed to start:', err);
