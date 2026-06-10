@@ -1126,10 +1126,11 @@
           <div class="form-section">
             <h3>Добавить новый договор</h3>
             <form id="contractForm">
+              <div style="font-weight:600;color:var(--titan-primary);margin-bottom:8px;font-size:13px;">Основное</div>
               <div class="form-row">
                 <div class="form-group">
                   <label>Номер договора <span class="required">*</span></label>
-                  <input type="text" name="contract_number" required>
+                  <input type="text" name="contract_number" required placeholder="К-2024/001">
                 </div>
                 <div class="form-group">
                   <label>Тип</label>
@@ -1144,12 +1145,14 @@
                   <label>Контрагент</label>
                   <input type="text" name="counterparty">
                 </div>
-              </div>
-              <div class="form-row">
                 <div class="form-group">
-                  <label>Название</label>
+                  <label>Название договора</label>
                   <input type="text" name="name">
                 </div>
+              </div>
+
+              <div style="font-weight:600;color:var(--titan-primary);margin-bottom:8px;font-size:13px;">Сроки</div>
+              <div class="form-row">
                 <div class="form-group">
                   <label>Дата договора</label>
                   <input type="date" name="contract_date">
@@ -1158,11 +1161,25 @@
                   <label>Действует до</label>
                   <input type="date" name="validity_period">
                 </div>
+                <div class="form-group">
+                  <label>№ ДС</label>
+                  <input type="text" name="ds_number">
+                </div>
+                <div class="form-group">
+                  <label>Дата ДС</label>
+                  <input type="date" name="ds_date">
+                </div>
               </div>
+
+              <div style="font-weight:600;color:var(--titan-primary);margin-bottom:8px;font-size:13px;">Финансы</div>
               <div class="form-row">
                 <div class="form-group">
                   <label>Сумма</label>
-                  <input type="number" name="amount" step="0.01">
+                  <input type="number" name="amount" step="0.01" min="0">
+                </div>
+                <div class="form-group">
+                  <label>Сумма с ДС</label>
+                  <input type="number" name="amount_with_ds" step="0.01" min="0">
                 </div>
                 <div class="form-group">
                   <label>Валюта</label>
@@ -1174,6 +1191,32 @@
                   </select>
                 </div>
                 <div class="form-group">
+                  <label>Оплачено</label>
+                  <input type="number" name="paid_amount" step="0.01" min="0" value="0">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Остаток лимита</label>
+                  <input type="number" name="limit_balance" step="0.01" min="0">
+                </div>
+                <div class="form-group">
+                  <label>Вид закупки</label>
+                  <input type="text" name="procurement_type" placeholder="Тендер / Прямая / КП">
+                </div>
+                <div class="form-group">
+                  <label>Лот №</label>
+                  <input type="text" name="lot_number">
+                </div>
+                <div class="form-group">
+                  <label>Маршрут до</label>
+                  <input type="text" name="route_to">
+                </div>
+              </div>
+
+              <div style="font-weight:600;color:var(--titan-primary);margin-bottom:8px;font-size:13px;">Статус и контроль</div>
+              <div class="form-row">
+                <div class="form-group">
                   <label>Статус</label>
                   <select name="status">
                     <option value="active">Активен</option>
@@ -1183,7 +1226,26 @@
                     <option value="suspended">Приостановлен</option>
                   </select>
                 </div>
+                <div class="form-group">
+                  <label>Валютный контроль</label>
+                  <input type="text" name="currency_control" placeholder="Пройден / В процессе">
+                </div>
+                <div class="form-group">
+                  <label>Ответственный</label>
+                  <input type="text" name="responsible">
+                </div>
+                <div class="form-group">
+                  <label>Ссылка</label>
+                  <input type="url" name="link" placeholder="https://...">
+                </div>
               </div>
+              <div class="form-row full">
+                <div class="form-group">
+                  <label>Примечания</label>
+                  <input type="text" name="notes">
+                </div>
+              </div>
+
               <button type="submit" class="btn-submit">Добавить договор</button>
             </form>
           </div>
@@ -1233,6 +1295,112 @@
             <p>Учёт платежей и транзакций</p>
           </div>
 
+          <div class="form-section">
+            <h3>Добавить транзакцию</h3>
+            <form id="transactionForm">
+              <div style="font-weight:600;color:var(--titan-primary);margin-bottom:8px;font-size:13px;">Идентификация</div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Дата <span class="required">*</span></label>
+                  <input type="date" name="date" required>
+                </div>
+                <div class="form-group">
+                  <label>Номер счёта</label>
+                  <input type="text" name="number" placeholder="СЧ-00001">
+                </div>
+                <div class="form-group">
+                  <label>Дата расхода</label>
+                  <input type="date" name="expense_date">
+                </div>
+                <div class="form-group">
+                  <label>КТИ дата</label>
+                  <input type="text" name="kti_date" placeholder="2024-01-01">
+                </div>
+              </div>
+
+              <div style="font-weight:600;color:var(--titan-primary);margin-bottom:8px;font-size:13px;">Сумма</div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Валюта</label>
+                  <select name="currency">
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                    <option value="EGP">EGP</option>
+                    <option value="RUB">RUB</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Сумма</label>
+                  <input type="number" name="amount" step="0.01" min="0">
+                </div>
+                <div class="form-group">
+                  <label>Сумма USD</label>
+                  <input type="number" name="amount_usd" step="0.01" min="0">
+                </div>
+                <div class="form-group">
+                  <label>Срочный платёж</label>
+                  <select name="urgent">
+                    <option value="0">Нет</option>
+                    <option value="1">Да</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style="font-weight:600;color:var(--titan-primary);margin-bottom:8px;font-size:13px;">Контрагент и договор</div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Организация</label>
+                  <input type="text" name="organization">
+                </div>
+                <div class="form-group">
+                  <label>Контрагент</label>
+                  <input type="text" name="counterparty">
+                </div>
+                <div class="form-group">
+                  <label>Контрагент (кратко)</label>
+                  <input type="text" name="counterparty_short">
+                </div>
+                <div class="form-group">
+                  <label>№ договора</label>
+                  <input type="text" name="contract_number">
+                </div>
+              </div>
+
+              <div style="font-weight:600;color:var(--titan-primary);margin-bottom:8px;font-size:13px;">Классификация</div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Проект</label>
+                  <input type="text" name="project">
+                </div>
+                <div class="form-group">
+                  <label>ЦФО</label>
+                  <input type="text" name="cfo">
+                </div>
+                <div class="form-group">
+                  <label>Ответственный</label>
+                  <input type="text" name="responsible">
+                </div>
+                <div class="form-group">
+                  <label>Статус</label>
+                  <select name="status">
+                    <option value="pending">Ожидает</option>
+                    <option value="paid">Оплачен</option>
+                    <option value="overdue">Просрочен</option>
+                    <option value="cancelled">Отменён</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>ACID (связь с грузом)</label>
+                  <input type="text" name="acid_link" placeholder="ACID-2024001">
+                </div>
+              </div>
+
+              <button type="submit" class="btn-submit">Добавить транзакцию</button>
+            </form>
+          </div>
+
           <div class="table-section">
             <h3>Все транзакции</h3>
             <div class="search-bar">
@@ -1273,6 +1441,72 @@
           <div class="header">
             <h2>Контрагенты</h2>
             <p>Справочник контрагентов</p>
+          </div>
+
+          <div class="form-section">
+            <h3>Добавить контрагента</h3>
+            <form id="counterpartyForm">
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Название <span class="required">*</span></label>
+                  <input type="text" name="name" required>
+                </div>
+                <div class="form-group">
+                  <label>Краткое название</label>
+                  <input type="text" name="short_name">
+                </div>
+                <div class="form-group">
+                  <label>Тип</label>
+                  <select name="type">
+                    <option value="supplier">Поставщик</option>
+                    <option value="carrier">Перевозчик</option>
+                    <option value="importer">Импортёр</option>
+                    <option value="contractor">Подрядчик</option>
+                    <option value="other">Другое</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Страна</label>
+                  <input type="text" name="country">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>ИНН / Рег. номер</label>
+                  <input type="text" name="registration_number">
+                </div>
+                <div class="form-group">
+                  <label>VAT номер</label>
+                  <input type="text" name="vat_number">
+                </div>
+                <div class="form-group">
+                  <label>Контактное лицо</label>
+                  <input type="text" name="contact_person">
+                </div>
+                <div class="form-group">
+                  <label>Email</label>
+                  <input type="email" name="email">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Телефон</label>
+                  <input type="text" name="phone">
+                </div>
+                <div class="form-group">
+                  <label>Активный</label>
+                  <select name="is_active">
+                    <option value="1">Да</option>
+                    <option value="0">Нет</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Примечания</label>
+                  <input type="text" name="notes">
+                </div>
+              </div>
+              <button type="submit" class="btn-submit">Добавить контрагента</button>
+            </form>
           </div>
 
           <div class="table-section">
@@ -2084,13 +2318,54 @@
       catch (err) { showAlert(err.message, 'error'); }
     });
 
+    document.getElementById('transactionForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      try {
+        const data = Object.fromEntries(new FormData(e.target));
+        // Convert numeric strings
+        if (data.amount)     data.amount     = parseFloat(data.amount);
+        if (data.amount_usd) data.amount_usd = parseFloat(data.amount_usd);
+        data.urgent = data.urgent === '1' ? 1 : 0;
+        await api('POST', '/ais_transactions', data);
+        showAlert('Транзакция добавлена');
+        e.target.reset();
+        loadTable('ais_transactions').then(rows => renderTransactionsTable(rows));
+      }
+      catch (err) { showAlert(err.message, 'error'); }
+    });
+
+    document.getElementById('counterpartyForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      try {
+        const data = Object.fromEntries(new FormData(e.target));
+        data.is_active = data.is_active === '1' ? 1 : 0;
+        await api('POST', '/counterparties', data);
+        showAlert('Контрагент добавлен');
+        e.target.reset();
+        loadTable('counterparties').then(rows => renderCounterpartiesTable(rows));
+      }
+      catch (err) { showAlert(err.message, 'error'); }
+    });
+
     // ============================================================
     // DELETE
     // ============================================================
 
     async function deleteRecord(table, id) {
       if (!confirm('Удалить запись?')) return;
-      try { await api('DELETE', `/${table}/${id}`); showAlert('Удалено'); loadDashboard(); }
+      try {
+        await api('DELETE', `/${table}/${id}`);
+        showAlert('Запись удалена');
+        // Reload the table that was just modified
+        const reloaders = {
+          acid:             () => loadTable('acid').then(r => renderAcidTable(r)),
+          contracts:        () => loadTable('contracts').then(r => renderContractTable(r)),
+          ais_transactions: () => loadTable('ais_transactions').then(r => renderTransactionsTable(r)),
+          counterparties:   () => loadTable('counterparties').then(r => renderCounterpartiesTable(r)),
+        };
+        if (reloaders[table]) reloaders[table]();
+        else loadDashboard();
+      }
       catch (err) { showAlert(err.message, 'error'); }
     }
 
