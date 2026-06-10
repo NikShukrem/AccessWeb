@@ -315,7 +315,7 @@ const ROLE_PERMISSIONS = {
     tables: ['acid'],
     write: ['acid'],
     import: ['acid'],
-    delete: false
+    delete: ['acid']
   },
 };
 
@@ -335,8 +335,11 @@ function checkAccess(req, res, next) {
   const isDelete = req.method === 'DELETE';
 
   if (isDelete) {
-    if (!perm.delete) {
+    if (perm.delete === false) {
       return res.status(403).json({ error: 'Удаление запрещено для вашей роли' });
+    }
+    if (Array.isArray(perm.delete) && table && !perm.delete.includes(table)) {
+      return res.status(403).json({ error: 'Удаление в эту таблицу запрещено' });
     }
   }
 
@@ -569,12 +572,28 @@ app.put('/:table/:id', auth, checkAccess, async (req, res) => {
     const { table, id } = req.params;
     if (!VALID_TABLES.has(table)) return res.status(400).json({ error: 'Неверная таблица' });
 
-    const data = sanitizeColumns(table, req.body);
+    // Optimistic locking: client sends _version (= updated_at when record was loaded)
+    const clientVersion = req.body._version;
+    const body = { ...req.body };
+    delete body._version;
+
+    const data = sanitizeColumns(table, body);
     const columns = Object.keys(data);
     if (columns.length === 0) return res.status(400).json({ error: 'Нет допустимых полей' });
 
-    const updates = columns.map(k => `${k} = ?`).join(', ');
+    // If version provided, check it matches current updated_at
+    if (clientVersion) {
+      const current = await db.get(`SELECT updated_at FROM ${table} WHERE id = ?`, [id]);
+      if (current && current.updated_at !== clientVersion) {
+        const fresh = await db.get(`SELECT * FROM ${table} WHERE id = ?`, [id]);
+        return res.status(409).json({
+          error: 'Запись была изменена другим пользователем. Данные обновлены.',
+          current: fresh
+        });
+      }
+    }
 
+    const updates = columns.map(k => `${k} = ?`).join(', ');
     await db.run(
       `UPDATE ${table} SET ${updates}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
       [...columns.map(k => data[k]), id]

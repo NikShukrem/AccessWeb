@@ -780,21 +780,37 @@
           <div class="form-section" id="acidFormSection">
             <h3>Добавить новый груз</h3>
             <form id="acidForm">
+              <p style="font-size:12px;color:var(--gray-text);margin-bottom:16px;">Обязательно только поле ACID. Остальные заполняйте по мере поступления данных.</p>
+
+              <div style="font-weight:600;color:var(--titan-primary);margin-bottom:8px;font-size:13px;">Основное</div>
               <div class="form-row">
                 <div class="form-group">
                   <label>ACID номер <span class="required">*</span></label>
-                  <input type="text" name="acid" required>
+                  <input type="text" name="acid" required placeholder="ACID-2024001">
                 </div>
                 <div class="form-group">
-                  <label>Название груза</label>
-                  <input type="text" name="name">
+                  <label>№ АИС</label>
+                  <input type="text" name="ais_number">
                 </div>
+                <div class="form-group">
+                  <label>№ первичного запроса</label>
+                  <input type="text" name="initial_request_number">
+                </div>
+                <div class="form-group">
+                  <label>Тип отправки</label>
+                  <select name="shipment_type">
+                    <option value="">—</option>
+                    <option>FCL</option><option>LCL</option><option>Bulk</option><option>RoRo</option><option>Air</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style="font-weight:600;color:var(--titan-primary);margin-bottom:8px;font-size:13px;">Контрагенты</div>
+              <div class="form-row">
                 <div class="form-group">
                   <label>Грузоотправитель</label>
                   <input type="text" name="shipper">
                 </div>
-              </div>
-              <div class="form-row">
                 <div class="form-group">
                   <label>Поставщик</label>
                   <input type="text" name="supplier">
@@ -804,11 +820,101 @@
                   <input type="text" name="importer_name">
                 </div>
                 <div class="form-group">
-                  <label>Вес (кг)</label>
-                  <input type="number" name="gw_kg" step="0.01">
+                  <label>Рег. номер</label>
+                  <input type="text" name="registration_number">
+                </div>
+              </div>
+
+              <div style="font-weight:600;color:var(--titan-primary);margin-bottom:8px;font-size:13px;">Груз</div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Название</label>
+                  <input type="text" name="name">
+                </div>
+                <div class="form-group">
+                  <label>Вес брутто (кг)</label>
+                  <input type="number" name="gw_kg" step="0.01" min="0">
+                </div>
+                <div class="form-group">
+                  <label>Количество мест</label>
+                  <input type="number" name="packages_qty" min="0">
+                </div>
+                <div class="form-group">
+                  <label>Контейнеров</label>
+                  <input type="number" name="containers_qty" min="0">
                 </div>
               </div>
               <div class="form-row">
+                <div class="form-group">
+                  <label>Тип перевозки</label>
+                  <select name="transport_type">
+                    <option value="">—</option>
+                    <option>Морской</option><option>Авиа</option><option>Авто</option><option>Ж/Д</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Стоимость груза</label>
+                  <input type="number" name="cargo_cost" step="0.01" min="0">
+                </div>
+                <div class="form-group">
+                  <label>Валюта</label>
+                  <select name="currency">
+                    <option value="USD">USD</option><option value="EUR">EUR</option><option value="EGP">EGP</option><option value="RUB">RUB</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Стоимость перевозки</label>
+                  <input type="number" name="shipping_cost" step="0.01" min="0">
+                </div>
+              </div>
+
+              <div style="font-weight:600;color:var(--titan-primary);margin-bottom:8px;font-size:13px;">Маршрут</div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Страна отправления</label>
+                  <input type="text" name="departure_country">
+                </div>
+                <div class="form-group">
+                  <label>Порт отправления</label>
+                  <input type="text" name="departure_port">
+                </div>
+                <div class="form-group">
+                  <label>Инкотермс</label>
+                  <select name="incoterms">
+                    <option value="">—</option>
+                    <option>FOB</option><option>CIF</option><option>CFR</option><option>EXW</option><option>DAP</option><option>DDP</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Место доставки</label>
+                  <input type="text" name="delivery_place">
+                </div>
+              </div>
+
+              <div style="font-weight:600;color:var(--titan-primary);margin-bottom:8px;font-size:13px;">Судно / Перевозчик</div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Судно</label>
+                  <input type="text" name="vessel">
+                </div>
+                <div class="form-group">
+                  <label>Линия</label>
+                  <input type="text" name="shipping_line">
+                </div>
+                <div class="form-group">
+                  <label>BOL №</label>
+                  <input type="text" name="bol_number">
+                </div>
+                <div class="form-group">
+                  <label>Дата BOL</label>
+                  <input type="date" name="bol_date">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Перевозчик</label>
+                  <input type="text" name="carrier">
+                </div>
                 <div class="form-group">
                   <label>ETD</label>
                   <input type="date" name="etd">
@@ -818,7 +924,95 @@
                   <input type="date" name="eta">
                 </div>
                 <div class="form-group">
-                  <label>Статус</label>
+                  <label>Дата доставки</label>
+                  <input type="date" name="delivery_date">
+                </div>
+              </div>
+
+              <div style="font-weight:600;color:var(--titan-primary);margin-bottom:8px;font-size:13px;">Прибытие в Египет / Таможня</div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Дата прибытия в Египет</label>
+                  <input type="date" name="egypt_arrival_date">
+                </div>
+                <div class="form-group">
+                  <label>Место прибытия</label>
+                  <input type="text" name="arrival_place">
+                </div>
+                <div class="form-group">
+                  <label>Дата запроса освобождения</label>
+                  <input type="date" name="release_request_date">
+                </div>
+                <div class="form-group">
+                  <label>Куратор освобождения</label>
+                  <input type="text" name="release_curator">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Дата получения освобождения</label>
+                  <input type="date" name="release_received_date">
+                </div>
+                <div class="form-group">
+                  <label>DO выдан</label>
+                  <input type="text" name="do_released">
+                </div>
+                <div class="form-group">
+                  <label>Режим ввоза</label>
+                  <select name="import_mode">
+                    <option value="">—</option>
+                    <option>IM4</option><option>IM6</option><option>IM7</option><option>Временный ввоз</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Статус таможни</label>
+                  <input type="text" name="custom_status">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>№ ДТ</label>
+                  <input type="text" name="dt_number">
+                </div>
+                <div class="form-group">
+                  <label>Дата ДТ</label>
+                  <input type="date" name="dt_date">
+                </div>
+                <div class="form-group">
+                  <label>Дата выпуска ДТ</label>
+                  <input type="date" name="dt_release_date">
+                </div>
+                <div class="form-group">
+                  <label>Доставка на площадь</label>
+                  <input type="date" name="delivery_to_site_date">
+                </div>
+              </div>
+
+              <div style="font-weight:600;color:var(--titan-primary);margin-bottom:8px;font-size:13px;">Назначение и статус</div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Назначение</label>
+                  <input type="text" name="purpose">
+                </div>
+                <div class="form-group">
+                  <label>Куратор УПО</label>
+                  <input type="text" name="upo_curator">
+                </div>
+                <div class="form-group">
+                  <label>Продлён до</label>
+                  <input type="date" name="extended_to">
+                </div>
+                <div class="form-group">
+                  <label>Инвойс загружен</label>
+                  <select name="invoice_uploaded">
+                    <option value="0">Нет</option>
+                    <option value="1">Да</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Статус <span class="required">*</span></label>
                   <select name="status">
                     <option value="pending">В работе</option>
                     <option value="in_transit">В пути</option>
@@ -827,8 +1021,6 @@
                     <option value="cancelled">Отменено</option>
                   </select>
                 </div>
-              </div>
-              <div class="form-row">
                 <div class="form-group">
                   <label>Ответственный</label>
                   <input type="text" name="responsible">
@@ -836,6 +1028,18 @@
                 <div class="form-group">
                   <label>№ Договора</label>
                   <input type="text" name="contract_number">
+                </div>
+              </div>
+              <div class="form-row full">
+                <div class="form-group">
+                  <label>Примечание</label>
+                  <input type="text" name="notes">
+                </div>
+              </div>
+              <div class="form-row full">
+                <div class="form-group">
+                  <label>Комментарий</label>
+                  <input type="text" name="comment">
                 </div>
               </div>
               <button type="submit" class="btn-submit">Добавить груз</button>
@@ -1189,6 +1393,14 @@
       };
       if (body) opts.body = JSON.stringify(body);
       const res = await fetch(`${API_BASE}${path}`, opts);
+      if (res.status === 409) {
+        // Optimistic lock conflict: record was modified by another user
+        const data = await res.json().catch(() => ({}));
+        const err = new Error(data.error || 'Конфликт данных');
+        err.conflict = true;
+        err.current = data.current; // fresh record from server
+        throw err;
+      }
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: res.statusText }));
         throw new Error(err.error || res.statusText);
@@ -1685,7 +1897,7 @@
 
     function renderAcidTable(rows) {
       const tbody = document.querySelector('#acidTable tbody');
-      const showDelete = !isEgyptMode;
+      const showDelete = true;
       tbody.innerHTML = rows.map(r => `
         <tr data-status="${r.status || 'pending'}">
           <td>${r.acid || '-'}</td>
