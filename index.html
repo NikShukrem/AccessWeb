@@ -4,6 +4,26 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AccessWeb v3 - Управление логистикой</title>
+  <script>
+    // Auto cache-bust: when APP_VERSION changes, wipe all SW caches and re-register
+    (function () {
+      var APP_VERSION = '3.1.0';
+      if (localStorage.getItem('aw_version') !== APP_VERSION) {
+        localStorage.setItem('aw_version', APP_VERSION);
+        var cleared = Promise.all([
+          'caches' in self ? caches.keys().then(function (ks) {
+            return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+          }) : Promise.resolve(),
+          'serviceWorker' in navigator
+            ? navigator.serviceWorker.getRegistrations().then(function (regs) {
+                return Promise.all(regs.map(function (r) { return r.unregister(); }));
+              })
+            : Promise.resolve()
+        ]);
+        cleared.then(function () { location.reload(true); });
+      }
+    })();
+  </script>
   <!-- Set content="" to backend URL when deploying frontend separately (e.g. GitHub Pages) -->
   <meta name="api-base" content="">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -687,6 +707,43 @@
       cursor: not-allowed;
     }
 
+    tr.adding td { padding: 4px 3px; vertical-align: middle; }
+    tr.adding td input, tr.adding td select {
+      width: 100%;
+      min-width: 75px;
+      padding: 4px 5px;
+      border: 1px solid var(--gray-border);
+      border-radius: 4px;
+      font-size: 12px;
+      font-family: inherit;
+      box-sizing: border-box;
+    }
+    tr.adding td input:focus, tr.adding td select:focus {
+      outline: none;
+      border-color: var(--titan-accent);
+    }
+    .btn-save-row {
+      padding: 4px 10px;
+      background: var(--success);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      margin-right: 4px;
+    }
+    .btn-save-row:hover { background: #1e8449; }
+    .btn-cancel-row {
+      padding: 4px 10px;
+      background: #95a5a6;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .btn-cancel-row:hover { background: #7f8c8d; }
+
     .file-name {
       margin-top: 20px;
       padding: 12px;
@@ -777,277 +834,11 @@
             <p>Отслеживание грузов от производства до доставки</p>
           </div>
 
-          <div class="form-section" id="acidFormSection">
-            <h3>Добавить новый груз</h3>
-            <form id="acidForm">
-              <p style="font-size:12px;color:var(--gray-text);margin-bottom:16px;">Обязательно только поле ACID. Остальные заполняйте по мере поступления данных.</p>
-
-              <div style="font-weight:600;color:var(--titan-primary);margin-bottom:8px;font-size:13px;">Основное</div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>ACID номер <span class="required">*</span></label>
-                  <input type="text" name="acid" required placeholder="ACID-2024001">
-                </div>
-                <div class="form-group">
-                  <label>№ АИС</label>
-                  <input type="text" name="ais_number">
-                </div>
-                <div class="form-group">
-                  <label>№ первичного запроса</label>
-                  <input type="text" name="initial_request_number">
-                </div>
-                <div class="form-group">
-                  <label>Тип отправки</label>
-                  <select name="shipment_type">
-                    <option value="">—</option>
-                    <option>FCL</option><option>LCL</option><option>Bulk</option><option>RoRo</option><option>Air</option>
-                  </select>
-                </div>
-              </div>
-
-              <div style="font-weight:600;color:var(--titan-primary);margin-bottom:8px;font-size:13px;">Контрагенты</div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Грузоотправитель</label>
-                  <input type="text" name="shipper">
-                </div>
-                <div class="form-group">
-                  <label>Поставщик</label>
-                  <input type="text" name="supplier">
-                </div>
-                <div class="form-group">
-                  <label>Импортёр</label>
-                  <input type="text" name="importer_name">
-                </div>
-                <div class="form-group">
-                  <label>Рег. номер</label>
-                  <input type="text" name="registration_number">
-                </div>
-              </div>
-
-              <div style="font-weight:600;color:var(--titan-primary);margin-bottom:8px;font-size:13px;">Груз</div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Название</label>
-                  <input type="text" name="name">
-                </div>
-                <div class="form-group">
-                  <label>Вес брутто (кг)</label>
-                  <input type="number" name="gw_kg" step="0.01" min="0">
-                </div>
-                <div class="form-group">
-                  <label>Количество мест</label>
-                  <input type="number" name="packages_qty" min="0">
-                </div>
-                <div class="form-group">
-                  <label>Контейнеров</label>
-                  <input type="number" name="containers_qty" min="0">
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Тип перевозки</label>
-                  <select name="transport_type">
-                    <option value="">—</option>
-                    <option>Морской</option><option>Авиа</option><option>Авто</option><option>Ж/Д</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label>Стоимость груза</label>
-                  <input type="number" name="cargo_cost" step="0.01" min="0">
-                </div>
-                <div class="form-group">
-                  <label>Валюта</label>
-                  <select name="currency">
-                    <option value="USD">USD</option><option value="EUR">EUR</option><option value="EGP">EGP</option><option value="RUB">RUB</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label>Стоимость перевозки</label>
-                  <input type="number" name="shipping_cost" step="0.01" min="0">
-                </div>
-              </div>
-
-              <div style="font-weight:600;color:var(--titan-primary);margin-bottom:8px;font-size:13px;">Маршрут</div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Страна отправления</label>
-                  <input type="text" name="departure_country">
-                </div>
-                <div class="form-group">
-                  <label>Порт отправления</label>
-                  <input type="text" name="departure_port">
-                </div>
-                <div class="form-group">
-                  <label>Инкотермс</label>
-                  <select name="incoterms">
-                    <option value="">—</option>
-                    <option>FOB</option><option>CIF</option><option>CFR</option><option>EXW</option><option>DAP</option><option>DDP</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label>Место доставки</label>
-                  <input type="text" name="delivery_place">
-                </div>
-              </div>
-
-              <div style="font-weight:600;color:var(--titan-primary);margin-bottom:8px;font-size:13px;">Судно / Перевозчик</div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Судно</label>
-                  <input type="text" name="vessel">
-                </div>
-                <div class="form-group">
-                  <label>Линия</label>
-                  <input type="text" name="shipping_line">
-                </div>
-                <div class="form-group">
-                  <label>BOL №</label>
-                  <input type="text" name="bol_number">
-                </div>
-                <div class="form-group">
-                  <label>Дата BOL</label>
-                  <input type="date" name="bol_date">
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Перевозчик</label>
-                  <input type="text" name="carrier">
-                </div>
-                <div class="form-group">
-                  <label>ETD</label>
-                  <input type="date" name="etd">
-                </div>
-                <div class="form-group">
-                  <label>ETA</label>
-                  <input type="date" name="eta">
-                </div>
-                <div class="form-group">
-                  <label>Дата доставки</label>
-                  <input type="date" name="delivery_date">
-                </div>
-              </div>
-
-              <div style="font-weight:600;color:var(--titan-primary);margin-bottom:8px;font-size:13px;">Прибытие в Египет / Таможня</div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Дата прибытия в Египет</label>
-                  <input type="date" name="egypt_arrival_date">
-                </div>
-                <div class="form-group">
-                  <label>Место прибытия</label>
-                  <input type="text" name="arrival_place">
-                </div>
-                <div class="form-group">
-                  <label>Дата запроса освобождения</label>
-                  <input type="date" name="release_request_date">
-                </div>
-                <div class="form-group">
-                  <label>Куратор освобождения</label>
-                  <input type="text" name="release_curator">
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Дата получения освобождения</label>
-                  <input type="date" name="release_received_date">
-                </div>
-                <div class="form-group">
-                  <label>DO выдан</label>
-                  <input type="text" name="do_released">
-                </div>
-                <div class="form-group">
-                  <label>Режим ввоза</label>
-                  <select name="import_mode">
-                    <option value="">—</option>
-                    <option>IM4</option><option>IM6</option><option>IM7</option><option>Временный ввоз</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label>Статус таможни</label>
-                  <input type="text" name="custom_status">
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>№ ДТ</label>
-                  <input type="text" name="dt_number">
-                </div>
-                <div class="form-group">
-                  <label>Дата ДТ</label>
-                  <input type="date" name="dt_date">
-                </div>
-                <div class="form-group">
-                  <label>Дата выпуска ДТ</label>
-                  <input type="date" name="dt_release_date">
-                </div>
-                <div class="form-group">
-                  <label>Доставка на площадь</label>
-                  <input type="date" name="delivery_to_site_date">
-                </div>
-              </div>
-
-              <div style="font-weight:600;color:var(--titan-primary);margin-bottom:8px;font-size:13px;">Назначение и статус</div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Назначение</label>
-                  <input type="text" name="purpose">
-                </div>
-                <div class="form-group">
-                  <label>Куратор УПО</label>
-                  <input type="text" name="upo_curator">
-                </div>
-                <div class="form-group">
-                  <label>Продлён до</label>
-                  <input type="date" name="extended_to">
-                </div>
-                <div class="form-group">
-                  <label>Инвойс загружен</label>
-                  <select name="invoice_uploaded">
-                    <option value="0">Нет</option>
-                    <option value="1">Да</option>
-                  </select>
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Статус <span class="required">*</span></label>
-                  <select name="status">
-                    <option value="pending">В работе</option>
-                    <option value="in_transit">В пути</option>
-                    <option value="customs">На таможне</option>
-                    <option value="delivered">Доставлено</option>
-                    <option value="cancelled">Отменено</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label>Ответственный</label>
-                  <input type="text" name="responsible">
-                </div>
-                <div class="form-group">
-                  <label>№ Договора</label>
-                  <input type="text" name="contract_number">
-                </div>
-              </div>
-              <div class="form-row full">
-                <div class="form-group">
-                  <label>Примечание</label>
-                  <input type="text" name="notes">
-                </div>
-              </div>
-              <div class="form-row full">
-                <div class="form-group">
-                  <label>Комментарий</label>
-                  <input type="text" name="comment">
-                </div>
-              </div>
-              <button type="submit" class="btn-submit">Добавить груз</button>
-            </form>
-          </div>
-
           <div class="table-section">
-            <h3>Все грузы</h3>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+              <h3 style="margin:0">Все грузы</h3>
+              <button class="btn-submit" onclick="addAcidRow()">+ Добавить груз</button>
+            </div>
             <div class="search-bar">
               <input type="text" id="acidSearch" placeholder="Поиск по ACID, грузоотправителю..." onkeyup="filterAcidTable()">
               <button class="btn-filter active" onclick="filterByStatus('all', event)">Все</button>
@@ -1062,10 +853,13 @@
                   <tr>
                     <th>ACID</th>
                     <th>АИС №</th>
+                    <th>№ заявки</th>
                     <th>Тип груза</th>
                     <th>Грузоотправитель</th>
                     <th>Поставщик</th>
                     <th>Импортёр</th>
+                    <th>Рег. номер</th>
+                    <th>VAT номер</th>
                     <th>Название</th>
                     <th>Вес кг</th>
                     <th>Мест</th>
@@ -1113,8 +907,13 @@
                 <tbody></tbody>
               </table>
             </div>
+            <div style="text-align:center;margin-top:12px">
+              <button id="btnLoadMoreAcid" class="btn-filter" onclick="loadMoreAcid()" style="display:none;padding:8px 24px">Загрузить ещё</button>
+            </div>
           </div>
         </div>
+        <!-- Datalist для автодополнения контрагентов -->
+        <datalist id="dl-counterparties-all"></datalist>
 
         <!-- CONTRACTS TAB -->
         <div id="contracts" class="content-section">
@@ -1609,6 +1408,25 @@
     // ============================================================
 
     let authToken   = null;
+    let _refreshTimer = null;
+
+    function scheduleTokenRefresh(token) {
+      clearTimeout(_refreshTimer);
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const msUntilExpiry = payload.exp * 1000 - Date.now();
+        const refreshIn = Math.max(msUntilExpiry - 30 * 60 * 1000, 60 * 1000); // 30 min before expiry
+        _refreshTimer = setTimeout(async () => {
+          try {
+            const data = await api('POST', '/auth/refresh');
+            authToken = data.token;
+            localStorage.setItem('authToken', authToken);
+            scheduleTokenRefresh(authToken);
+          } catch { /* silent — if refresh fails, next real request will catch 401 */ }
+        }, refreshIn);
+      } catch { /* malformed token, skip */ }
+    }
+
     let currentUser = null;
     let isEgyptMode = false;
     let currentFilter = 'all';
@@ -1627,6 +1445,14 @@
       };
       if (body) opts.body = JSON.stringify(body);
       const res = await fetch(`${API_BASE}${path}`, opts);
+      if (res.status === 401) {
+        authToken = null; currentUser = null; isEgyptMode = false; currentFilter = 'all';
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('currentUser');
+        document.getElementById('appScreen').style.display  = 'none';
+        document.getElementById('loginScreen').style.display = 'flex';
+        throw new Error('Сессия истекла. Войдите снова.');
+      }
       if (res.status === 409) {
         // Optimistic lock conflict: record was modified by another user
         const data = await res.json().catch(() => ({}));
@@ -1674,6 +1500,7 @@
         loadDashboard();
       } else if (tabId === 'acid') {
         loadTable('acid').then(rows => renderAcidTable(rows));
+        loadCounterpartiesDatalist();
       } else if (tabId === 'contracts') {
         loadTable('contracts').then(rows => renderContractTable(rows));
       } else if (tabId === 'transactions') {
@@ -1683,15 +1510,49 @@
       }
     }
 
+    const _tableOffsets = {};
+    const PAGE_SIZE = isEgyptMode ? 100 : 500;
+
     async function loadTable(tableName) {
       try {
-        // Egypt gets smaller pages — faster on slow connection
+        _tableOffsets[tableName] = 0;
         const limit = (isEgyptMode && tableName === 'acid') ? 100 : 500;
-        return await api('GET', `/${tableName}?limit=${limit}`);
+        const rows = await api('GET', `/${tableName}?limit=${limit}`);
+        _tableOffsets[tableName] = rows.length;
+        // Show/hide Load More for acid
+        if (tableName === 'acid') {
+          const btn = document.getElementById('btnLoadMoreAcid');
+          if (btn) btn.style.display = rows.length >= limit ? '' : 'none';
+        }
+        return rows;
       } catch (err) {
         showAlert(err.message, 'error');
         return [];
       }
+    }
+
+    async function loadMoreAcid() {
+      const offset = _tableOffsets['acid'] || 0;
+      const limit  = isEgyptMode ? 100 : 500;
+      try {
+        const rows = await api('GET', `/acid?limit=${limit}&offset=${offset}`);
+        _tableOffsets['acid'] = offset + rows.length;
+        const tbody = document.querySelector('#acidTable tbody');
+        tbody.insertAdjacentHTML('beforeend', rows.map(r => buildAcidRow(r)).join(''));
+        const btn = document.getElementById('btnLoadMoreAcid');
+        if (btn) btn.style.display = rows.length >= limit ? '' : 'none';
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    // Populate counterparty datalist when counterparties are available
+    async function loadCounterpartiesDatalist() {
+      try {
+        const rows = await api('GET', '/counterparties?limit=2000');
+        const dl = document.getElementById('dl-counterparties-all');
+        if (dl) {
+          dl.innerHTML = rows.map(r => `<option value="${(r.name || '').replace(/"/g,'&quot;')}">`).join('');
+        }
+      } catch { /* non-critical */ }
     }
 
     // ============================================================
@@ -1780,6 +1641,7 @@
         currentUser = data.user;
         localStorage.setItem('authToken',   authToken);
         localStorage.setItem('currentUser', JSON.stringify(currentUser));
+        scheduleTokenRefresh(authToken);
         document.getElementById('loginScreen').style.display = 'none';
         document.getElementById('appScreen').style.display   = 'block';
         initUserUI(currentUser);
@@ -2056,14 +1918,14 @@
 
         document.getElementById('dashboardContent').innerHTML = `
           <div class="dashboard-grid">
-            <div class="chart-card">
+            ${data.contracts ? `<div class="chart-card">
               <h3>Договоры</h3>
               <div style="font-size:28px;font-weight:700;color:var(--titan-primary);margin:12px 0;">${data.contracts.active} активных</div>
               <div>Всего: ${data.contracts.total} | Истекло: ${data.contracts.expired}</div>
               <div>Объём: $${fmtNum(data.contracts.total_amount)}</div>
               <div>Оплачено: $${fmtNum(data.contracts.total_paid)}</div>
               <div>Остаток лимита: $${fmtNum(data.contracts.limit_balance_sum)}</div>
-            </div>
+            </div>` : ''}
             <div class="chart-card">
               <h3>Грузы</h3>
               <div style="font-size:28px;font-weight:700;color:var(--titan-primary);margin:12px 0;">${data.cargo.total} грузов</div>
@@ -2072,12 +1934,12 @@
               <div>Доставлено: ${data.cargo.delivered}</div>
               <div style="${data.cargo.overdue > 0 ? 'color:var(--titan-danger);font-weight:600;' : ''}">Просрочено: ${data.cargo.overdue}</div>
             </div>
-            <div class="chart-card">
+            ${data.transactions ? `<div class="chart-card">
               <h3>Платежи</h3>
               <div style="font-size:28px;font-weight:700;color:var(--titan-primary);margin:12px 0;">$${fmtNum(data.transactions.total_usd)}</div>
               <div>Ожидает оплаты: $${fmtNum(data.transactions.pending_usd)}</div>
               <div style="${data.transactions.urgent_count > 0 ? 'color:var(--titan-danger);font-weight:600;' : ''}">Срочных: ${data.transactions.urgent_count}</div>
-            </div>
+            </div>` : ''}
           </div>
           ${data.overdue_stages.length > 0 ? `
           <div class="table-section">
@@ -2129,17 +1991,18 @@
       delivered: 'Доставлено', cancelled: 'Отменено'
     };
 
-    function renderAcidTable(rows) {
-      const tbody = document.querySelector('#acidTable tbody');
-      const showDelete = true;
-      tbody.innerHTML = rows.map(r => `
-        <tr data-status="${r.status || 'pending'}">
+    function buildAcidRow(r) {
+      return `
+        <tr data-status="${r.status || 'pending'}" data-search="${[r.acid,r.ais_number,r.initial_request_number,r.shipper,r.supplier,r.importer_name,r.name,r.responsible,r.contract_number,r.dt_number,r.registration_number,r.vat_number,ACID_STATUS_LABELS[r.status]].filter(Boolean).join(' ').toLowerCase()}">
           <td>${r.acid || '-'}</td>
           <td>${r.ais_number || '-'}</td>
+          <td>${r.initial_request_number || '-'}</td>
           <td>${r.shipment_type || '-'}</td>
           <td>${r.shipper || '-'}</td>
           <td>${r.supplier || '-'}</td>
           <td>${r.importer_name || '-'}</td>
+          <td>${r.registration_number || '-'}</td>
+          <td>${r.vat_number || '-'}</td>
           <td>${r.name || '-'}</td>
           <td>${r.gw_kg != null ? parseFloat(r.gw_kg).toFixed(2) : '-'}</td>
           <td>${r.packages_qty || '-'}</td>
@@ -2181,8 +2044,13 @@
           <td>${r.notes || '-'}</td>
           <td>${r.comment || '-'}</td>
           <td>${r.contract_number || '-'}</td>
-          ${showDelete ? `<td><button class="btn-delete" onclick="deleteRecord('acid','${r.id}')">Удалить</button></td>` : '<td>—</td>'}
-        </tr>`).join('');
+          <td><button class="btn-delete" onclick="deleteRecord('acid','${r.id}')">Удалить</button></td>
+        </tr>`;
+    }
+
+    function renderAcidTable(rows) {
+      const tbody = document.querySelector('#acidTable tbody');
+      tbody.innerHTML = rows.map(buildAcidRow).join('');
     }
 
     function renderContractTable(rows) {
@@ -2263,10 +2131,23 @@
     // FILTERS
     // ============================================================
 
+    // Debounce timers for search
+    const _searchTimers = {};
+    function _debounce(key, fn, delay) {
+      clearTimeout(_searchTimers[key]);
+      _searchTimers[key] = setTimeout(fn, delay);
+    }
+
     function filterAcidTable() {
-      const search = document.getElementById('acidSearch').value.toLowerCase();
+      _debounce('acid', _doFilterAcid, 150);
+    }
+    function _doFilterAcid() {
+      const search = document.getElementById('acidSearch').value.toLowerCase().trim();
       document.querySelectorAll('#acidTable tbody tr').forEach(row => {
-        row.style.display = row.textContent.toLowerCase().includes(search) && (currentFilter === 'all' || row.dataset.status === currentFilter) ? '' : 'none';
+        if (row.id === 'acidNewRow') return;
+        const matchSearch = !search || (row.dataset.search || '').includes(search);
+        const matchStatus = currentFilter === 'all' || row.dataset.status === currentFilter;
+        row.style.display = matchSearch && matchStatus ? '' : 'none';
       });
     }
 
@@ -2274,38 +2155,126 @@
       currentFilter = status;
       document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
       if (evt && evt.target) evt.target.classList.add('active');
-      filterAcidTable();
+      _doFilterAcid();
     }
 
     function filterContractTable() {
-      const s = document.getElementById('contractSearch').value.toLowerCase();
-      document.querySelectorAll('#contractTable tbody tr').forEach(r => { r.style.display = r.textContent.toLowerCase().includes(s) ? '' : 'none'; });
+      _debounce('contracts', () => {
+        const s = document.getElementById('contractSearch').value.toLowerCase().trim();
+        document.querySelectorAll('#contractTable tbody tr').forEach(r => {
+          r.style.display = !s || (r.dataset.search || r.textContent.toLowerCase()).includes(s) ? '' : 'none';
+        });
+      }, 150);
     }
 
     function filterTransactionsTable() {
-      const s = document.getElementById('transactionsSearch').value.toLowerCase();
-      document.querySelectorAll('#transactionsTable tbody tr').forEach(r => { r.style.display = r.textContent.toLowerCase().includes(s) ? '' : 'none'; });
+      _debounce('transactions', () => {
+        const s = document.getElementById('transactionsSearch').value.toLowerCase().trim();
+        document.querySelectorAll('#transactionsTable tbody tr').forEach(r => {
+          r.style.display = !s || (r.dataset.search || r.textContent.toLowerCase()).includes(s) ? '' : 'none';
+        });
+      }, 150);
     }
 
     function filterCounterpartiesTable() {
-      const s = document.getElementById('counterpartiesSearch').value.toLowerCase();
-      document.querySelectorAll('#counterpartiesTable tbody tr').forEach(r => { r.style.display = r.textContent.toLowerCase().includes(s) ? '' : 'none'; });
+      _debounce('counterparties', () => {
+        const s = document.getElementById('counterpartiesSearch').value.toLowerCase().trim();
+        document.querySelectorAll('#counterpartiesTable tbody tr').forEach(r => {
+          r.style.display = !s || (r.dataset.search || r.textContent.toLowerCase()).includes(s) ? '' : 'none';
+        });
+      }, 150);
     }
 
     // ============================================================
     // FORMS
     // ============================================================
 
-    document.getElementById('acidForm').addEventListener('submit', async e => {
-      e.preventDefault();
+    function addAcidRow() {
+      const tbody = document.querySelector('#acidTable tbody');
+      if (document.getElementById('acidNewRow')) return;
+      const inp = (name, type, extra) => `<input type="${type || 'text'}" name="${name}" ${extra || ''}>`;
+      const sel = (name, opts, withBlank) => `<select name="${name}">${withBlank ? '<option value="">—</option>' : ''}${opts.map(([v,l]) => `<option value="${v}">${l}</option>`).join('')}</select>`;
+      const row = document.createElement('tr');
+      row.id = 'acidNewRow';
+      row.className = 'adding';
+      row.innerHTML = `
+        <td>${inp('acid')}<span style="color:red;font-size:9px;display:block">*</span></td>
+        <td>${inp('ais_number')}</td>
+        <td>${inp('initial_request_number')}</td>
+        <td>${sel('shipment_type',[['','—'],['FCL','FCL'],['LCL','LCL'],['Bulk','Bulk'],['RoRo','RoRo'],['Air','Air']])}</td>
+        <td><input type="text" name="shipper" list="dl-counterparties-all"></td>
+        <td><input type="text" name="supplier" list="dl-counterparties-all"></td>
+        <td><input type="text" name="importer_name" list="dl-counterparties-all"></td>
+        <td>${inp('registration_number')}</td>
+        <td>${inp('vat_number')}</td>
+        <td>${inp('name')}</td>
+        <td>${inp('gw_kg','number','step="0.01" min="0"')}</td>
+        <td>${inp('packages_qty','number','min="0"')}</td>
+        <td>${inp('containers_qty','number','min="0"')}</td>
+        <td>${sel('transport_type',[['','—'],['Морской','Морской'],['Авиа','Авиа'],['Авто','Авто'],['Ж/Д','Ж/Д']])}</td>
+        <td>${inp('cargo_cost','number','step="0.01" min="0"')}</td>
+        <td>${sel('currency',[['USD','USD'],['EUR','EUR'],['EGP','EGP'],['RUB','RUB']])}</td>
+        <td>${inp('shipping_cost','number','step="0.01" min="0"')}</td>
+        <td>${inp('departure_country')}</td>
+        <td>${inp('departure_port')}</td>
+        <td>${sel('incoterms',[['','—'],['FOB','FOB'],['CIF','CIF'],['CFR','CFR'],['EXW','EXW'],['DAP','DAP'],['DDP','DDP']])}</td>
+        <td>${inp('delivery_place')}</td>
+        <td>${inp('vessel')}</td>
+        <td>${inp('shipping_line')}</td>
+        <td>${inp('bol_number')}</td>
+        <td>${inp('bol_date','date')}</td>
+        <td>${inp('carrier')}</td>
+        <td>${inp('etd','date')}</td>
+        <td>${inp('eta','date')}</td>
+        <td>${inp('delivery_date','date')}</td>
+        <td>${inp('egypt_arrival_date','date')}</td>
+        <td>${inp('arrival_place')}</td>
+        <td>${inp('release_request_date','date')}</td>
+        <td>${inp('release_curator')}</td>
+        <td>${inp('release_received_date','date')}</td>
+        <td>${inp('do_released')}</td>
+        <td>${sel('import_mode',[['','—'],['IM4','IM4'],['IM6','IM6'],['IM7','IM7'],['Временный ввоз','Временный ввоз']])}</td>
+        <td>${inp('dt_number')}</td>
+        <td>${inp('dt_date','date')}</td>
+        <td>${inp('dt_release_date','date')}</td>
+        <td>${inp('delivery_to_site_date','date')}</td>
+        <td>${inp('custom_status')}</td>
+        <td>${inp('purpose')}</td>
+        <td>${inp('upo_curator')}</td>
+        <td>${sel('invoice_uploaded',[['0','Нет'],['1','Да']])}</td>
+        <td>${inp('extended_to','date')}</td>
+        <td>${sel('status',[['pending','В работе'],['in_transit','В пути'],['customs','На таможне'],['delivered','Доставлено'],['cancelled','Отменено']])}</td>
+        <td>${inp('responsible')}</td>
+        <td>${inp('notes')}</td>
+        <td>${inp('comment')}</td>
+        <td>${inp('contract_number')}</td>
+        <td style="white-space:nowrap">
+          <button class="btn-save-row" onclick="saveAcidRow()">Сохранить</button>
+          <button class="btn-cancel-row" onclick="cancelAcidRow()">Отмена</button>
+        </td>
+      `;
+      tbody.prepend(row);
+      row.querySelector('[name="acid"]').focus();
+    }
+
+    async function saveAcidRow() {
+      const row = document.getElementById('acidNewRow');
+      if (!row) return;
+      const data = {};
+      row.querySelectorAll('[name]').forEach(el => { data[el.name] = el.value; });
+      if (!data.acid) { showAlert('ACID номер обязателен', 'error'); return; }
       try {
-        await api('POST', '/acid', Object.fromEntries(new FormData(e.target)));
+        await api('POST', '/acid', data);
         showAlert('Груз добавлен');
-        e.target.reset();
+        row.remove();
         loadTable('acid').then(rows => renderAcidTable(rows));
-      }
-      catch (err) { showAlert(err.message, 'error'); }
-    });
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    function cancelAcidRow() {
+      const row = document.getElementById('acidNewRow');
+      if (row) row.remove();
+    }
 
     document.getElementById('contractForm').addEventListener('submit', async e => {
       e.preventDefault();
@@ -2439,6 +2408,7 @@
         try {
           authToken   = savedToken;
           currentUser = JSON.parse(savedUser);
+          scheduleTokenRefresh(authToken);
           document.getElementById('loginScreen').style.display = 'none';
           document.getElementById('appScreen').style.display   = 'block';
           initUserUI(currentUser);

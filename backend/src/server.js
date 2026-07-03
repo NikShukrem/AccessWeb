@@ -154,6 +154,21 @@ const apiLimiter = rateLimit({
 app.use('/auth/login', authLimiter);
 app.use(apiLimiter);
 
+app.get('/health', (req, res) => res.json({ ok: true }));
+
+// index.html and sw.js must never be served from cache — clients must always get the latest version
+app.get(['/sw.js'], (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.sendFile(join(__dirname, '../../sw.js'));
+});
+
+app.get(['/', '/index.html'], (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.sendFile(join(__dirname, '../../index.html'));
+});
+
 app.use(express.static(join(__dirname, '../../')));
 
 // ============== DB INIT ==============
@@ -376,6 +391,27 @@ function sanitizeColumns(table, data) {
   );
 }
 
+const NUMERIC_FIELDS = {
+  acid:             new Set(['gw_kg','packages_qty','containers_qty','cargo_cost','shipping_cost','invoice_uploaded']),
+  contracts:        new Set(['amount','amount_with_ds','paid_amount','limit_balance']),
+  ais_transactions: new Set(['amount','amount_usd','urgent']),
+  acid_kti:         new Set(['amount_usd']),
+};
+
+function castNumericFields(table, data) {
+  const fields = NUMERIC_FIELDS[table];
+  if (!fields) return data;
+  const result = { ...data };
+  for (const [k, v] of Object.entries(result)) {
+    if (fields.has(k) && v !== '' && v !== null && v !== undefined) {
+      const n = Number(v);
+      if (!isNaN(n)) result[k] = n;
+      else delete result[k]; // drop non-numeric strings for numeric columns
+    }
+  }
+  return result;
+}
+
 // ============== AUTH ==============
 
 app.post('/auth/login', async (req, res) => {
@@ -411,6 +447,12 @@ app.post('/auth/login', async (req, res) => {
   }
 });
 
+app.post('/auth/refresh', auth, (req, res) => {
+  const { id, login, name, role, is_egypt_mode } = req.user;
+  const token = jwt.sign({ id, login, name, role, is_egypt_mode }, JWT_SECRET, { expiresIn: '12h' });
+  res.json({ token });
+});
+
 app.get('/auth/me', auth, async (req, res) => {
   try {
     const user = await db.get(
@@ -428,78 +470,68 @@ app.get('/auth/me', auth, async (req, res) => {
 
 app.get('/dashboard', auth, async (req, res) => {
   try {
-    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const today = new Date().toISOString().slice(0, 10);
+    const role  = req.user.role;
+    const perm  = ROLE_PERMISSIONS[role] || {};
 
-    const [
-      contractStats,
-      cargoStats,
-      transactionStats,
-      overdueStages,
-      recentCargos
-    ] = await Promise.all([
-      // Contracts summary
-      db.get(`
-        SELECT
-          COUNT(*) AS total,
-          SUM(CASE WHEN status = 'active'    THEN 1 ELSE 0 END) AS active,
-          SUM(CASE WHEN status = 'expired'   THEN 1 ELSE 0 END) AS expired,
-          COALESCE(SUM(amount), 0)         AS total_amount,
-          COALESCE(SUM(paid_amount), 0)    AS total_paid,
-          COALESCE(SUM(limit_balance), 0)  AS limit_balance_sum
-        FROM contracts
-      `),
-      // Cargo summary
-      db.get(`
-        SELECT
-          COUNT(*) AS total,
-          SUM(CASE WHEN status = 'in_transit' THEN 1 ELSE 0 END) AS in_transit,
-          SUM(CASE WHEN status = 'customs'    THEN 1 ELSE 0 END) AS customs,
-          SUM(CASE WHEN status = 'delivered'  THEN 1 ELSE 0 END) AS delivered,
-          SUM(CASE WHEN eta < ? AND status NOT IN ('delivered','cancelled') THEN 1 ELSE 0 END) AS overdue
-        FROM acid
-      `, [today]),
-      // Transactions summary
-      db.get(`
-        SELECT
-          COALESCE(SUM(amount_usd), 0)                                              AS total_usd,
-          COALESCE(SUM(CASE WHEN status = 'pending' THEN amount_usd ELSE 0 END), 0) AS pending_usd,
-          SUM(CASE WHEN urgent = 1 THEN 1 ELSE 0 END)                               AS urgent_count
-        FROM ais_transactions
-      `),
-      // Top 5 overdue stages
-      db.all(`
-        SELECT
-          c.contract_number,
-          cs.stage_name,
-          cs.planned_date,
-          cs.responsible,
-          CAST(julianday(?) - julianday(cs.planned_date) AS INTEGER) AS days_overdue
-        FROM contract_stages cs
-        JOIN contracts c ON c.id = cs.contract_id
-        WHERE cs.status NOT IN ('completed')
-          AND cs.planned_date < ?
-          AND cs.planned_date IS NOT NULL
-          AND cs.planned_date != ''
-        ORDER BY cs.planned_date ASC
-        LIMIT 5
-      `, [today, today]),
-      // Last 5 cargos by created_at
-      db.all(`
-        SELECT * FROM acid
-        ORDER BY created_at DESC
-        LIMIT 5
-      `)
+    // Determine what this role can see on the dashboard
+    const canSeeContracts     = perm.tables === '*' || (Array.isArray(perm.tables) && perm.tables.includes('contracts'));
+    const canSeeTransactions  = perm.tables === '*' || (Array.isArray(perm.tables) && perm.tables.includes('ais_transactions'));
+
+    const cargoStatsPromise = db.get(`
+      SELECT
+        COUNT(*) AS total,
+        SUM(CASE WHEN status = 'in_transit' THEN 1 ELSE 0 END) AS in_transit,
+        SUM(CASE WHEN status = 'customs'    THEN 1 ELSE 0 END) AS customs,
+        SUM(CASE WHEN status = 'delivered'  THEN 1 ELSE 0 END) AS delivered,
+        SUM(CASE WHEN eta < ? AND status NOT IN ('delivered','cancelled') THEN 1 ELSE 0 END) AS overdue
+      FROM acid
+    `, [today]);
+
+    const recentCargosPromise = db.all(`SELECT * FROM acid ORDER BY created_at DESC LIMIT 5`);
+
+    const contractStatsPromise = canSeeContracts ? db.get(`
+      SELECT
+        COUNT(*) AS total,
+        SUM(CASE WHEN status = 'active'  THEN 1 ELSE 0 END) AS active,
+        SUM(CASE WHEN status = 'expired' THEN 1 ELSE 0 END) AS expired,
+        COALESCE(SUM(amount), 0)        AS total_amount,
+        COALESCE(SUM(paid_amount), 0)   AS total_paid,
+        COALESCE(SUM(limit_balance), 0) AS limit_balance_sum
+      FROM contracts
+    `) : Promise.resolve(null);
+
+    const transactionStatsPromise = canSeeTransactions ? db.get(`
+      SELECT
+        COALESCE(SUM(amount_usd), 0)                                               AS total_usd,
+        COALESCE(SUM(CASE WHEN status = 'pending' THEN amount_usd ELSE 0 END), 0)  AS pending_usd,
+        SUM(CASE WHEN urgent = 1 THEN 1 ELSE 0 END)                                AS urgent_count
+      FROM ais_transactions
+    `) : Promise.resolve(null);
+
+    const overdueStagesPromise = canSeeContracts ? db.all(`
+      SELECT c.contract_number, cs.stage_name, cs.planned_date, cs.responsible,
+        CAST(julianday(?) - julianday(cs.planned_date) AS INTEGER) AS days_overdue
+      FROM contract_stages cs
+      JOIN contracts c ON c.id = cs.contract_id
+      WHERE cs.status NOT IN ('completed')
+        AND cs.planned_date < ? AND cs.planned_date IS NOT NULL AND cs.planned_date != ''
+      ORDER BY cs.planned_date ASC LIMIT 5
+    `, [today, today]) : Promise.resolve([]);
+
+    const [cargoStats, recentCargos, contractStats, transactionStats, overdueStages] = await Promise.all([
+      cargoStatsPromise, recentCargosPromise, contractStatsPromise, transactionStatsPromise, overdueStagesPromise
     ]);
 
     res.json({
-      contracts: {
-        total:             contractStats.total         || 0,
-        active:            contractStats.active        || 0,
-        expired:           contractStats.expired       || 0,
-        total_amount:      contractStats.total_amount  || 0,
-        total_paid:        contractStats.total_paid    || 0,
+      contracts: contractStats ? {
+        total:             contractStats.total             || 0,
+        active:            contractStats.active            || 0,
+        expired:           contractStats.expired           || 0,
+        total_amount:      contractStats.total_amount      || 0,
+        total_paid:        contractStats.total_paid        || 0,
         limit_balance_sum: contractStats.limit_balance_sum || 0
-      },
+      } : null,
       cargo: {
         total:      cargoStats.total      || 0,
         in_transit: cargoStats.in_transit || 0,
@@ -507,11 +539,11 @@ app.get('/dashboard', auth, async (req, res) => {
         delivered:  cargoStats.delivered  || 0,
         overdue:    cargoStats.overdue    || 0
       },
-      transactions: {
+      transactions: transactionStats ? {
         total_usd:    transactionStats.total_usd    || 0,
         pending_usd:  transactionStats.pending_usd  || 0,
         urgent_count: transactionStats.urgent_count || 0
-      },
+      } : null,
       overdue_stages: overdueStages,
       recent_cargos:  recentCargos
     });
@@ -544,7 +576,15 @@ app.post('/:table', auth, checkAccess, async (req, res) => {
     const { table } = req.params;
     if (!VALID_TABLES.has(table)) return res.status(400).json({ error: 'Неверная таблица' });
 
-    const data = sanitizeColumns(table, req.body);
+    let data = castNumericFields(table, sanitizeColumns(table, req.body));
+
+    // Auto-compute limit_balance for contracts
+    if (table === 'contracts') {
+      const base = parseFloat(data.amount_with_ds ?? data.amount ?? 0) || 0;
+      const paid = parseFloat(data.paid_amount ?? 0) || 0;
+      data.limit_balance = Math.max(0, base - paid);
+    }
+
     const columns = Object.keys(data);
     if (columns.length === 0) return res.status(400).json({ error: 'Нет допустимых полей' });
 
@@ -577,7 +617,16 @@ app.put('/:table/:id', auth, checkAccess, async (req, res) => {
     const body = { ...req.body };
     delete body._version;
 
-    const data = sanitizeColumns(table, body);
+    let data = castNumericFields(table, sanitizeColumns(table, body));
+
+    // Auto-compute limit_balance for contracts
+    if (table === 'contracts') {
+      const current = await db.get(`SELECT amount, amount_with_ds, paid_amount FROM contracts WHERE id = ?`, [id]);
+      const base = parseFloat(data.amount_with_ds ?? current?.amount_with_ds ?? data.amount ?? current?.amount ?? 0) || 0;
+      const paid = parseFloat(data.paid_amount ?? current?.paid_amount ?? 0) || 0;
+      data.limit_balance = Math.max(0, base - paid);
+    }
+
     const columns = Object.keys(data);
     if (columns.length === 0) return res.status(400).json({ error: 'Нет допустимых полей' });
 
@@ -654,11 +703,11 @@ app.post('/import/:table', auth, checkImport, async (req, res) => {
         const columnsList = ['id', ...columns].join(',');
 
         try {
-          await db.run(
+          const result = await db.run(
             `INSERT OR IGNORE INTO ${table} (${columnsList}) VALUES (${placeholders})`,
             [id, ...columns.map(k => data[k])]
           );
-          imported++;
+          if (result.changes > 0) imported++; else skipped++;
         } catch (rowErr) {
           errors.push(rowErr.message);
           skipped++;

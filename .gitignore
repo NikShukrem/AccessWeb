@@ -13,3 +13,5 @@ __pycache__/
 backend/data/*.db
 backend/data/*.db-shm
 backend/data/*.db-wal
+backend/seed.js
+server.log

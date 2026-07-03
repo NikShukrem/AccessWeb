@@ -1,34 +1,35 @@
-// Service Worker для полностью оффлайн работы AccessWeb
-const CACHE_NAME = 'accessweb-v1';
-const urlsToCache = ['/'];
+const CACHE_NAME = 'accessweb-v3';
 
 self.addEventListener('install', event => {
-    console.log('Service Worker installing...');
-    event.waitUntil(
-        caches.open(CACHE_NAME)
-            .then(cache => cache.addAll(urlsToCache))
-            .catch(err => console.log('Cache add failed:', err))
-    );
+  self.skipWaiting(); // activate immediately, don't wait for old SW to die
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(cache => cache.addAll(['/'])).catch(() => {})
+  );
+});
+
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys()
+      .then(names => Promise.all(
+        names.filter(n => n !== CACHE_NAME).map(n => caches.delete(n))
+      ))
+      .then(() => self.clients.claim())
+      .then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
+      .then(clients => Promise.all(clients.map(c => c.navigate(c.url))))
+  );
 });
 
 self.addEventListener('fetch', event => {
-    // Network first, fallback to cache
-    event.respondWith(
-        fetch(event.request)
-            .then(response => {
-                // Кэшируем успешные ответы
-                if (response.status === 200) {
-                    const responseClone = response.clone();
-                    caches.open(CACHE_NAME).then(cache => {
-                        cache.put(event.request, responseClone);
-                    });
-                }
-                return response;
-            })
-            .catch(() => {
-                // Если нет сети, пытаемся вернуть из кэша
-                return caches.match(event.request)
-                    .then(response => response || new Response('Offline'));
-            })
-    );
+  // Always network-first — never serve stale HTML
+  event.respondWith(
+    fetch(event.request)
+      .then(response => {
+        if (response.status === 200) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+        }
+        return response;
+      })
+      .catch(() => caches.match(event.request).then(r => r || new Response('Offline')))
+  );
 });
