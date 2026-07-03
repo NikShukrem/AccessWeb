@@ -7,7 +7,7 @@
   <script>
     // Auto cache-bust: when APP_VERSION changes, wipe all SW caches and re-register
     (function () {
-      var APP_VERSION = '3.1.0';
+      var APP_VERSION = '3.1.1';
       if (localStorage.getItem('aw_version') !== APP_VERSION) {
         localStorage.setItem('aw_version', APP_VERSION);
         var cleared = Promise.all([
