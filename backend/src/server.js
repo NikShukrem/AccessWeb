@@ -11,9 +11,25 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
+import { createRequire } from 'module';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+// Load .env from backend directory
+try {
+  const require = createRequire(import.meta.url);
+  const dotenv = require('dotenv');
+  dotenv.config({ path: join(__dirname, '../.env') });
+} catch { /* dotenv optional */ }
+
+// Prevent unhandled rejections from crashing the process
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled rejection:', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err);
+});
 
 const PORT = process.env.PORT || 8080;
 const DB_PATH = process.env.DB_PATH || join(__dirname, '../data/accessweb.db');
@@ -744,6 +760,14 @@ app.post('/import/:table', auth, checkImport, async (req, res) => {
     console.error('Import error:', err);
     res.status(500).json({ error: 'Ошибка импорта' });
   }
+});
+
+// ============== ERROR MIDDLEWARE ==============
+
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  console.error('Express error:', err);
+  res.status(500).json({ error: 'Внутренняя ошибка сервера' });
 });
 
 // ============== STARTUP ==============
