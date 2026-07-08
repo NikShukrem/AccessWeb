@@ -58,7 +58,7 @@ tunnel.bat
 
 ```
 AccessWeb/
-├── index.html        # Основное приложение
+├── index.html         # Основное приложение
 ├── egypt.html         # Облегчённая версия для профиля «Египет»
 ├── sw.js              # Service Worker
 ├── run.bat            # Запуск (git pull + start.bat) — основной способ
