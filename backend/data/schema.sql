@@ -219,9 +219,51 @@ CREATE TABLE IF NOT EXISTS notifications (
   message TEXT,
   type TEXT DEFAULT 'info'
     CHECK(type IN ('info','warning','error','success')),
-  entity_type TEXT CHECK(entity_type IN ('contract','cargo','transaction','stage')),
+  entity_type TEXT CHECK(entity_type IN ('contract','cargo','transaction','stage','task')),
   entity_id TEXT,
   is_read BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ===== TASKS (manager CRM: assignment & control of subordinates' work) =====
+CREATE TABLE IF NOT EXISTS tasks (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  description TEXT,
+  assigned_to TEXT REFERENCES users(id) ON DELETE SET NULL,
+  assigned_to_name TEXT,                     -- denormalized
+  assigned_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+  assigned_by_name TEXT,                     -- denormalized
+  priority TEXT DEFAULT 'medium'
+    CHECK(priority IN ('low','medium','high','urgent')),
+  status TEXT DEFAULT 'new'
+    CHECK(status IN ('new','in_progress','review','done','cancelled')),
+  due_date TEXT,
+  entity_type TEXT CHECK(entity_type IS NULL OR entity_type IN ('contract','cargo','counterparty')),
+  entity_id TEXT,
+  entity_label TEXT,                         -- denormalized display (e.g. contract number)
+  completed_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ===== TASK COMMENTS =====
+CREATE TABLE IF NOT EXISTS task_comments (
+  id TEXT PRIMARY KEY,
+  task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+  author_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+  author_name TEXT,                          -- denormalized
+  message TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ===== TASK CHECKLIST (subtasks) =====
+CREATE TABLE IF NOT EXISTS task_checklist (
+  id TEXT PRIMARY KEY,
+  task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  is_done BOOLEAN DEFAULT FALSE,
+  sort_order INTEGER DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -274,3 +316,16 @@ CREATE INDEX IF NOT EXISTS idx_transactions_urgent ON ais_transactions(urgent);
 -- notifications
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(is_read);
+
+-- tasks
+CREATE INDEX IF NOT EXISTS idx_tasks_assigned_to ON tasks(assigned_to);
+CREATE INDEX IF NOT EXISTS idx_tasks_assigned_by ON tasks(assigned_by);
+CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
+CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority);
+CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);
+
+-- task_comments
+CREATE INDEX IF NOT EXISTS idx_task_comments_task ON task_comments(task_id);
+
+-- task_checklist
+CREATE INDEX IF NOT EXISTS idx_task_checklist_task ON task_checklist(task_id);

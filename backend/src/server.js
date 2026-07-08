@@ -186,6 +186,13 @@ app.get(['/', '/index.html'], (req, res) => {
   res.sendFile(join(__dirname, '../../index.html'));
 });
 
+// Lightweight standalone page for the Egypt role — no charting/import libraries
+app.get(['/egypt.html'], (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.sendFile(join(__dirname, '../../egypt.html'));
+});
+
 app.use(express.static(join(__dirname, '../../')));
 
 // ============== DB INIT ==============
@@ -251,6 +258,14 @@ async function runMigrations() {
     await db.exec('PRAGMA foreign_keys=ON');
     console.log('Migration: old tables dropped, new schema will be applied by schema.sql');
   }
+
+  // Rename the generic "Директор" placeholder to an actual person's name on already-seeded installs
+  const hasUsersTable = await db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='users'");
+  if (hasUsersTable) {
+    await db.run(
+      "UPDATE users SET name = 'Соколова Виктория Андреевна' WHERE login = 'director' AND name = 'Директор'"
+    );
+  }
 }
 
 async function seedUsers() {
@@ -275,10 +290,15 @@ async function seedUsers() {
   }
 
   const defaultUsers = [
-    { login: 'director',    password: 'director123',  name: 'Директор',                 role: 'director' },
+    { login: 'director',    password: 'director123',  name: 'Соколова Виктория Андреевна', role: 'director' },
     { login: 'logistics',   password: 'logistics123', name: 'Логистическая поддержка',  role: 'logistics_support' },
     { login: 'analytics',   password: 'analytics123', name: 'Информационная аналитика', role: 'info_analytics' },
     { login: 'oplogistics', password: 'oplog123',     name: 'Оперативная логистика',    role: 'operational_logistics' },
+    { login: 'ivanov',      password: 'ivanov123',    name: 'Иванов Сергей Петрович',      role: 'logistics_support' },
+    { login: 'smirnova',    password: 'smirnova123',  name: 'Смирнова Анна Викторовна',    role: 'info_analytics' },
+    { login: 'kuznetsov',   password: 'kuznetsov123', name: 'Кузнецов Дмитрий Олегович',   role: 'operational_logistics' },
+    { login: 'volkova',     password: 'volkova123',   name: 'Волкова Марина Сергеевна',    role: 'logistics_support' },
+    { login: 'popov',       password: 'popov123',     name: 'Попов Игорь Николаевич',      role: 'operational_logistics' },
   ];
 
   for (const u of defaultUsers) {
@@ -566,6 +586,371 @@ app.get('/dashboard', auth, async (req, res) => {
     });
   } catch (err) {
     console.error('Dashboard error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// ============== USERS (for task assignment) ==============
+
+const MANAGER_ROLES = new Set(['admin', 'director']);
+function isManager(role) { return MANAGER_ROLES.has(role); }
+
+app.get('/users', auth, async (req, res) => {
+  try {
+    if (!isManager(req.user.role)) return res.status(403).json({ error: 'Нет доступа' });
+    const rows = await db.all(
+      'SELECT id, login, name, role, department FROM users ORDER BY name'
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Users list error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// ============== TASKS (manager CRM: assignment & control) ==============
+
+const TASK_STATUSES = new Set(['new', 'in_progress', 'review', 'done', 'cancelled']);
+const TASK_PRIORITIES = new Set(['low', 'medium', 'high', 'urgent']);
+
+async function canAccessTask(userId, role, task) {
+  if (isManager(role)) return true;
+  return task.assigned_to === userId || task.assigned_by === userId;
+}
+
+async function notifyUser(userId, title, message, taskId, type = 'info') {
+  if (!userId) return;
+  try {
+    await db.run(
+      `INSERT INTO notifications (id, user_id, title, message, type, entity_type, entity_id)
+       VALUES (?, ?, ?, ?, ?, 'task', ?)`,
+      [uuidv4(), userId, title, message, type, taskId]
+    );
+  } catch { /* non-fatal */ }
+}
+
+// List tasks — managers see everything (optionally filtered), others only their own
+app.get('/tasks', auth, async (req, res) => {
+  try {
+    const { status, priority, assigned_to, overdue } = req.query;
+    const where = [];
+    const params = [];
+
+    if (isManager(req.user.role)) {
+      if (assigned_to) { where.push('assigned_to = ?'); params.push(assigned_to); }
+    } else {
+      where.push('(assigned_to = ? OR assigned_by = ?)');
+      params.push(req.user.id, req.user.id);
+    }
+    if (status && TASK_STATUSES.has(status)) { where.push('status = ?'); params.push(status); }
+    if (priority && TASK_PRIORITIES.has(priority)) { where.push('priority = ?'); params.push(priority); }
+    if (overdue === '1') {
+      where.push("due_date < ? AND due_date IS NOT NULL AND due_date != '' AND status NOT IN ('done','cancelled')");
+      params.push(new Date().toISOString().slice(0, 10));
+    }
+
+    const sql = `SELECT * FROM tasks ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY
+      CASE status WHEN 'new' THEN 0 WHEN 'in_progress' THEN 1 WHEN 'review' THEN 2 WHEN 'done' THEN 3 ELSE 4 END,
+      CASE priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
+      due_date IS NULL, due_date ASC`;
+
+    const rows = await db.all(sql, params);
+    res.json(rows);
+  } catch (err) {
+    console.error('Tasks list error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// Per-employee stats — managers only
+app.get('/tasks/stats', auth, async (req, res) => {
+  try {
+    if (!isManager(req.user.role)) return res.status(403).json({ error: 'Нет доступа' });
+    const today = new Date().toISOString().slice(0, 10);
+
+    const rows = await db.all(`
+      SELECT
+        u.id, u.name, u.role,
+        COUNT(t.id) AS total,
+        SUM(CASE WHEN t.status = 'new' THEN 1 ELSE 0 END) AS new_count,
+        SUM(CASE WHEN t.status = 'in_progress' THEN 1 ELSE 0 END) AS in_progress_count,
+        SUM(CASE WHEN t.status = 'review' THEN 1 ELSE 0 END) AS review_count,
+        SUM(CASE WHEN t.status = 'done' THEN 1 ELSE 0 END) AS done_count,
+        SUM(CASE WHEN t.status NOT IN ('done','cancelled') AND t.due_date IS NOT NULL
+                   AND t.due_date != '' AND t.due_date < ? THEN 1 ELSE 0 END) AS overdue_count
+      FROM users u
+      LEFT JOIN tasks t ON t.assigned_to = u.id
+      GROUP BY u.id
+      HAVING total > 0
+      ORDER BY overdue_count DESC, total DESC
+    `, [today]);
+
+    res.json(rows);
+  } catch (err) {
+    console.error('Task stats error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// Task detail — includes comments and checklist
+app.get('/tasks/:id', auth, async (req, res) => {
+  try {
+    const task = await db.get('SELECT * FROM tasks WHERE id = ?', [req.params.id]);
+    if (!task) return res.status(404).json({ error: 'Задача не найдена' });
+    if (!(await canAccessTask(req.user.id, req.user.role, task))) {
+      return res.status(403).json({ error: 'Нет доступа к этой задаче' });
+    }
+    const comments = await db.all(
+      'SELECT * FROM task_comments WHERE task_id = ? ORDER BY created_at ASC', [req.params.id]
+    );
+    const checklist = await db.all(
+      'SELECT * FROM task_checklist WHERE task_id = ? ORDER BY sort_order ASC, created_at ASC', [req.params.id]
+    );
+    res.json({ ...task, comments, checklist });
+  } catch (err) {
+    console.error('Task detail error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// Create task — managers only
+app.post('/tasks', auth, async (req, res) => {
+  try {
+    if (!isManager(req.user.role)) return res.status(403).json({ error: 'Только руководитель может назначать задачи' });
+
+    const { title, description, assigned_to, priority, due_date, entity_type, entity_id, entity_label } = req.body;
+    if (!title || !String(title).trim()) return res.status(400).json({ error: 'Укажите название задачи' });
+    if (!assigned_to) return res.status(400).json({ error: 'Укажите исполнителя' });
+
+    const assignee = await db.get('SELECT id, name FROM users WHERE id = ?', [assigned_to]);
+    if (!assignee) return res.status(400).json({ error: 'Исполнитель не найден' });
+
+    const id = uuidv4();
+    await db.run(
+      `INSERT INTO tasks (id, title, description, assigned_to, assigned_to_name, assigned_by, assigned_by_name,
+                           priority, status, due_date, entity_type, entity_id, entity_label)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'new', ?, ?, ?, ?)`,
+      [
+        id, String(title).trim(), description || null, assignee.id, assignee.name,
+        req.user.id, req.user.name,
+        TASK_PRIORITIES.has(priority) ? priority : 'medium',
+        due_date || null,
+        entity_type || null, entity_id || null, entity_label || null
+      ]
+    );
+
+    await notifyUser(assignee.id, 'Новая задача', `Вам назначена задача: ${String(title).trim()}`, id);
+    res.json({ id });
+  } catch (err) {
+    console.error('Task create error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// Full edit (reassign, priority, due date, description) — managers only
+app.put('/tasks/:id', auth, async (req, res) => {
+  try {
+    if (!isManager(req.user.role)) return res.status(403).json({ error: 'Только руководитель может редактировать задачу' });
+
+    const task = await db.get('SELECT * FROM tasks WHERE id = ?', [req.params.id]);
+    if (!task) return res.status(404).json({ error: 'Задача не найдена' });
+
+    const { title, description, assigned_to, priority, status, due_date, entity_type, entity_id, entity_label } = req.body;
+
+    let assignedTo = task.assigned_to, assignedToName = task.assigned_to_name;
+    if (assigned_to && assigned_to !== task.assigned_to) {
+      const assignee = await db.get('SELECT id, name FROM users WHERE id = ?', [assigned_to]);
+      if (!assignee) return res.status(400).json({ error: 'Исполнитель не найден' });
+      assignedTo = assignee.id; assignedToName = assignee.name;
+    }
+
+    const newStatus = TASK_STATUSES.has(status) ? status : task.status;
+    const completedAt = (newStatus === 'done' && task.status !== 'done')
+      ? new Date().toISOString()
+      : (newStatus !== 'done' ? null : task.completed_at);
+
+    await db.run(
+      `UPDATE tasks SET title = ?, description = ?, assigned_to = ?, assigned_to_name = ?,
+                         priority = ?, status = ?, due_date = ?,
+                         entity_type = ?, entity_id = ?, entity_label = ?,
+                         completed_at = ?, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+      [
+        title ? String(title).trim() : task.title,
+        description !== undefined ? description : task.description,
+        assignedTo, assignedToName,
+        TASK_PRIORITIES.has(priority) ? priority : task.priority,
+        newStatus,
+        due_date !== undefined ? due_date : task.due_date,
+        entity_type !== undefined ? entity_type : task.entity_type,
+        entity_id !== undefined ? entity_id : task.entity_id,
+        entity_label !== undefined ? entity_label : task.entity_label,
+        completedAt,
+        req.params.id
+      ]
+    );
+
+    if (assignedTo !== task.assigned_to) {
+      await notifyUser(assignedTo, 'Задача переназначена', `Вам назначена задача: ${title || task.title}`, req.params.id);
+    }
+
+    res.json({ id: req.params.id });
+  } catch (err) {
+    console.error('Task update error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// Change status — assignee, assigner, or manager
+app.patch('/tasks/:id/status', auth, async (req, res) => {
+  try {
+    const task = await db.get('SELECT * FROM tasks WHERE id = ?', [req.params.id]);
+    if (!task) return res.status(404).json({ error: 'Задача не найдена' });
+    if (!(await canAccessTask(req.user.id, req.user.role, task))) {
+      return res.status(403).json({ error: 'Нет доступа к этой задаче' });
+    }
+
+    const { status } = req.body;
+    if (!TASK_STATUSES.has(status)) return res.status(400).json({ error: 'Неверный статус' });
+
+    const completedAt = (status === 'done' && task.status !== 'done')
+      ? new Date().toISOString()
+      : (status !== 'done' ? null : task.completed_at);
+
+    await db.run(
+      `UPDATE tasks SET status = ?, completed_at = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      [status, completedAt, req.params.id]
+    );
+
+    if (task.assigned_by && task.assigned_by !== req.user.id) {
+      await notifyUser(task.assigned_by, 'Статус задачи изменён', `«${task.title}» → ${status}`, req.params.id);
+    }
+
+    res.json({ id: req.params.id, status });
+  } catch (err) {
+    console.error('Task status error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// Delete task — managers only
+app.delete('/tasks/:id', auth, async (req, res) => {
+  try {
+    if (!isManager(req.user.role)) return res.status(403).json({ error: 'Только руководитель может удалять задачи' });
+    await db.run('DELETE FROM tasks WHERE id = ?', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Task delete error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// Comments
+app.get('/tasks/:id/comments', auth, async (req, res) => {
+  try {
+    const task = await db.get('SELECT id, assigned_to, assigned_by FROM tasks WHERE id = ?', [req.params.id]);
+    if (!task) return res.status(404).json({ error: 'Задача не найдена' });
+    if (!(await canAccessTask(req.user.id, req.user.role, task))) {
+      return res.status(403).json({ error: 'Нет доступа к этой задаче' });
+    }
+    const comments = await db.all(
+      'SELECT * FROM task_comments WHERE task_id = ? ORDER BY created_at ASC', [req.params.id]
+    );
+    res.json(comments);
+  } catch (err) {
+    console.error('Comments list error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+app.post('/tasks/:id/comments', auth, async (req, res) => {
+  try {
+    const task = await db.get('SELECT * FROM tasks WHERE id = ?', [req.params.id]);
+    if (!task) return res.status(404).json({ error: 'Задача не найдена' });
+    if (!(await canAccessTask(req.user.id, req.user.role, task))) {
+      return res.status(403).json({ error: 'Нет доступа к этой задаче' });
+    }
+
+    const { message } = req.body;
+    if (!message || !String(message).trim()) return res.status(400).json({ error: 'Пустой комментарий' });
+
+    const id = uuidv4();
+    await db.run(
+      `INSERT INTO task_comments (id, task_id, author_id, author_name, message)
+       VALUES (?, ?, ?, ?, ?)`,
+      [id, req.params.id, req.user.id, req.user.name, String(message).trim()]
+    );
+
+    const notifyTarget = req.user.id === task.assigned_to ? task.assigned_by : task.assigned_to;
+    if (notifyTarget) {
+      await notifyUser(notifyTarget, 'Новый комментарий', `«${task.title}»: ${String(message).trim().slice(0, 100)}`, req.params.id);
+    }
+
+    res.json({ id });
+  } catch (err) {
+    console.error('Comment create error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// Checklist (subtasks)
+app.post('/tasks/:id/checklist', auth, async (req, res) => {
+  try {
+    const task = await db.get('SELECT * FROM tasks WHERE id = ?', [req.params.id]);
+    if (!task) return res.status(404).json({ error: 'Задача не найдена' });
+    if (!(await canAccessTask(req.user.id, req.user.role, task))) {
+      return res.status(403).json({ error: 'Нет доступа к этой задаче' });
+    }
+
+    const { title } = req.body;
+    if (!title || !String(title).trim()) return res.status(400).json({ error: 'Укажите название пункта' });
+
+    const { maxOrder } = await db.get(
+      'SELECT COALESCE(MAX(sort_order), -1) AS maxOrder FROM task_checklist WHERE task_id = ?', [req.params.id]
+    );
+
+    const id = uuidv4();
+    await db.run(
+      `INSERT INTO task_checklist (id, task_id, title, sort_order) VALUES (?, ?, ?, ?)`,
+      [id, req.params.id, String(title).trim(), maxOrder + 1]
+    );
+    res.json({ id });
+  } catch (err) {
+    console.error('Checklist create error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+app.put('/tasks/:id/checklist/:itemId', auth, async (req, res) => {
+  try {
+    const task = await db.get('SELECT * FROM tasks WHERE id = ?', [req.params.id]);
+    if (!task) return res.status(404).json({ error: 'Задача не найдена' });
+    if (!(await canAccessTask(req.user.id, req.user.role, task))) {
+      return res.status(403).json({ error: 'Нет доступа к этой задаче' });
+    }
+    const { is_done } = req.body;
+    await db.run(
+      'UPDATE task_checklist SET is_done = ? WHERE id = ? AND task_id = ?',
+      [is_done ? 1 : 0, req.params.itemId, req.params.id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Checklist update error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+app.delete('/tasks/:id/checklist/:itemId', auth, async (req, res) => {
+  try {
+    const task = await db.get('SELECT * FROM tasks WHERE id = ?', [req.params.id]);
+    if (!task) return res.status(404).json({ error: 'Задача не найдена' });
+    if (!(await canAccessTask(req.user.id, req.user.role, task))) {
+      return res.status(403).json({ error: 'Нет доступа к этой задаче' });
+    }
+    await db.run('DELETE FROM task_checklist WHERE id = ? AND task_id = ?', [req.params.itemId, req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Checklist delete error:', err);
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });

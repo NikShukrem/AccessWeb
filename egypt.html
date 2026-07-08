@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AccessWeb — Египет</title>
+<meta name="api-base" content="">
+<style>
+  :root {
+    --titan-primary: #1A3D5C;
+    --titan-dark: #0F2A3F;
+    --titan-accent: #E67E22;
+    --titan-danger: #C0392B;
+    --gray-light: #F8FAFC;
+    --gray-border: #D5DBEA;
+    --gray-text: #5A6F85;
+    --success: #27AE60;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--gray-light);
+    color: #2C3E50;
+    line-height: 1.5;
+    font-size: 14px;
+  }
+  .login-container {
+    display: flex; justify-content: center; align-items: center; min-height: 100vh;
+    background: linear-gradient(135deg, var(--titan-primary) 0%, var(--titan-dark) 100%);
+  }
+  .login-card {
+    background: #fff; padding: 40px; border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.3); width: 100%; max-width: 380px;
+  }
+  .login-card h1 { text-align: center; color: var(--titan-primary); font-size: 28px; margin-bottom: 6px; }
+  .login-card p { text-align: center; color: var(--gray-text); margin-bottom: 24px; }
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; margin-bottom: 6px; color: var(--titan-primary); font-weight: 500; }
+  .form-group input, .form-group select, .form-group textarea {
+    width: 100%; padding: 10px; border: 2px solid var(--gray-border); border-radius: 8px; font-size: 14px; font-family: inherit;
+  }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+    outline: none; border-color: var(--titan-accent);
+  }
+  button { cursor: pointer; font-family: inherit; }
+  .btn-primary {
+    width: 100%; padding: 12px; background: var(--titan-primary); color: #fff;
+    border: none; border-radius: 8px; font-size: 15px; font-weight: 600;
+  }
+  .btn-primary:disabled { opacity: .6; }
+
+  header.topbar {
+    background: var(--titan-primary); color: #fff; padding: 14px 16px;
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;
+  }
+  header.topbar h1 { font-size: 18px; }
+  header.topbar .user { font-size: 12px; opacity: .9; text-align: right; }
+  .btn-logout {
+    background: transparent; border: 1px solid rgba(255,255,255,.4); color: #fff;
+    padding: 6px 12px; border-radius: 6px; font-size: 12px;
+  }
+
+  main { padding: 16px; max-width: 720px; margin: 0 auto; }
+
+  .toolbar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .toolbar input[type=text] {
+    flex: 1; min-width: 160px; padding: 10px; border: 2px solid var(--gray-border); border-radius: 8px; font-size: 14px;
+  }
+  .btn-add {
+    background: var(--titan-accent); color: #fff; border: none; padding: 10px 16px;
+    border-radius: 8px; font-weight: 600; white-space: nowrap;
+  }
+
+  .filters { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .btn-filter {
+    background: #fff; border: 1px solid var(--gray-border); color: var(--gray-text);
+    padding: 6px 12px; border-radius: 20px; font-size: 12px;
+  }
+  .btn-filter.active { background: var(--titan-primary); color: #fff; border-color: var(--titan-primary); }
+
+  .card {
+    background: #fff; border: 1px solid var(--gray-border); border-radius: 10px;
+    padding: 14px; margin-bottom: 10px;
+  }
+  .card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
+  .card-head strong { font-size: 15px; color: var(--titan-primary); }
+  .badge {
+    display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;
+    background: #EAF1F8; color: var(--titan-primary);
+  }
+  .badge.delivered { background: #E7F7EE; color: var(--success); }
+  .badge.cancelled { background: #FBEAE9; color: var(--titan-danger); }
+  .card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; font-size: 12.5px; color: var(--gray-text); }
+  .card-grid b { color: #2C3E50; font-weight: 500; }
+  .card-actions { margin-top: 10px; display: flex; gap: 8px; }
+  .card-actions button {
+    border: none; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: 600;
+  }
+  .btn-edit { background: #EAF1F8; color: var(--titan-primary); }
+  .btn-delete { background: #FBEAE9; color: var(--titan-danger); }
+
+  #btnLoadMore { display: block; margin: 12px auto; padding: 8px 24px; background: #fff; border: 1px solid var(--gray-border); border-radius: 8px; }
+
+  .alert {
+    position: fixed; top: 16px; right: 16px; left: 16px; max-width: 360px; margin-left: auto;
+    padding: 12px 16px; border-radius: 8px; background: var(--success); color: #fff;
+    font-weight: 500; transform: translateY(-120%); transition: transform .25s; z-index: 999;
+  }
+  .alert.show { transform: translateY(0); }
+  .alert.error { background: var(--titan-danger); }
+
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(15,42,63,.55);
+    align-items: flex-start; justify-content: center; padding: 24px 12px; overflow-y: auto; z-index: 998;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: #fff; border-radius: 12px; width: 100%; max-width: 480px; padding: 24px;
+    max-height: calc(100vh - 48px); overflow-y: auto;
+  }
+  .modal h3 { color: var(--titan-primary); margin-bottom: 16px; }
+  .modal .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 16px; }
+  .modal-actions button { flex: 1; padding: 11px; border: none; border-radius: 8px; font-weight: 600; }
+  .btn-save { background: var(--titan-primary); color: #fff; }
+  .btn-cancel { background: #eee; color: #444; }
+
+  .empty-state { text-align: center; color: var(--gray-text); padding: 40px 0; }
+</style>
+</head>
+<body>
+
+  <!-- LOGIN -->
+  <div id="loginScreen" class="login-container">
+    <div class="login-card">
+      <h1>AccessWeb</h1>
+      <p>Профиль — Египет</p>
+      <form id="loginForm">
+        <div class="form-group">
+          <label>Логин</label>
+          <input type="text" autocomplete="username" required>
+        </div>
+        <div class="form-group">
+          <label>Пароль</label>
+          <input type="password" autocomplete="current-password" required>
+        </div>
+        <button type="submit" class="btn-primary">Войти</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- APP -->
+  <div id="appScreen" style="display:none">
+    <header class="topbar">
+      <h1>Грузы (ACID)</h1>
+      <div class="user">
+        <div><strong id="userName"></strong></div>
+        <button class="btn-logout" onclick="logout()">Выход</button>
+      </div>
+    </header>
+
+    <main>
+      <div class="toolbar">
+        <input type="text" id="search" placeholder="Поиск по ACID, названию..." oninput="applyFilters()">
+        <button class="btn-add" onclick="openForm()">+ Добавить</button>
+      </div>
+      <div class="filters" id="filters">
+        <button class="btn-filter active" data-status="all" onclick="setStatusFilter('all')">Все</button>
+        <button class="btn-filter" data-status="pending" onclick="setStatusFilter('pending')">В работе</button>
+        <button class="btn-filter" data-status="in_transit" onclick="setStatusFilter('in_transit')">В пути</button>
+        <button class="btn-filter" data-status="customs" onclick="setStatusFilter('customs')">Таможня</button>
+        <button class="btn-filter" data-status="delivered" onclick="setStatusFilter('delivered')">Доставлено</button>
+      </div>
+
+      <div id="list"></div>
+      <button id="btnLoadMore" style="display:none" onclick="loadMore()">Загрузить ещё</button>
+    </main>
+  </div>
+
+  <div id="alert" class="alert"></div>
+
+  <!-- ADD/EDIT MODAL -->
+  <div class="modal-overlay" id="formModal">
+    <div class="modal">
+      <h3 id="formTitle">Новый груз</h3>
+      <form id="cargoForm">
+        <div class="form-group">
+          <label>ACID номер <span style="color:var(--titan-danger)">*</span></label>
+          <input type="text" name="acid" required>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>АИС номер</label><input type="text" name="ais_number"></div>
+          <div class="form-group"><label>№ заявки</label><input type="text" name="initial_request_number"></div>
+        </div>
+        <div class="form-group"><label>Название груза</label><input type="text" name="name"></div>
+        <div class="form-row">
+          <div class="form-group"><label>Грузоотправитель</label><input type="text" name="shipper"></div>
+          <div class="form-group"><label>Поставщик</label><input type="text" name="supplier"></div>
+        </div>
+        <div class="form-group"><label>Импортёр</label><input type="text" name="importer_name"></div>
+        <div class="form-row">
+          <div class="form-group"><label>Вес, кг</label><input type="number" step="0.01" min="0" name="gw_kg"></div>
+          <div class="form-group"><label>Мест</label><input type="number" min="0" name="packages_qty"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Судно</label><input type="text" name="vessel"></div>
+          <div class="form-group"><label>Перевозчик</label><input type="text" name="carrier"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>ETD</label><input type="date" name="etd"></div>
+          <div class="form-group"><label>ETA</label><input type="date" name="eta"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Прибытие в Египет</label><input type="date" name="egypt_arrival_date"></div>
+          <div class="form-group"><label>Дата доставки</label><input type="date" name="delivery_date"></div>
+        </div>
+        <div class="form-group">
+          <label>Статус</label>
+          <select name="status">
+            <option value="pending">В работе</option>
+            <option value="in_transit">В пути</option>
+            <option value="customs">На таможне</option>
+            <option value="delivered">Доставлено</option>
+            <option value="cancelled">Отменено</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Ответственный</label><input type="text" name="responsible"></div>
+        <div class="form-group"><label>Примечания</label><textarea name="notes" rows="2"></textarea></div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" onclick="closeForm()">Отмена</button>
+          <button type="submit" class="btn-save">Сохранить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+<script>
+  const API_BASE = (() => {
+    const meta = document.querySelector('meta[name="api-base"]')?.content;
+    if (meta && meta.trim() !== '') return meta.trim();
+    const stored = localStorage.getItem('accessweb_server_url');
+    if (stored) return stored;
+    if (window.location.protocol === 'file:') return 'http://localhost:8080';
+    return window.location.origin;
+  })();
+
+  const STATUS_LABELS = { pending: 'В работе', in_transit: 'В пути', customs: 'На таможне', delivered: 'Доставлено', cancelled: 'Отменено' };
+  const PAGE_SIZE = 100;
+
+  let authToken = localStorage.getItem('authToken');
+  let currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+  let offset = 0;
+  let statusFilter = 'all';
+  let editingId = null;
+
+  async function api(method, path, body) {
+    const opts = { method, headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(`${API_BASE}${path}`, opts);
+    if (res.status === 401) { logout(); throw new Error('Сессия истекла. Войдите снова.'); }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      throw new Error(err.error || res.statusText);
+    }
+    return res.json();
+  }
+
+  function showAlert(msg, type = 'success') {
+    const el = document.getElementById('alert');
+    el.textContent = msg;
+    el.className = `alert show ${type}`;
+    setTimeout(() => el.classList.remove('show'), 3500);
+  }
+
+  function showApp() {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('appScreen').style.display = 'block';
+    document.getElementById('userName').textContent = currentUser.name || currentUser.login;
+    loadList();
+  }
+
+  function logout() {
+    authToken = null; currentUser = null;
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('currentUser');
+    document.getElementById('appScreen').style.display = 'none';
+    document.getElementById('loginScreen').style.display = 'flex';
+  }
+
+  document.getElementById('loginForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const login = e.target[0].value.trim();
+    const password = e.target[1].value;
+    const btn = e.target.querySelector('button');
+    btn.disabled = true; btn.textContent = 'Вход...';
+    try {
+      const res = await fetch(`${API_BASE}/auth/login`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ login, password })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Ошибка входа');
+      authToken = data.token;
+      currentUser = data.user;
+      localStorage.setItem('authToken', authToken);
+      localStorage.setItem('currentUser', JSON.stringify(currentUser));
+      // This lightweight page is for the Egypt role only — redirect everyone else
+      if (currentUser.role !== 'egypt') { window.location.href = 'index.html'; return; }
+      showApp();
+    } catch (err) {
+      showAlert(err.message, 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Войти';
+    }
+  });
+
+  let allRows = [];
+
+  async function loadList() {
+    offset = 0;
+    try {
+      const rows = await api('GET', `/acid?limit=${PAGE_SIZE}&offset=0`);
+      allRows = rows;
+      offset = rows.length;
+      renderList();
+      document.getElementById('btnLoadMore').style.display = rows.length >= PAGE_SIZE ? '' : 'none';
+    } catch (err) { showAlert(err.message, 'error'); }
+  }
+
+  async function loadMore() {
+    try {
+      const rows = await api('GET', `/acid?limit=${PAGE_SIZE}&offset=${offset}`);
+      allRows = allRows.concat(rows);
+      offset += rows.length;
+      renderList();
+      document.getElementById('btnLoadMore').style.display = rows.length >= PAGE_SIZE ? '' : 'none';
+    } catch (err) { showAlert(err.message, 'error'); }
+  }
+
+  function setStatusFilter(status) {
+    statusFilter = status;
+    document.querySelectorAll('.btn-filter').forEach(b => b.classList.toggle('active', b.dataset.status === status));
+    renderList();
+  }
+
+  function applyFilters() { renderList(); }
+
+  function renderList() {
+    const search = document.getElementById('search').value.toLowerCase().trim();
+    const filtered = allRows.filter(r => {
+      const matchStatus = statusFilter === 'all' || (r.status || 'pending') === statusFilter;
+      const matchSearch = !search || [r.acid, r.name, r.shipper, r.supplier, r.responsible]
+        .filter(Boolean).join(' ').toLowerCase().includes(search);
+      return matchStatus && matchSearch;
+    });
+
+    const list = document.getElementById('list');
+    if (filtered.length === 0) {
+      list.innerHTML = '<div class="empty-state">Ничего не найдено</div>';
+      return;
+    }
+
+    list.innerHTML = filtered.map(r => {
+      const badgeClass = r.status === 'delivered' ? 'delivered' : (r.status === 'cancelled' ? 'cancelled' : '');
+      return `
+      <div class="card">
+        <div class="card-head">
+          <strong>${r.acid}</strong>
+          <span class="badge ${badgeClass}">${STATUS_LABELS[r.status] || 'В работе'}</span>
+        </div>
+        <div class="card-grid">
+          <div><b>${r.name || '-'}</b></div>
+          <div>Отв.: <b>${r.responsible || '-'}</b></div>
+          <div>ETA: <b>${r.eta || '-'}</b></div>
+          <div>Прибытие: <b>${r.egypt_arrival_date || '-'}</b></div>
+        </div>
+        <div class="card-actions">
+          <button class="btn-edit" onclick="openForm('${r.id}')">Изменить</button>
+          <button class="btn-delete" onclick="removeCargo('${r.id}')">Удалить</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function openForm(id) {
+    editingId = id || null;
+    const form = document.getElementById('cargoForm');
+    form.reset();
+    document.getElementById('formTitle').textContent = id ? 'Редактировать груз' : 'Новый груз';
+    if (id) {
+      const row = allRows.find(r => r.id === id);
+      if (row) Object.entries(row).forEach(([k, v]) => {
+        const el = form.elements[k];
+        if (el && v != null) el.value = v;
+      });
+    }
+    document.getElementById('formModal').classList.add('active');
+  }
+
+  function closeForm() {
+    document.getElementById('formModal').classList.remove('active');
+    editingId = null;
+  }
+
+  document.getElementById('cargoForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(e.target));
+    if (!data.acid) return showAlert('ACID номер обязателен', 'error');
+    try {
+      if (editingId) {
+        const current = allRows.find(r => r.id === editingId);
+        await api('PUT', `/acid/${editingId}`, { ...data, _version: current?.updated_at });
+        Object.assign(current, data);
+        showAlert('Груз обновлён');
+      } else {
+        const { id } = await api('POST', '/acid', data);
+        // Prepend locally — the record may fall past the first page's limit otherwise
+        allRows.unshift({ id, ...data });
+        showAlert('Груз добавлен');
+      }
+      closeForm();
+      renderList();
+    } catch (err) { showAlert(err.message, 'error'); }
+  });
+
+  async function removeCargo(id) {
+    if (!confirm('Удалить эту запись?')) return;
+    try {
+      await api('DELETE', `/acid/${id}`);
+      showAlert('Запись удалена');
+      loadList();
+    } catch (err) { showAlert(err.message, 'error'); }
+  }
+
+  // Auto-login if a valid Egypt session is already stored
+  if (authToken && currentUser) {
+    if (currentUser.role !== 'egypt') { window.location.href = 'index.html'; }
+    else { showApp(); }
+  }
+</script>
+</body>
+</html>

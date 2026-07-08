@@ -299,6 +299,12 @@
       height: 300px;
     }
 
+    .chart-container-sm {
+      position: relative;
+      height: 180px;
+      margin-top: 14px;
+    }
+
     /* SECTIONS */
     .content-section {
       display: none;
@@ -756,6 +762,82 @@
 
     .file-name.show {
       display: block;
+    }
+
+    /* TASKS / MANAGER CRM */
+    .tasks-toolbar {
+      display: flex; justify-content: space-between; align-items: center;
+      flex-wrap: wrap; gap: 12px; margin-bottom: 16px;
+    }
+    .tasks-view-switch { display: flex; gap: 6px; }
+    .tasks-view-switch button.active { background: var(--titan-primary); color: #fff; border-color: var(--titan-primary); }
+
+    .task-stats-row {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 14px; margin-bottom: 20px;
+    }
+    .task-stat-card {
+      background: white; border-radius: 10px; padding: 16px 18px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.08);
+    }
+    .task-stat-card .num { font-size: 26px; font-weight: 700; color: var(--titan-primary); }
+    .task-stat-card .lbl { font-size: 12px; color: var(--gray-text); margin-top: 2px; }
+    .task-stat-card.danger .num { color: var(--titan-danger); }
+
+    .kanban-board {
+      display: grid; grid-template-columns: repeat(5, minmax(220px, 1fr));
+      gap: 14px; overflow-x: auto; align-items: start;
+    }
+    .kanban-col {
+      background: var(--gray-light); border-radius: 10px; padding: 10px; min-height: 120px;
+    }
+    .kanban-col h4 {
+      font-size: 13px; color: var(--titan-primary); margin-bottom: 10px;
+      display: flex; justify-content: space-between;
+    }
+    .kanban-col h4 span { color: var(--gray-text); font-weight: 400; }
+
+    .task-card {
+      background: white; border-radius: 8px; padding: 12px; margin-bottom: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08); cursor: pointer; border-left: 4px solid var(--gray-border);
+    }
+    .task-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,.14); }
+    .task-card.priority-urgent { border-left-color: var(--titan-danger); }
+    .task-card.priority-high   { border-left-color: var(--titan-accent); }
+    .task-card.priority-medium { border-left-color: #5A6F85; }
+    .task-card.priority-low    { border-left-color: var(--gray-border); }
+    .task-card .t-title { font-weight: 600; font-size: 13.5px; color: #2C3E50; margin-bottom: 6px; }
+    .task-card .t-meta { font-size: 11.5px; color: var(--gray-text); display: flex; justify-content: space-between; gap: 6px; }
+    .task-card .t-due.overdue { color: var(--titan-danger); font-weight: 600; }
+
+    .priority-pill {
+      display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10.5px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .3px;
+    }
+    .priority-pill.urgent { background: #FBEAE9; color: var(--titan-danger); }
+    .priority-pill.high   { background: #FDF0E3; color: var(--titan-accent); }
+    .priority-pill.medium { background: #EAF1F8; color: var(--titan-primary); }
+    .priority-pill.low    { background: #EEF1F4; color: var(--gray-text); }
+
+    .my-tasks-list .task-card { border-left-width: 4px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .my-tasks-list .task-card .t-body { flex: 1; }
+
+    .task-modal .modal-content { max-width: 560px; max-height: 85vh; overflow-y: auto; text-align: left; }
+    .task-detail-section { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--gray-border); }
+    .task-detail-section h4 { font-size: 13px; color: var(--titan-primary); margin-bottom: 10px; }
+    .checklist-item { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 13px; }
+    .checklist-item.done span { text-decoration: line-through; color: var(--gray-text); }
+    .checklist-add { display: flex; gap: 6px; margin-top: 8px; }
+    .checklist-add input { flex: 1; padding: 7px 10px; border: 2px solid var(--gray-border); border-radius: 6px; font-size: 13px; }
+
+    .comment-item { padding: 8px 0; border-bottom: 1px solid var(--gray-border); font-size: 13px; }
+    .comment-item:last-child { border-bottom: none; }
+    .comment-item .c-meta { font-size: 11px; color: var(--gray-text); margin-bottom: 3px; }
+    .comment-add { display: flex; gap: 6px; margin-top: 10px; }
+    .comment-add textarea { flex: 1; padding: 8px 10px; border: 2px solid var(--gray-border); border-radius: 6px; font-size: 13px; min-height: 40px; resize: vertical; font-family: inherit; }
+
+    @media (max-width: 900px) {
+      .kanban-board { grid-template-columns: repeat(5, 220px); }
     }
   </style>
 </head>
@@ -1335,6 +1417,47 @@
             </div>
           </div>
         </div>
+
+        <!-- TASKS TAB -->
+        <div id="tasks" class="content-section" style="display:none;">
+          <div class="header">
+            <h2>Задачи</h2>
+            <p id="tasksSubtitle">Постановка и контроль исполнения</p>
+          </div>
+
+          <div id="tasksManagerStats" class="task-stats-row" style="display:none;"></div>
+
+          <div class="tasks-toolbar">
+            <div class="tasks-view-switch" id="tasksViewSwitch" style="display:none;">
+              <button class="btn-filter active" onclick="setTasksView('board', event)">Канбан</button>
+              <button class="btn-filter" onclick="setTasksView('stats', event)">Сотрудники</button>
+            </div>
+            <button class="btn-submit" id="btnNewTask" style="display:none;" onclick="openTaskCreateModal()">+ Новая задача</button>
+          </div>
+
+          <div id="tasksBoardView">
+            <div class="kanban-board" id="kanbanBoard"></div>
+          </div>
+
+          <div id="tasksStatsView" style="display:none;">
+            <div class="table-section">
+              <h3>Загрузка по сотрудникам</h3>
+              <div class="table-wrapper">
+                <table id="tasksStatsTable">
+                  <thead>
+                    <tr>
+                      <th>Сотрудник</th><th>Роль</th><th>Всего</th><th>Новые</th>
+                      <th>В работе</th><th>На проверке</th><th>Выполнено</th><th>Просрочено</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div id="myTasksView" class="my-tasks-list" style="display:none;"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -1377,6 +1500,54 @@
     </div>
   </div>
 
+  <!-- CREATE TASK MODAL -->
+  <div id="taskCreateModal" class="modal-overlay task-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Новая задача</h2>
+        <p>Назначьте задачу сотруднику</p>
+      </div>
+      <form id="taskCreateForm">
+        <div class="form-group" style="margin-bottom:16px;">
+          <label>Название <span class="required">*</span></label>
+          <input type="text" name="title" required>
+        </div>
+        <div class="form-group" style="margin-bottom:16px;">
+          <label>Описание</label>
+          <textarea name="description" rows="3"></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Исполнитель <span class="required">*</span></label>
+            <select name="assigned_to" id="taskAssigneeSelect" required></select>
+          </div>
+          <div class="form-group">
+            <label>Приоритет</label>
+            <select name="priority">
+              <option value="low">Низкий</option>
+              <option value="medium" selected>Средний</option>
+              <option value="high">Высокий</option>
+              <option value="urgent">Срочный</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:16px;">
+          <label>Срок исполнения</label>
+          <input type="date" name="due_date">
+        </div>
+        <div class="modal-buttons">
+          <button type="button" class="btn-cancel" onclick="closeTaskCreateModal()">Отмена</button>
+          <button type="submit" class="btn-submit">Создать задачу</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- TASK DETAIL MODAL -->
+  <div id="taskDetailModal" class="modal-overlay task-modal">
+    <div class="modal-content" id="taskDetailContent"></div>
+  </div>
+
   <script>
     // ============================================================
     // CONFIG
@@ -1394,13 +1565,81 @@
 
     const RATES_TO_USD = { USD: 1, EUR: 1.08, EGP: 0.021, RUB: 0.011 };
 
+    // Chart mark colors — brighter/more-saturated variants of the brand hues, used only
+    // for data marks (the brand hexes themselves are too dark/low-chroma to read as data)
+    const CHART_COLORS = { blue: '#2F6FAF', accent: '#E67E22', success: '#27AE60', danger: '#C0392B', muted: '#94A3B8' };
+    const dashboardCharts = {};
+
+    function renderDoughnut(canvasId, labels, values, colors) {
+      if (dashboardCharts[canvasId]) dashboardCharts[canvasId].destroy();
+      const ctx = document.getElementById(canvasId);
+      if (!ctx) return;
+      dashboardCharts[canvasId] = new Chart(ctx, {
+        type: 'doughnut',
+        data: { labels, datasets: [{ data: values, backgroundColor: colors, borderColor: '#fff', borderWidth: 2 }] },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 12 } } } }
+        }
+      });
+    }
+
+    function renderBar(canvasId, labels, values, color, formatter) {
+      if (dashboardCharts[canvasId]) dashboardCharts[canvasId].destroy();
+      const ctx = document.getElementById(canvasId);
+      if (!ctx) return;
+      dashboardCharts[canvasId] = new Chart(ctx, {
+        type: 'bar',
+        data: { labels, datasets: [{ data: values, backgroundColor: color, borderRadius: 4, maxBarThickness: 48 }] },
+        options: {
+          indexAxis: 'y',
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: ctx => formatter ? formatter(ctx.parsed.x) : ctx.parsed.x } }
+          },
+          scales: {
+            x: { ticks: { callback: v => formatter ? formatter(v) : v }, grid: { color: 'var(--gray-border)' } },
+            y: { grid: { display: false } }
+          }
+        }
+      });
+    }
+
+    function renderDashboardCharts(data) {
+      const cargoOther = Math.max(0, data.cargo.total - data.cargo.in_transit - data.cargo.customs - data.cargo.delivered);
+      renderDoughnut('cargoStatusChart',
+        ['В пути', 'На таможне', 'Доставлено', 'Прочее'],
+        [data.cargo.in_transit, data.cargo.customs, data.cargo.delivered, cargoOther],
+        [CHART_COLORS.blue, CHART_COLORS.accent, CHART_COLORS.success, CHART_COLORS.muted]);
+
+      if (data.contracts) {
+        const other = Math.max(0, data.contracts.total - data.contracts.active - data.contracts.expired);
+        renderDoughnut('contractStatusChart',
+          ['Активные', 'Истёкшие', 'Прочее'],
+          [data.contracts.active, data.contracts.expired, other],
+          [CHART_COLORS.success, CHART_COLORS.danger, CHART_COLORS.muted]);
+
+        renderBar('contractAmountsChart',
+          ['Объём', 'Оплачено', 'Остаток лимита'],
+          [data.contracts.total_amount, data.contracts.total_paid, data.contracts.limit_balance_sum],
+          CHART_COLORS.blue, v => '$' + fmtNum(v));
+      }
+
+      if (data.transactions) {
+        renderBar('transactionAmountsChart',
+          ['Всего', 'Ожидает оплаты'],
+          [data.transactions.total_usd, data.transactions.pending_usd],
+          CHART_COLORS.blue, v => '$' + fmtNum(v));
+      }
+    }
+
     const ROLE_PERMISSIONS = {
       admin:                 { import: true },
       director:              { import: false },
       logistics_support:     { import: ['ais_transactions'] },
       info_analytics:        { import: true },
       operational_logistics: { import: ['acid'] },
-      egypt:                 { import: ['acid'] },
     };
 
     // ============================================================
@@ -1428,7 +1667,6 @@
     }
 
     let currentUser = null;
-    let isEgyptMode = false;
     let currentFilter = 'all';
 
     // ============================================================
@@ -1446,7 +1684,7 @@
       if (body) opts.body = JSON.stringify(body);
       const res = await fetch(`${API_BASE}${path}`, opts);
       if (res.status === 401) {
-        authToken = null; currentUser = null; isEgyptMode = false; currentFilter = 'all';
+        authToken = null; currentUser = null; currentFilter = 'all';
         localStorage.removeItem('authToken');
         localStorage.removeItem('currentUser');
         document.getElementById('appScreen').style.display  = 'none';
@@ -1507,16 +1745,18 @@
         loadTable('ais_transactions').then(rows => renderTransactionsTable(rows));
       } else if (tabId === 'counterparties') {
         loadTable('counterparties').then(rows => renderCounterpartiesTable(rows));
+      } else if (tabId === 'tasks') {
+        initTasksTab();
       }
     }
 
     const _tableOffsets = {};
-    const PAGE_SIZE = isEgyptMode ? 100 : 500;
+    const PAGE_SIZE = 500;
 
     async function loadTable(tableName) {
       try {
         _tableOffsets[tableName] = 0;
-        const limit = (isEgyptMode && tableName === 'acid') ? 100 : 500;
+        const limit = 500;
         const rows = await api('GET', `/${tableName}?limit=${limit}`);
         _tableOffsets[tableName] = rows.length;
         // Show/hide Load More for acid
@@ -1533,7 +1773,7 @@
 
     async function loadMoreAcid() {
       const offset = _tableOffsets['acid'] || 0;
-      const limit  = isEgyptMode ? 100 : 500;
+      const limit  = 500;
       try {
         const rows = await api('GET', `/acid?limit=${limit}&offset=${offset}`);
         _tableOffsets['acid'] = offset + rows.length;
@@ -1563,19 +1803,16 @@
       const navMenu = document.getElementById('navMenu');
       const items = [];
 
-      if (role === 'egypt') {
-        items.push({ label: 'Грузы (ACID)', tab: 'acid' });
-      } else {
-        if (['admin','director'].includes(role)) items.push({ label: 'Дашборд', tab: 'dashboard' });
-        items.push({ label: 'Грузы (ACID)', tab: 'acid' });
-        if (['admin','director','logistics_support','info_analytics'].includes(role)) {
-          items.push({ label: 'Договоры', tab: 'contracts' });
-          items.push({ label: 'Контрагенты', tab: 'counterparties' });
-        }
-        if (['admin','director','logistics_support','info_analytics'].includes(role)) {
-          items.push({ label: 'Транзакции', tab: 'transactions' });
-        }
+      if (['admin','director'].includes(role)) items.push({ label: 'Дашборд', tab: 'dashboard' });
+      items.push({ label: 'Грузы (ACID)', tab: 'acid' });
+      if (['admin','director','logistics_support','info_analytics'].includes(role)) {
+        items.push({ label: 'Договоры', tab: 'contracts' });
+        items.push({ label: 'Контрагенты', tab: 'counterparties' });
       }
+      if (['admin','director','logistics_support','info_analytics'].includes(role)) {
+        items.push({ label: 'Транзакции', tab: 'transactions' });
+      }
+      items.push({ label: 'Задачи', tab: 'tasks' });
 
       navMenu.innerHTML = items.map((item, i) =>
         `<button class="nav-btn${i===0?' active':''}" onclick="switchTab(this,'${item.tab}')">${item.label}</button>`
@@ -1600,21 +1837,14 @@
       }
     }
 
-    function applyEgyptMode() {
-      // Egypt mode handled by buildNav — show only acid tab, no import
-    }
-
     function initUserUI(user) {
       document.getElementById('userLogin').textContent = user.name || user.login;
       const roleLabels = {
-        admin: 'Администратор', egypt: 'Сотрудник (Египет)',
+        admin: 'Администратор',
         logistics_support: 'Логистика', info_analytics: 'Аналитика',
         operational_logistics: 'Оперативная логистика', director: 'Руководитель'
       };
       document.getElementById('userRole').textContent = roleLabels[user.role] || user.role;
-      // isEgyptMode controls UI simplification (hides delete, limits page size)
-      // Egypt can now write to ACID, but we still use isEgyptMode for UI simplicity
-      if (user.role === 'egypt') { isEgyptMode = true; }
       buildNav(user.role);
     }
 
@@ -1641,6 +1871,8 @@
         currentUser = data.user;
         localStorage.setItem('authToken',   authToken);
         localStorage.setItem('currentUser', JSON.stringify(currentUser));
+        // The Egypt role uses a dedicated lightweight page — no charting/import libraries
+        if (currentUser.role === 'egypt') { window.location.href = 'egypt.html'; return; }
         scheduleTokenRefresh(authToken);
         document.getElementById('loginScreen').style.display = 'none';
         document.getElementById('appScreen').style.display   = 'block';
@@ -1654,7 +1886,7 @@
     });
 
     function logout() {
-      authToken = null; currentUser = null; isEgyptMode = false; currentFilter = 'all';
+      authToken = null; currentUser = null; currentFilter = 'all';
       localStorage.removeItem('authToken');
       localStorage.removeItem('currentUser');
       // Reset nav menu
@@ -1911,8 +2143,6 @@
     // ============================================================
 
     async function loadDashboard() {
-      if (isEgyptMode) { switchTab(null, 'acid'); return; }
-
       try {
         const data = await apiFetch('/dashboard');
 
@@ -1925,6 +2155,8 @@
               <div>Объём: $${fmtNum(data.contracts.total_amount)}</div>
               <div>Оплачено: $${fmtNum(data.contracts.total_paid)}</div>
               <div>Остаток лимита: $${fmtNum(data.contracts.limit_balance_sum)}</div>
+              <div class="chart-container-sm"><canvas id="contractStatusChart"></canvas></div>
+              <div class="chart-container-sm"><canvas id="contractAmountsChart"></canvas></div>
             </div>` : ''}
             <div class="chart-card">
               <h3>Грузы</h3>
@@ -1933,12 +2165,14 @@
               <div>На таможне: ${data.cargo.customs}</div>
               <div>Доставлено: ${data.cargo.delivered}</div>
               <div style="${data.cargo.overdue > 0 ? 'color:var(--titan-danger);font-weight:600;' : ''}">Просрочено: ${data.cargo.overdue}</div>
+              <div class="chart-container-sm"><canvas id="cargoStatusChart"></canvas></div>
             </div>
             ${data.transactions ? `<div class="chart-card">
               <h3>Платежи</h3>
               <div style="font-size:28px;font-weight:700;color:var(--titan-primary);margin:12px 0;">$${fmtNum(data.transactions.total_usd)}</div>
               <div>Ожидает оплаты: $${fmtNum(data.transactions.pending_usd)}</div>
               <div style="${data.transactions.urgent_count > 0 ? 'color:var(--titan-danger);font-weight:600;' : ''}">Срочных: ${data.transactions.urgent_count}</div>
+              <div class="chart-container-sm"><canvas id="transactionAmountsChart"></canvas></div>
             </div>` : ''}
           </div>
           ${data.overdue_stages.length > 0 ? `
@@ -1976,6 +2210,7 @@
             </div>
           </div>` : ''}
         `;
+        renderDashboardCharts(data);
       } catch (err) {
         showAlert(err.message, 'error');
         document.getElementById('dashboardContent').innerHTML = '<p style="color:var(--titan-danger);">Ошибка загрузки дашборда</p>';
@@ -2264,10 +2499,11 @@
       row.querySelectorAll('[name]').forEach(el => { data[el.name] = el.value; });
       if (!data.acid) { showAlert('ACID номер обязателен', 'error'); return; }
       try {
-        await api('POST', '/acid', data);
+        const { id } = await api('POST', '/acid', data);
         showAlert('Груз добавлен');
         row.remove();
-        loadTable('acid').then(rows => renderAcidTable(rows));
+        // Prepend locally — the record may fall past the first page's LIMIT otherwise
+        document.querySelector('#acidTable tbody').insertAdjacentHTML('afterbegin', buildAcidRow({ id, ...data }));
       } catch (err) { showAlert(err.message, 'error'); }
     }
 
@@ -2378,6 +2614,363 @@
     }
 
     // ============================================================
+    // TASKS (Manager CRM)
+    // ============================================================
+
+    const TASK_STATUS_LABELS   = { new: 'Новая', in_progress: 'В работе', review: 'На проверке', done: 'Выполнено', cancelled: 'Отменено' };
+    const TASK_PRIORITY_LABELS = { low: 'Низкий', medium: 'Средний', high: 'Высокий', urgent: 'Срочный' };
+    const MANAGER_ROLES = ['admin', 'director'];
+
+    let tasksUsersCache  = null;
+    let currentTasksView = 'board';
+    let currentTaskId    = null;
+
+    function isManagerRole() { return currentUser && MANAGER_ROLES.includes(currentUser.role); }
+
+    function escapeHtml(s) {
+      return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+    }
+
+    function isOverdue(t) {
+      if (!t.due_date || ['done', 'cancelled'].includes(t.status)) return false;
+      return t.due_date < new Date().toISOString().slice(0, 10);
+    }
+
+    async function initTasksTab() {
+      const manager = isManagerRole();
+      document.getElementById('tasksViewSwitch').style.display   = manager ? '' : 'none';
+      document.getElementById('btnNewTask').style.display        = manager ? '' : 'none';
+      document.getElementById('tasksManagerStats').style.display = manager ? '' : 'none';
+      document.getElementById('tasksSubtitle').textContent = manager
+        ? 'Постановка и контроль исполнения задач сотрудников'
+        : 'Задачи, назначенные вам руководителем';
+
+      if (manager) {
+        document.getElementById('myTasksView').style.display = 'none';
+        await ensureUsersLoaded();
+        await loadManagerSummary();
+        setTasksView(currentTasksView);
+      } else {
+        document.getElementById('tasksBoardView').style.display = 'none';
+        document.getElementById('tasksStatsView').style.display  = 'none';
+        document.getElementById('myTasksView').style.display     = '';
+        await loadMyTasks();
+      }
+    }
+
+    function setTasksView(view, evt) {
+      currentTasksView = view;
+      document.querySelectorAll('#tasksViewSwitch .btn-filter').forEach(b => b.classList.remove('active'));
+      if (evt && evt.target) evt.target.classList.add('active');
+      else {
+        const btn = Array.from(document.querySelectorAll('#tasksViewSwitch .btn-filter'))[view === 'board' ? 0 : 1];
+        if (btn) btn.classList.add('active');
+      }
+      document.getElementById('tasksBoardView').style.display = view === 'board' ? '' : 'none';
+      document.getElementById('tasksStatsView').style.display  = view === 'stats' ? '' : 'none';
+      if (view === 'board') loadTasksBoard(); else loadTasksStats();
+    }
+
+    async function ensureUsersLoaded() {
+      if (tasksUsersCache) return tasksUsersCache;
+      try {
+        tasksUsersCache = await api('GET', '/users');
+        const sel = document.getElementById('taskAssigneeSelect');
+        if (sel) sel.innerHTML = tasksUsersCache.map(u => `<option value="${u.id}">${escapeHtml(u.name)} (${u.role})</option>`).join('');
+      } catch (err) { showAlert(err.message, 'error'); }
+      return tasksUsersCache;
+    }
+
+    async function loadManagerSummary() {
+      try {
+        const rows = await api('GET', '/tasks/stats');
+        const total      = rows.reduce((s, r) => s + r.total, 0);
+        const overdue    = rows.reduce((s, r) => s + r.overdue_count, 0);
+        const inProgress = rows.reduce((s, r) => s + r.in_progress_count, 0);
+        const done       = rows.reduce((s, r) => s + r.done_count, 0);
+        document.getElementById('tasksManagerStats').innerHTML = `
+          <div class="task-stat-card"><div class="num">${total}</div><div class="lbl">Всего задач</div></div>
+          <div class="task-stat-card"><div class="num">${inProgress}</div><div class="lbl">В работе</div></div>
+          <div class="task-stat-card"><div class="num">${done}</div><div class="lbl">Выполнено</div></div>
+          <div class="task-stat-card danger"><div class="num">${overdue}</div><div class="lbl">Просрочено</div></div>
+        `;
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    async function loadTasksBoard() {
+      try { renderKanban(await api('GET', '/tasks')); }
+      catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    function renderKanban(tasks) {
+      const columns = ['new', 'in_progress', 'review', 'done', 'cancelled'];
+      document.getElementById('kanbanBoard').innerHTML = columns.map(col => {
+        const items = tasks.filter(t => t.status === col);
+        return `
+          <div class="kanban-col">
+            <h4>${TASK_STATUS_LABELS[col]} <span>${items.length}</span></h4>
+            ${items.map(taskCardHtml).join('') || '<div style="font-size:12px;color:var(--gray-text);padding:8px 0;">Пусто</div>'}
+          </div>`;
+      }).join('');
+    }
+
+    function taskCardHtml(t) {
+      const overdue = isOverdue(t);
+      return `
+        <div class="task-card priority-${t.priority}" onclick="openTaskDetail('${t.id}')">
+          <div class="t-title">${escapeHtml(t.title)}</div>
+          <div class="t-meta">
+            <span>${escapeHtml(t.assigned_to_name || '-')}</span>
+            <span class="priority-pill ${t.priority}">${TASK_PRIORITY_LABELS[t.priority]}</span>
+          </div>
+          ${t.due_date ? `<div class="t-meta" style="margin-top:4px;"><span class="t-due${overdue ? ' overdue' : ''}">${overdue ? 'Просрочено: ' : 'Срок: '}${t.due_date}</span></div>` : ''}
+        </div>`;
+    }
+
+    async function loadTasksStats() {
+      try {
+        const rows = await api('GET', '/tasks/stats');
+        const roleLabels = { admin: 'Администратор', director: 'Руководитель', logistics_support: 'Логистика', info_analytics: 'Аналитика', operational_logistics: 'Опер. логистика' };
+        document.querySelector('#tasksStatsTable tbody').innerHTML = rows.map(r => `
+          <tr>
+            <td>${escapeHtml(r.name)}</td>
+            <td>${roleLabels[r.role] || r.role}</td>
+            <td>${r.total}</td>
+            <td>${r.new_count}</td>
+            <td>${r.in_progress_count}</td>
+            <td>${r.review_count}</td>
+            <td>${r.done_count}</td>
+            <td>${r.overdue_count > 0 ? `<span class="badge danger">${r.overdue_count}</span>` : '0'}</td>
+          </tr>`).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--gray-text)">Нет данных</td></tr>';
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    async function loadMyTasks() {
+      try {
+        const tasks = await api('GET', '/tasks');
+        const list = document.getElementById('myTasksView');
+        if (tasks.length === 0) {
+          list.innerHTML = '<div style="text-align:center;color:var(--gray-text);padding:40px 0;">У вас пока нет задач</div>';
+          return;
+        }
+        list.innerHTML = tasks.map(t => {
+          const overdue = isOverdue(t);
+          return `
+          <div class="task-card priority-${t.priority}" onclick="openTaskDetail('${t.id}')">
+            <div class="t-body">
+              <div class="t-title">${escapeHtml(t.title)}</div>
+              <div class="t-meta">
+                <span>${TASK_STATUS_LABELS[t.status]}</span>
+                <span class="priority-pill ${t.priority}">${TASK_PRIORITY_LABELS[t.priority]}</span>
+                ${t.due_date ? `<span class="t-due${overdue ? ' overdue' : ''}">${overdue ? 'Просрочено: ' : 'Срок: '}${t.due_date}</span>` : ''}
+              </div>
+            </div>
+          </div>`;
+        }).join('');
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    function refreshTasksLists() {
+      if (isManagerRole()) {
+        loadManagerSummary();
+        if (currentTasksView === 'board') loadTasksBoard(); else loadTasksStats();
+      } else {
+        loadMyTasks();
+      }
+    }
+
+    // ---- Create task ----
+
+    async function openTaskCreateModal() {
+      await ensureUsersLoaded();
+      document.getElementById('taskCreateForm').reset();
+      document.getElementById('taskCreateModal').classList.add('active');
+    }
+
+    function closeTaskCreateModal() {
+      document.getElementById('taskCreateModal').classList.remove('active');
+    }
+
+    document.getElementById('taskCreateForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      try {
+        await api('POST', '/tasks', Object.fromEntries(new FormData(e.target)));
+        showAlert('Задача создана');
+        closeTaskCreateModal();
+        refreshTasksLists();
+      } catch (err) { showAlert(err.message, 'error'); }
+    });
+
+    // ---- Task detail (comments + checklist) ----
+
+    async function openTaskDetail(id) {
+      currentTaskId = id;
+      try {
+        const task = await api('GET', `/tasks/${id}`);
+        renderTaskDetail(task);
+        document.getElementById('taskDetailModal').classList.add('active');
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    function closeTaskDetail() {
+      document.getElementById('taskDetailModal').classList.remove('active');
+      currentTaskId = null;
+    }
+
+    function renderTaskDetail(t) {
+      const manager = isManagerRole();
+      const canEditStatus = manager || (currentUser && (currentUser.id === t.assigned_to || currentUser.id === t.assigned_by));
+      const statusOptions = Object.entries(TASK_STATUS_LABELS)
+        .map(([v, l]) => `<option value="${v}" ${t.status === v ? 'selected' : ''}>${l}</option>`).join('');
+      const usersOptions = manager && tasksUsersCache
+        ? tasksUsersCache.map(u => `<option value="${u.id}" ${u.id === t.assigned_to ? 'selected' : ''}>${escapeHtml(u.name)}</option>`).join('')
+        : '';
+
+      document.getElementById('taskDetailContent').innerHTML = `
+        <div class="modal-header">
+          <h2>${escapeHtml(t.title)}</h2>
+          <p>Исполнитель: ${escapeHtml(t.assigned_to_name || '-')} · Поставил: ${escapeHtml(t.assigned_by_name || '-')}</p>
+        </div>
+        ${t.description ? `<p style="margin-bottom:14px;color:#2C3E50;">${escapeHtml(t.description)}</p>` : ''}
+        <div class="form-row">
+          <div class="form-group">
+            <label>Статус</label>
+            <select id="taskStatusSelect" ${canEditStatus ? '' : 'disabled'}>${statusOptions}</select>
+          </div>
+          ${manager ? `
+          <div class="form-group">
+            <label>Приоритет</label>
+            <select id="taskPrioritySelect">
+              ${Object.entries(TASK_PRIORITY_LABELS).map(([v, l]) => `<option value="${v}" ${t.priority === v ? 'selected' : ''}>${l}</option>`).join('')}
+            </select>
+          </div>` : `<div class="form-group"><label>Приоритет</label><div class="priority-pill ${t.priority}" style="margin-top:6px;">${TASK_PRIORITY_LABELS[t.priority]}</div></div>`}
+        </div>
+        ${manager ? `
+        <div class="form-row">
+          <div class="form-group">
+            <label>Исполнитель</label>
+            <select id="taskAssigneeEditSelect">${usersOptions}</select>
+          </div>
+          <div class="form-group">
+            <label>Срок</label>
+            <input type="date" id="taskDueEdit" value="${t.due_date || ''}">
+          </div>
+        </div>
+        <div class="modal-buttons" style="justify-content:flex-start;margin-top:0;margin-bottom:14px;">
+          <button class="btn-submit" onclick="saveTaskEdits()">Сохранить изменения</button>
+          <button class="btn-cancel" style="background:#FBEAE9;color:var(--titan-danger);" onclick="deleteTask('${t.id}')">Удалить задачу</button>
+        </div>` : (canEditStatus ? `
+        <div class="modal-buttons" style="justify-content:flex-start;margin-top:0;margin-bottom:14px;">
+          <button class="btn-submit" onclick="saveStatusOnly()">Обновить статус</button>
+        </div>` : '')}
+        <div class="task-detail-section">
+          <h4>Чек-лист</h4>
+          <div id="checklistItems">${renderChecklist(t.checklist)}</div>
+          <div class="checklist-add">
+            <input type="text" id="checklistNewItem" placeholder="Новый пункт...">
+            <button class="btn-filter" onclick="addChecklistItem()">Добавить</button>
+          </div>
+        </div>
+        <div class="task-detail-section">
+          <h4>Комментарии</h4>
+          <div id="commentsList">${renderComments(t.comments)}</div>
+          <div class="comment-add">
+            <textarea id="newCommentText" placeholder="Написать комментарий..."></textarea>
+            <button class="btn-submit" onclick="addComment()">Отправить</button>
+          </div>
+        </div>
+        <div class="modal-buttons">
+          <button class="btn-cancel" onclick="closeTaskDetail()">Закрыть</button>
+        </div>
+      `;
+    }
+
+    function renderChecklist(items) {
+      if (!items || items.length === 0) return '<div style="font-size:12px;color:var(--gray-text);">Пунктов пока нет</div>';
+      return items.map(i => `
+        <div class="checklist-item${i.is_done ? ' done' : ''}">
+          <input type="checkbox" ${i.is_done ? 'checked' : ''} onchange="toggleChecklistItem('${i.id}', this.checked)">
+          <span>${escapeHtml(i.title)}</span>
+        </div>`).join('');
+    }
+
+    function renderComments(comments) {
+      if (!comments || comments.length === 0) return '<div style="font-size:12px;color:var(--gray-text);">Комментариев пока нет</div>';
+      return comments.map(c => `
+        <div class="comment-item">
+          <div class="c-meta">${escapeHtml(c.author_name || '-')} · ${new Date(c.created_at).toLocaleString('ru-RU')}</div>
+          <div>${escapeHtml(c.message)}</div>
+        </div>`).join('');
+    }
+
+    async function saveStatusOnly() {
+      try {
+        await api('PATCH', `/tasks/${currentTaskId}/status`, { status: document.getElementById('taskStatusSelect').value });
+        showAlert('Статус обновлён');
+        await refreshTaskDetail();
+        refreshTasksLists();
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    async function saveTaskEdits() {
+      try {
+        await api('PUT', `/tasks/${currentTaskId}`, {
+          status: document.getElementById('taskStatusSelect').value,
+          priority: document.getElementById('taskPrioritySelect').value,
+          assigned_to: document.getElementById('taskAssigneeEditSelect').value,
+          due_date: document.getElementById('taskDueEdit').value
+        });
+        showAlert('Задача обновлена');
+        await refreshTaskDetail();
+        refreshTasksLists();
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    async function deleteTask(id) {
+      if (!confirm('Удалить эту задачу без возможности восстановления?')) return;
+      try {
+        await api('DELETE', `/tasks/${id}`);
+        showAlert('Задача удалена');
+        closeTaskDetail();
+        refreshTasksLists();
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    async function addChecklistItem() {
+      const input = document.getElementById('checklistNewItem');
+      const title = input.value.trim();
+      if (!title) return;
+      try {
+        await api('POST', `/tasks/${currentTaskId}/checklist`, { title });
+        input.value = '';
+        await refreshTaskDetail();
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    async function toggleChecklistItem(itemId, isDone) {
+      try {
+        await api('PUT', `/tasks/${currentTaskId}/checklist/${itemId}`, { is_done: isDone });
+        await refreshTaskDetail();
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    async function addComment() {
+      const textarea = document.getElementById('newCommentText');
+      const message = textarea.value.trim();
+      if (!message) return;
+      try {
+        await api('POST', `/tasks/${currentTaskId}/comments`, { message });
+        textarea.value = '';
+        await refreshTaskDetail();
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    async function refreshTaskDetail() {
+      if (!currentTaskId) return;
+      renderTaskDetail(await api('GET', `/tasks/${currentTaskId}`));
+    }
+
+    // ============================================================
     // SESSION RESTORE
     // ============================================================
 
@@ -2408,6 +3001,8 @@
         try {
           authToken   = savedToken;
           currentUser = JSON.parse(savedUser);
+          // The Egypt role uses a dedicated lightweight page — no charting/import libraries
+          if (currentUser.role === 'egypt') { window.location.href = 'egypt.html'; return; }
           scheduleTokenRefresh(authToken);
           document.getElementById('loginScreen').style.display = 'none';
           document.getElementById('appScreen').style.display   = 'block';
