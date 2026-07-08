@@ -822,7 +822,13 @@
     .my-tasks-list .task-card { border-left-width: 4px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
     .my-tasks-list .task-card .t-body { flex: 1; }
 
-    .task-modal .modal-content { max-width: 560px; max-height: 85vh; overflow-y: auto; text-align: left; }
+    .task-modal .modal-content { max-width: 780px; max-height: 85vh; overflow-y: auto; text-align: left; position: relative; }
+    .task-modal-close {
+      position: sticky; top: 0; float: right; margin-top: -12px; margin-right: -16px;
+      width: 32px; height: 32px; border-radius: 50%; border: none; background: var(--gray-light);
+      color: var(--titan-primary); font-size: 18px; line-height: 1; cursor: pointer; z-index: 1;
+    }
+    .task-modal-close:hover { background: var(--gray-border); }
     .task-detail-section { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--gray-border); }
     .task-detail-section h4 { font-size: 13px; color: var(--titan-primary); margin-bottom: 10px; }
     .checklist-item { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 13px; }
@@ -1503,6 +1509,7 @@
   <!-- CREATE TASK MODAL -->
   <div id="taskCreateModal" class="modal-overlay task-modal">
     <div class="modal-content">
+      <button type="button" class="task-modal-close" onclick="closeTaskCreateModal()" aria-label="Закрыть">✕</button>
       <div class="modal-header">
         <h2>Новая задача</h2>
         <p>Назначьте задачу сотруднику</p>
@@ -2817,6 +2824,19 @@
       currentTaskId = null;
     }
 
+    // Close on backdrop click (but not when the click originated inside the modal card) or Escape
+    document.getElementById('taskDetailModal').addEventListener('click', e => {
+      if (e.target.id === 'taskDetailModal') closeTaskDetail();
+    });
+    document.getElementById('taskCreateModal').addEventListener('click', e => {
+      if (e.target.id === 'taskCreateModal') closeTaskCreateModal();
+    });
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Escape') return;
+      if (document.getElementById('taskDetailModal').classList.contains('active')) closeTaskDetail();
+      else if (document.getElementById('taskCreateModal').classList.contains('active')) closeTaskCreateModal();
+    });
+
     function renderTaskDetail(t) {
       const manager = isManagerRole();
       const canEditStatus = manager || (currentUser && (currentUser.id === t.assigned_to || currentUser.id === t.assigned_by));
@@ -2827,6 +2847,7 @@
         : '';
 
       document.getElementById('taskDetailContent').innerHTML = `
+        <button type="button" class="task-modal-close" onclick="closeTaskDetail()" aria-label="Закрыть">✕</button>
         <div class="modal-header">
           <h2>${escapeHtml(t.title)}</h2>
           <p>Исполнитель: ${escapeHtml(t.assigned_to_name || '-')} · Поставил: ${escapeHtml(t.assigned_by_name || '-')}</p>
