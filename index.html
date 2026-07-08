@@ -770,6 +770,15 @@
       flex-wrap: wrap; gap: 12px; margin-bottom: 16px;
     }
     .tasks-view-switch { display: flex; gap: 6px; }
+
+    .tasks-filter-bar { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+    .tasks-filter-bar input[type=text] {
+      flex: 1; min-width: 220px; padding: 9px 12px; border: 2px solid var(--gray-border); border-radius: 8px; font-size: 13px;
+    }
+    .tasks-filter-bar select {
+      padding: 9px 12px; border: 2px solid var(--gray-border); border-radius: 8px; font-size: 13px; background: white;
+    }
+    .tasks-filter-bar input:focus, .tasks-filter-bar select:focus { outline: none; border-color: var(--titan-accent); }
     .tasks-view-switch button.active { background: var(--titan-primary); color: #fff; border-color: var(--titan-primary); }
 
     .task-stats-row {
@@ -796,12 +805,16 @@
       display: flex; justify-content: space-between;
     }
     .kanban-col h4 span { color: var(--gray-text); font-weight: 400; }
+    .kanban-col.drag-over { background: rgba(230,126,34,.12); outline: 2px dashed var(--titan-accent); outline-offset: -2px; }
 
     .task-card {
       background: white; border-radius: 8px; padding: 12px; margin-bottom: 10px;
       box-shadow: 0 1px 4px rgba(0,0,0,.08); cursor: pointer; border-left: 4px solid var(--gray-border);
     }
     .task-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,.14); }
+    .task-card[draggable="true"] { cursor: grab; }
+    .task-card[draggable="true"]:active { cursor: grabbing; }
+    .task-card.dragging { opacity: .4; }
     .task-card.priority-urgent { border-left-color: var(--titan-danger); }
     .task-card.priority-high   { border-left-color: var(--titan-accent); }
     .task-card.priority-medium { border-left-color: #5A6F85; }
@@ -819,10 +832,16 @@
     .priority-pill.medium { background: #EAF1F8; color: var(--titan-primary); }
     .priority-pill.low    { background: #EEF1F4; color: var(--gray-text); }
 
+    .t-entity-badge {
+      display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px;
+      background: #EAF1F8; color: var(--titan-primary); cursor: pointer;
+    }
+    .t-entity-badge:hover { background: #D5E3F0; }
+
     .my-tasks-list .task-card { border-left-width: 4px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
     .my-tasks-list .task-card .t-body { flex: 1; }
 
-    .task-modal .modal-content { max-width: 780px; max-height: 85vh; overflow-y: auto; text-align: left; position: relative; }
+    .task-modal .modal-content { max-width: 960px; width: 92vw; max-height: 90vh; overflow-y: auto; text-align: left; position: relative; }
     .task-modal-close {
       position: sticky; top: 0; float: right; margin-top: -12px; margin-right: -16px;
       width: 32px; height: 32px; border-radius: 50%; border: none; background: var(--gray-light);
@@ -845,6 +864,44 @@
     @media (max-width: 900px) {
       .kanban-board { grid-template-columns: repeat(5, 220px); }
     }
+
+    /* NOTIFICATIONS */
+    .notif-bell {
+      position: fixed; top: 16px; right: 24px; z-index: 1001;
+      width: 42px; height: 42px; border-radius: 50%; border: none;
+      background: white; box-shadow: 0 2px 8px rgba(0,0,0,.15);
+      font-size: 18px; cursor: pointer; color: var(--titan-primary);
+    }
+    .notif-bell:hover { background: var(--gray-light); }
+    .notif-badge {
+      position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 4px;
+      border-radius: 9px; background: var(--titan-danger); color: white; font-size: 10.5px; font-weight: 700;
+      display: none; align-items: center; justify-content: center; line-height: 1;
+    }
+    .notif-badge.show { display: flex; }
+
+    .notif-panel {
+      display: none; position: fixed; top: 66px; right: 24px; width: 360px; max-height: 460px;
+      overflow-y: auto; background: white; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.25);
+      z-index: 1001;
+    }
+    .notif-panel.active { display: block; }
+    .notif-panel-head {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 14px 16px; border-bottom: 1px solid var(--gray-border);
+    }
+    .notif-panel-head h4 { font-size: 14px; color: var(--titan-primary); }
+    .notif-panel-head button { background: none; border: none; color: var(--titan-accent); font-size: 12px; cursor: pointer; }
+    .notif-item {
+      padding: 12px 16px; border-bottom: 1px solid var(--gray-border); cursor: pointer; font-size: 13px;
+    }
+    .notif-item:last-child { border-bottom: none; }
+    .notif-item:hover { background: var(--gray-light); }
+    .notif-item.unread { background: rgba(230,126,34,.06); }
+    .notif-item .n-title { font-weight: 600; color: #2C3E50; margin-bottom: 3px; }
+    .notif-item .n-message { color: var(--gray-text); }
+    .notif-item .n-time { color: var(--gray-text); font-size: 11px; margin-top: 4px; }
+    .notif-empty { padding: 30px 16px; text-align: center; color: var(--gray-text); font-size: 13px; }
   </style>
 </head>
 <body>
@@ -877,6 +934,17 @@
 
   <!-- APP -->
   <div id="appScreen" style="display: none;">
+    <button class="notif-bell" onclick="toggleNotifPanel()" aria-label="Уведомления">
+      🔔<span class="notif-badge" id="notifBadge">0</span>
+    </button>
+    <div class="notif-panel" id="notifPanel">
+      <div class="notif-panel-head">
+        <h4>Уведомления</h4>
+        <button onclick="markAllNotificationsRead()">Прочитать всё</button>
+      </div>
+      <div id="notifList"></div>
+    </div>
+
     <div class="app-layout">
       <!-- SIDEBAR -->
       <div class="sidebar">
@@ -1441,6 +1509,20 @@
             <button class="btn-submit" id="btnNewTask" style="display:none;" onclick="openTaskCreateModal()">+ Новая задача</button>
           </div>
 
+          <div id="tasksFilterBar" class="tasks-filter-bar">
+            <input type="text" id="taskSearchInput" placeholder="Поиск по названию, исполнителю..." oninput="applyTaskFilters()">
+            <select id="taskPriorityFilter" onchange="applyTaskFilters()">
+              <option value="">Все приоритеты</option>
+              <option value="urgent">Срочный</option>
+              <option value="high">Высокий</option>
+              <option value="medium">Средний</option>
+              <option value="low">Низкий</option>
+            </select>
+            <select id="taskAssigneeFilter" style="display:none;" onchange="applyTaskFilters()">
+              <option value="">Все сотрудники</option>
+            </select>
+          </div>
+
           <div id="tasksBoardView">
             <div class="kanban-board" id="kanbanBoard"></div>
           </div>
@@ -1542,6 +1624,17 @@
           <label>Срок исполнения</label>
           <input type="date" name="due_date">
         </div>
+        <div class="form-group" style="margin-bottom:16px;">
+          <label>Связать с (необязательно)</label>
+          <div style="display:flex; gap:8px;">
+            <select name="entity_type" id="taskEntityTypeSelect" style="max-width:150px;" onchange="onEntityTypeChange('taskEntityTypeSelect','taskEntityCodeInput')">
+              <option value="">Нет</option>
+              <option value="cargo">Груз (ACID)</option>
+              <option value="contract">Договор</option>
+            </select>
+            <input type="text" id="taskEntityCodeInput" list="dl-task-entities" placeholder="Введите код..." style="flex:1;" disabled>
+          </div>
+        </div>
         <div class="modal-buttons">
           <button type="button" class="btn-cancel" onclick="closeTaskCreateModal()">Отмена</button>
           <button type="submit" class="btn-submit">Создать задачу</button>
@@ -1549,6 +1642,7 @@
       </form>
     </div>
   </div>
+  <datalist id="dl-task-entities"></datalist>
 
   <!-- TASK DETAIL MODAL -->
   <div id="taskDetailModal" class="modal-overlay task-modal">
@@ -1885,6 +1979,7 @@
         document.getElementById('appScreen').style.display   = 'block';
         initUserUI(currentUser);
         loadDashboard();
+        startNotifPolling();
       } catch (err) {
         showAlert(err.message, 'error');
       } finally {
@@ -1894,6 +1989,8 @@
 
     function logout() {
       authToken = null; currentUser = null; currentFilter = 'all';
+      clearInterval(_notifTimer);
+      document.getElementById('notifPanel').classList.remove('active');
       localStorage.removeItem('authToken');
       localStorage.removeItem('currentUser');
       // Reset nav menu
@@ -2631,6 +2728,7 @@
     let tasksUsersCache  = null;
     let currentTasksView = 'board';
     let currentTaskId    = null;
+    let _allTasksCache   = [];
 
     function isManagerRole() { return currentUser && MANAGER_ROLES.includes(currentUser.role); }
 
@@ -2652,15 +2750,21 @@
         ? 'Постановка и контроль исполнения задач сотрудников'
         : 'Задачи, назначенные вам руководителем';
 
+      document.getElementById('taskAssigneeFilter').style.display = manager ? '' : 'none';
+
       if (manager) {
         document.getElementById('myTasksView').style.display = 'none';
         await ensureUsersLoaded();
+        const sel = document.getElementById('taskAssigneeFilter');
+        sel.innerHTML = '<option value="">Все сотрудники</option>' +
+          tasksUsersCache.map(u => `<option value="${u.id}">${escapeHtml(u.name)}</option>`).join('');
         await loadManagerSummary();
         setTasksView(currentTasksView);
       } else {
         document.getElementById('tasksBoardView').style.display = 'none';
         document.getElementById('tasksStatsView').style.display  = 'none';
         document.getElementById('myTasksView').style.display     = '';
+        document.getElementById('tasksFilterBar').style.display  = '';
         await loadMyTasks();
       }
     }
@@ -2675,7 +2779,25 @@
       }
       document.getElementById('tasksBoardView').style.display = view === 'board' ? '' : 'none';
       document.getElementById('tasksStatsView').style.display  = view === 'stats' ? '' : 'none';
+      document.getElementById('tasksFilterBar').style.display  = view === 'board' ? '' : 'none';
       if (view === 'board') loadTasksBoard(); else loadTasksStats();
+    }
+
+    function applyTaskFilters() {
+      const search = document.getElementById('taskSearchInput').value.toLowerCase().trim();
+      const priority = document.getElementById('taskPriorityFilter').value;
+      const assignee = isManagerRole() ? document.getElementById('taskAssigneeFilter').value : '';
+
+      const filtered = _allTasksCache.filter(t => {
+        const matchSearch = !search || [t.title, t.assigned_to_name, t.assigned_by_name]
+          .filter(Boolean).join(' ').toLowerCase().includes(search);
+        const matchPriority = !priority || t.priority === priority;
+        const matchAssignee = !assignee || t.assigned_to === assignee;
+        return matchSearch && matchPriority && matchAssignee;
+      });
+
+      if (isManagerRole()) renderKanban(filtered);
+      else renderMyTasksList(filtered);
     }
 
     async function ensureUsersLoaded() {
@@ -2705,8 +2827,10 @@
     }
 
     async function loadTasksBoard() {
-      try { renderKanban(await api('GET', '/tasks')); }
-      catch (err) { showAlert(err.message, 'error'); }
+      try {
+        _allTasksCache = await api('GET', '/tasks');
+        applyTaskFilters();
+      } catch (err) { showAlert(err.message, 'error'); }
     }
 
     function renderKanban(tasks) {
@@ -2714,23 +2838,68 @@
       document.getElementById('kanbanBoard').innerHTML = columns.map(col => {
         const items = tasks.filter(t => t.status === col);
         return `
-          <div class="kanban-col">
+          <div class="kanban-col" data-status="${col}"
+               ondragover="onColDragOver(event)" ondragleave="onColDragLeave(event)" ondrop="onColDrop(event,'${col}')">
             <h4>${TASK_STATUS_LABELS[col]} <span>${items.length}</span></h4>
             ${items.map(taskCardHtml).join('') || '<div style="font-size:12px;color:var(--gray-text);padding:8px 0;">Пусто</div>'}
           </div>`;
       }).join('');
     }
 
+    let _draggedTaskId = null;
+
+    function onCardDragStart(e, id) {
+      _draggedTaskId = id;
+      e.dataTransfer.effectAllowed = 'move';
+      e.target.classList.add('dragging');
+    }
+
+    function onCardDragEnd(e) {
+      e.target.classList.remove('dragging');
+    }
+
+    function onColDragOver(e) {
+      e.preventDefault();
+      e.currentTarget.classList.add('drag-over');
+    }
+
+    function onColDragLeave(e) {
+      e.currentTarget.classList.remove('drag-over');
+    }
+
+    async function onColDrop(e, status) {
+      e.preventDefault();
+      e.currentTarget.classList.remove('drag-over');
+      const id = _draggedTaskId;
+      _draggedTaskId = null;
+      if (!id) return;
+      const task = _allTasksCache.find(t => t.id === id);
+      if (!task || task.status === status) return;
+      try {
+        await api('PATCH', `/tasks/${id}/status`, { status });
+        showAlert('Статус обновлён');
+        await Promise.all([loadManagerSummary(), loadTasksBoard()]);
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    function entityBadgeHtml(t) {
+      if (!t.entity_type || !t.entity_label) return '';
+      return `<span class="t-entity-badge" onclick="event.stopPropagation(); goToEntity('${t.entity_type}','${escapeHtml(t.entity_label)}')">${entityTypeLabel(t.entity_type)} ${escapeHtml(t.entity_label)}</span>`;
+    }
+
     function taskCardHtml(t) {
       const overdue = isOverdue(t);
       return `
-        <div class="task-card priority-${t.priority}" onclick="openTaskDetail('${t.id}')">
+        <div class="task-card priority-${t.priority}" draggable="true"
+             ondragstart="onCardDragStart(event,'${t.id}')" ondragend="onCardDragEnd(event)"
+             onclick="openTaskDetail('${t.id}')">
           <div class="t-title">${escapeHtml(t.title)}</div>
           <div class="t-meta">
             <span>${escapeHtml(t.assigned_to_name || '-')}</span>
             <span class="priority-pill ${t.priority}">${TASK_PRIORITY_LABELS[t.priority]}</span>
           </div>
           ${t.due_date ? `<div class="t-meta" style="margin-top:4px;"><span class="t-due${overdue ? ' overdue' : ''}">${overdue ? 'Просрочено: ' : 'Срок: '}${t.due_date}</span></div>` : ''}
+          ${entityBadgeHtml(t) ? `<div style="margin-top:6px;">${entityBadgeHtml(t)}</div>` : ''}
         </div>`;
     }
 
@@ -2754,36 +2923,88 @@
 
     async function loadMyTasks() {
       try {
-        const tasks = await api('GET', '/tasks');
-        const list = document.getElementById('myTasksView');
-        if (tasks.length === 0) {
-          list.innerHTML = '<div style="text-align:center;color:var(--gray-text);padding:40px 0;">У вас пока нет задач</div>';
-          return;
-        }
-        list.innerHTML = tasks.map(t => {
-          const overdue = isOverdue(t);
-          return `
-          <div class="task-card priority-${t.priority}" onclick="openTaskDetail('${t.id}')">
-            <div class="t-body">
-              <div class="t-title">${escapeHtml(t.title)}</div>
-              <div class="t-meta">
-                <span>${TASK_STATUS_LABELS[t.status]}</span>
-                <span class="priority-pill ${t.priority}">${TASK_PRIORITY_LABELS[t.priority]}</span>
-                ${t.due_date ? `<span class="t-due${overdue ? ' overdue' : ''}">${overdue ? 'Просрочено: ' : 'Срок: '}${t.due_date}</span>` : ''}
-              </div>
-            </div>
-          </div>`;
-        }).join('');
+        _allTasksCache = await api('GET', '/tasks');
+        applyTaskFilters();
       } catch (err) { showAlert(err.message, 'error'); }
     }
 
-    function refreshTasksLists() {
-      if (isManagerRole()) {
-        loadManagerSummary();
-        if (currentTasksView === 'board') loadTasksBoard(); else loadTasksStats();
-      } else {
-        loadMyTasks();
+    function renderMyTasksList(tasks) {
+      const list = document.getElementById('myTasksView');
+      if (tasks.length === 0) {
+        list.innerHTML = '<div style="text-align:center;color:var(--gray-text);padding:40px 0;">Ничего не найдено</div>';
+        return;
       }
+      list.innerHTML = tasks.map(t => {
+        const overdue = isOverdue(t);
+        return `
+        <div class="task-card priority-${t.priority}" onclick="openTaskDetail('${t.id}')">
+          <div class="t-body">
+            <div class="t-title">${escapeHtml(t.title)}</div>
+            <div class="t-meta">
+              <span>${TASK_STATUS_LABELS[t.status]}</span>
+              <span class="priority-pill ${t.priority}">${TASK_PRIORITY_LABELS[t.priority]}</span>
+              ${t.due_date ? `<span class="t-due${overdue ? ' overdue' : ''}">${overdue ? 'Просрочено: ' : 'Срок: '}${t.due_date}</span>` : ''}
+              ${entityBadgeHtml(t)}
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    async function refreshTasksLists() {
+      if (isManagerRole()) {
+        await Promise.all([
+          loadManagerSummary(),
+          currentTasksView === 'board' ? loadTasksBoard() : loadTasksStats()
+        ]);
+      } else {
+        await loadMyTasks();
+      }
+    }
+
+    // ---- Entity linking (task <-> cargo/contract) ----
+
+    let taskEntityMap = {}; // code -> id, for whichever entity type is currently selected
+
+    async function loadEntityOptions(type) {
+      taskEntityMap = {};
+      const dl = document.getElementById('dl-task-entities');
+      if (!type) { dl.innerHTML = ''; return; }
+      try {
+        if (type === 'cargo') {
+          const rows = await api('GET', '/acid?limit=2000');
+          rows.forEach(r => { taskEntityMap[r.acid] = r.id; });
+          dl.innerHTML = rows.map(r => `<option value="${escapeHtml(r.acid)}">`).join('');
+        } else if (type === 'contract') {
+          const rows = await api('GET', '/contracts?limit=2000');
+          rows.forEach(r => { taskEntityMap[r.contract_number] = r.id; });
+          dl.innerHTML = rows.map(r => `<option value="${escapeHtml(r.contract_number)}">`).join('');
+        }
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    async function onEntityTypeChange(selectId, inputId) {
+      const type = document.getElementById(selectId).value;
+      const input = document.getElementById(inputId);
+      input.value = '';
+      input.disabled = !type;
+      await loadEntityOptions(type);
+    }
+
+    function entityTypeLabel(type) { return type === 'cargo' ? '📦' : (type === 'contract' ? '📄' : ''); }
+
+    function goToEntity(type, code) {
+      if (!type || !code) return;
+      const tabId = type === 'cargo' ? 'acid' : 'contracts';
+      const label = tabId === 'acid' ? 'Грузы (ACID)' : 'Договоры';
+      const btn = Array.from(document.querySelectorAll('#navMenu .nav-btn')).find(b => b.textContent.trim() === label);
+      closeTaskDetail();
+      switchTab(btn || null, tabId);
+      setTimeout(() => {
+        const searchId = tabId === 'acid' ? 'acidSearch' : 'contractSearch';
+        const input = document.getElementById(searchId);
+        if (input) { input.value = code; input.dispatchEvent(new Event('keyup')); }
+      }, 400);
     }
 
     // ---- Create task ----
@@ -2791,6 +3012,7 @@
     async function openTaskCreateModal() {
       await ensureUsersLoaded();
       document.getElementById('taskCreateForm').reset();
+      document.getElementById('taskEntityCodeInput').disabled = true;
       document.getElementById('taskCreateModal').classList.add('active');
     }
 
@@ -2801,10 +3023,21 @@
     document.getElementById('taskCreateForm').addEventListener('submit', async e => {
       e.preventDefault();
       try {
-        await api('POST', '/tasks', Object.fromEntries(new FormData(e.target)));
+        const data = Object.fromEntries(new FormData(e.target));
+        const entityType = data.entity_type || null;
+        let entity_id = null, entity_label = null;
+        if (entityType) {
+          const code = document.getElementById('taskEntityCodeInput').value.trim();
+          if (code) {
+            entity_id = taskEntityMap[code];
+            if (!entity_id) { showAlert(`Код «${code}» не найден в списке`, 'error'); return; }
+            entity_label = code;
+          }
+        }
+        await api('POST', '/tasks', { ...data, entity_type: entity_id ? entityType : null, entity_id, entity_label });
         showAlert('Задача создана');
         closeTaskCreateModal();
-        refreshTasksLists();
+        await refreshTasksLists();
       } catch (err) { showAlert(err.message, 'error'); }
     });
 
@@ -2851,6 +3084,7 @@
         <div class="modal-header">
           <h2>${escapeHtml(t.title)}</h2>
           <p>Исполнитель: ${escapeHtml(t.assigned_to_name || '-')} · Поставил: ${escapeHtml(t.assigned_by_name || '-')}</p>
+          ${t.entity_type && t.entity_label ? `<span class="priority-pill" style="background:#EAF1F8;color:var(--titan-primary);cursor:pointer;margin-top:8px;display:inline-block;" onclick="goToEntity('${t.entity_type}','${escapeHtml(t.entity_label)}')">${entityTypeLabel(t.entity_type)} ${escapeHtml(t.entity_label)}</span>` : ''}
         </div>
         ${t.description ? `<p style="margin-bottom:14px;color:#2C3E50;">${escapeHtml(t.description)}</p>` : ''}
         <div class="form-row">
@@ -2875,6 +3109,17 @@
           <div class="form-group">
             <label>Срок</label>
             <input type="date" id="taskDueEdit" value="${t.due_date || ''}">
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:14px;">
+          <label>Связать с</label>
+          <div style="display:flex; gap:8px;">
+            <select id="taskEntityTypeEditSelect" style="max-width:150px;" onchange="onEntityTypeChange('taskEntityTypeEditSelect','taskEntityCodeEditInput')">
+              <option value="" ${!t.entity_type ? 'selected' : ''}>Нет</option>
+              <option value="cargo" ${t.entity_type === 'cargo' ? 'selected' : ''}>Груз (ACID)</option>
+              <option value="contract" ${t.entity_type === 'contract' ? 'selected' : ''}>Договор</option>
+            </select>
+            <input type="text" id="taskEntityCodeEditInput" list="dl-task-entities" placeholder="Введите код..." style="flex:1;" value="${escapeHtml(t.entity_label || '')}" ${t.entity_type ? '' : 'disabled'}>
           </div>
         </div>
         <div class="modal-buttons" style="justify-content:flex-start;margin-top:0;margin-bottom:14px;">
@@ -2904,6 +3149,8 @@
           <button class="btn-cancel" onclick="closeTaskDetail()">Закрыть</button>
         </div>
       `;
+
+      if (manager && t.entity_type) loadEntityOptions(t.entity_type);
     }
 
     function renderChecklist(items) {
@@ -2929,21 +3176,33 @@
         await api('PATCH', `/tasks/${currentTaskId}/status`, { status: document.getElementById('taskStatusSelect').value });
         showAlert('Статус обновлён');
         await refreshTaskDetail();
-        refreshTasksLists();
+        await refreshTasksLists();
       } catch (err) { showAlert(err.message, 'error'); }
     }
 
     async function saveTaskEdits() {
       try {
+        const entityType = document.getElementById('taskEntityTypeEditSelect').value || null;
+        let entity_id = null, entity_label = null;
+        if (entityType) {
+          const code = document.getElementById('taskEntityCodeEditInput').value.trim();
+          if (code) {
+            entity_id = taskEntityMap[code];
+            if (!entity_id) { showAlert(`Код «${code}» не найден в списке`, 'error'); return; }
+            entity_label = code;
+          }
+        }
         await api('PUT', `/tasks/${currentTaskId}`, {
           status: document.getElementById('taskStatusSelect').value,
           priority: document.getElementById('taskPrioritySelect').value,
           assigned_to: document.getElementById('taskAssigneeEditSelect').value,
-          due_date: document.getElementById('taskDueEdit').value
+          due_date: document.getElementById('taskDueEdit').value,
+          entity_type: entity_id ? entityType : null,
+          entity_id, entity_label
         });
         showAlert('Задача обновлена');
         await refreshTaskDetail();
-        refreshTasksLists();
+        await refreshTasksLists();
       } catch (err) { showAlert(err.message, 'error'); }
     }
 
@@ -2953,7 +3212,7 @@
         await api('DELETE', `/tasks/${id}`);
         showAlert('Задача удалена');
         closeTaskDetail();
-        refreshTasksLists();
+        await refreshTasksLists();
       } catch (err) { showAlert(err.message, 'error'); }
     }
 
@@ -2989,6 +3248,87 @@
     async function refreshTaskDetail() {
       if (!currentTaskId) return;
       renderTaskDetail(await api('GET', `/tasks/${currentTaskId}`));
+    }
+
+    // ============================================================
+    // NOTIFICATIONS
+    // ============================================================
+
+    let _notifTimer = null;
+    let _notifCache = [];
+
+    function timeAgo(iso) {
+      const diffMs = Date.now() - new Date(iso.replace(' ', 'T') + 'Z').getTime();
+      const min = Math.floor(diffMs / 60000);
+      if (min < 1) return 'только что';
+      if (min < 60) return `${min} мин назад`;
+      const hr = Math.floor(min / 60);
+      if (hr < 24) return `${hr} ч назад`;
+      const days = Math.floor(hr / 24);
+      return `${days} дн назад`;
+    }
+
+    async function loadNotifications() {
+      try {
+        const { notifications, unread } = await api('GET', '/notifications');
+        _notifCache = notifications;
+        const badge = document.getElementById('notifBadge');
+        badge.textContent = unread > 9 ? '9+' : unread;
+        badge.classList.toggle('show', unread > 0);
+        renderNotifPanel();
+      } catch { /* silent — non-critical background refresh */ }
+    }
+
+    function renderNotifPanel() {
+      const list = document.getElementById('notifList');
+      if (_notifCache.length === 0) {
+        list.innerHTML = '<div class="notif-empty">Уведомлений пока нет</div>';
+        return;
+      }
+      list.innerHTML = _notifCache.map(n => `
+        <div class="notif-item${n.is_read ? '' : ' unread'}" onclick="handleNotifClick('${n.id}', '${n.entity_type || ''}', '${n.entity_id || ''}')">
+          <div class="n-title">${escapeHtml(n.title || '')}</div>
+          <div class="n-message">${escapeHtml(n.message || '')}</div>
+          <div class="n-time">${timeAgo(n.created_at)}</div>
+        </div>`).join('');
+    }
+
+    function toggleNotifPanel() {
+      const panel = document.getElementById('notifPanel');
+      const opening = !panel.classList.contains('active');
+      panel.classList.toggle('active', opening);
+      if (opening) loadNotifications();
+    }
+
+    document.addEventListener('click', e => {
+      const panel = document.getElementById('notifPanel');
+      if (!panel || !panel.classList.contains('active')) return;
+      if (!panel.contains(e.target) && !e.target.closest('.notif-bell')) panel.classList.remove('active');
+    });
+
+    async function markAllNotificationsRead() {
+      try {
+        await api('PATCH', '/notifications/read-all');
+        await loadNotifications();
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    async function handleNotifClick(id, entityType, entityId) {
+      try {
+        await api('PATCH', `/notifications/${id}/read`);
+        await loadNotifications();
+      } catch { /* non-critical */ }
+      document.getElementById('notifPanel').classList.remove('active');
+      if (entityType === 'task' && entityId) {
+        const tasksBtn = Array.from(document.querySelectorAll('#navMenu .nav-btn')).find(b => b.textContent.trim() === 'Задачи');
+        if (tasksBtn) { switchTab(tasksBtn, 'tasks'); await openTaskDetail(entityId); }
+      }
+    }
+
+    function startNotifPolling() {
+      loadNotifications();
+      clearInterval(_notifTimer);
+      _notifTimer = setInterval(loadNotifications, 45000);
     }
 
     // ============================================================
@@ -3029,6 +3369,7 @@
           document.getElementById('appScreen').style.display   = 'block';
           initUserUI(currentUser);
           loadDashboard();
+          startNotifPolling();
         } catch {
           localStorage.removeItem('authToken');
           localStorage.removeItem('currentUser');

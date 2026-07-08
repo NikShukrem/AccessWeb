@@ -266,6 +266,33 @@ async function runMigrations() {
       "UPDATE users SET name = 'Соколова Виктория Андреевна' WHERE login = 'director' AND name = 'Директор'"
     );
   }
+
+  // The notifications table predates the tasks feature — its entity_type CHECK constraint
+  // doesn't allow 'task' on installs that already had the table, so every task notification
+  // insert has been silently failing. Rebuild the table with the updated constraint.
+  const notifTable = await db.get("SELECT sql FROM sqlite_master WHERE type='table' AND name='notifications'");
+  if (notifTable && !notifTable.sql.includes("'task'")) {
+    console.log('Migration: rebuilding notifications table to allow entity_type=task...');
+    await db.exec('PRAGMA foreign_keys=OFF');
+    await db.exec(`
+      CREATE TABLE notifications_new (
+        id TEXT PRIMARY KEY,
+        user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+        title TEXT,
+        message TEXT,
+        type TEXT DEFAULT 'info' CHECK(type IN ('info','warning','error','success')),
+        entity_type TEXT CHECK(entity_type IN ('contract','cargo','transaction','stage','task')),
+        entity_id TEXT,
+        is_read BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await db.exec('INSERT INTO notifications_new SELECT * FROM notifications');
+    await db.exec('DROP TABLE notifications');
+    await db.exec('ALTER TABLE notifications_new RENAME TO notifications');
+    await db.exec('PRAGMA foreign_keys=ON');
+    console.log('Migration: notifications table rebuilt.');
+  }
 }
 
 async function seedUsers() {
@@ -608,6 +635,51 @@ app.get('/users', auth, async (req, res) => {
   }
 });
 
+// ============== NOTIFICATIONS ==============
+
+app.get('/notifications', auth, async (req, res) => {
+  try {
+    const rows = await db.all(
+      'SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 50',
+      [req.user.id]
+    );
+    const { unread } = await db.get(
+      'SELECT COUNT(*) AS unread FROM notifications WHERE user_id = ? AND is_read = 0',
+      [req.user.id]
+    );
+    res.json({ notifications: rows, unread });
+  } catch (err) {
+    console.error('Notifications list error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+app.patch('/notifications/:id/read', auth, async (req, res) => {
+  try {
+    await db.run(
+      'UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?',
+      [req.params.id, req.user.id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Notification read error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+app.patch('/notifications/read-all', auth, async (req, res) => {
+  try {
+    await db.run(
+      'UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0',
+      [req.user.id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Notifications read-all error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
 // ============== TASKS (manager CRM: assignment & control) ==============
 
 const TASK_STATUSES = new Set(['new', 'in_progress', 'review', 'done', 'cancelled']);
@@ -626,7 +698,7 @@ async function notifyUser(userId, title, message, taskId, type = 'info') {
        VALUES (?, ?, ?, ?, ?, 'task', ?)`,
       [uuidv4(), userId, title, message, type, taskId]
     );
-  } catch { /* non-fatal */ }
+  } catch (err) { console.error('Notification insert error:', err.message); }
 }
 
 // List tasks — managers see everything (optionally filtered), others only their own
