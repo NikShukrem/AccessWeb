@@ -2499,7 +2499,7 @@
       tbody.innerHTML = rows.map(r => `
         <tr>
           <td>${r.date || '-'}</td>
-          <td>${r.number || '-'}</td>
+          <td>${r.number ? `<a href="#" class="entity-link" onclick="openTransactionDetailModal('${r.id}','${escapeHtml(r.number)}'); return false;">${escapeHtml(r.number)}</a>` : '-'}</td>
           <td>${r.expense_date || '-'}</td>
           <td>${r.kti_date || '-'}</td>
           <td>${r.currency || '-'}</td>
@@ -2516,7 +2516,6 @@
           <td>${r.urgent ? 'Да' : 'Нет'}</td>
           <td>${r.acid_link || '-'}</td>
           <td style="white-space:nowrap">
-            <button class="btn-filter" onclick="openTransactionDetailModal('${r.id}','${escapeHtml(r.number || '')}')">📎 Файлы/позиции</button>
             <button class="btn-delete" onclick="deleteRecord('ais_transactions','${r.id}')">Удалить</button>
           </td>
         </tr>`).join('');
