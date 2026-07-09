@@ -121,6 +121,7 @@ CREATE TABLE IF NOT EXISTS acid (
   bol_number TEXT,
   bol_date TEXT,
   carrier TEXT,
+  forwarder TEXT,                            -- экспедитор
   etd TEXT,
   eta TEXT,
   delivery_date TEXT,

@@ -1038,6 +1038,7 @@
                     <th>BOL №</th>
                     <th>Дата BOL</th>
                     <th>Перевозчик</th>
+                    <th>Экспедитор</th>
                     <th>ETD</th>
                     <th>ETA</th>
                     <th>Дата доставки</th>
@@ -1667,11 +1668,12 @@
   <div id="linkedTransactionsModal" class="modal-overlay task-modal">
     <div class="modal-content">
       <button type="button" class="task-modal-close" onclick="closeLinkedTransactionsModal()" aria-label="Закрыть">✕</button>
-      <div class="modal-header">
-        <h2 id="linkedTransactionsTitle">Связанные счета</h2>
-        <p>Клик по счёту откроет его состав (номенклатуру) и файлы</p>
+      <div id="linkedTransactionsHeader"></div>
+      <div class="task-detail-section" style="margin-top:14px;">
+        <h4>Счета</h4>
+        <p style="font-size:12px;color:var(--gray-text);margin-bottom:10px;">Клик по счёту откроет его состав (номенклатуру) и файлы</p>
+        <div id="linkedTransactionsList"></div>
       </div>
-      <div id="linkedTransactionsList"></div>
     </div>
   </div>
 
@@ -1941,6 +1943,7 @@
       try {
         const rows = await api('GET', `/acid?limit=${limit}&offset=${offset}`);
         _tableOffsets['acid'] = offset + rows.length;
+        rows.forEach(r => { _acidRowsById[r.id] = r; });
         const tbody = document.querySelector('#acidTable tbody');
         tbody.insertAdjacentHTML('beforeend', rows.map(r => buildAcidRow(r)).join(''));
         const btn = document.getElementById('btnLoadMoreAcid');
@@ -2422,6 +2425,7 @@
           <td>${r.bol_number || '-'}</td>
           <td>${r.bol_date || '-'}</td>
           <td>${r.carrier || '-'}</td>
+          <td>${r.forwarder || '-'}</td>
           <td>${r.etd || '-'}</td>
           <td>${r.eta || '-'}</td>
           <td>${r.delivery_date || '-'}</td>
@@ -2450,8 +2454,11 @@
         </tr>`;
     }
 
+    const _acidRowsById = {};
+
     function renderAcidTable(rows) {
       const tbody = document.querySelector('#acidTable tbody');
+      rows.forEach(r => { _acidRowsById[r.id] = r; });
       tbody.innerHTML = rows.map(buildAcidRow).join('');
     }
 
@@ -2632,6 +2639,7 @@
         <td>${inp('bol_number')}</td>
         <td>${inp('bol_date','date')}</td>
         <td>${inp('carrier')}</td>
+        <td>${inp('forwarder')}</td>
         <td>${inp('etd','date')}</td>
         <td>${inp('eta','date')}</td>
         <td>${inp('delivery_date','date')}</td>
@@ -2675,6 +2683,7 @@
         const { id } = await api('POST', '/acid', data);
         showAlert('Груз добавлен');
         row.remove();
+        _acidRowsById[id] = { id, ...data };
         // Prepend locally — the record may fall past the first page's LIMIT otherwise
         document.querySelector('#acidTable tbody').insertAdjacentHTML('afterbegin', buildAcidRow({ id, ...data }));
       } catch (err) { showAlert(err.message, 'error'); }
@@ -3417,8 +3426,33 @@
     const TX_STATUS_LABELS = { pending: 'Ожидание', paid: 'Оплачено', overdue: 'Просрочено', cancelled: 'Отменено' };
 
     async function openLinkedTransactionsModal(kind, id, label) {
-      document.getElementById('linkedTransactionsTitle').textContent =
-        kind === 'acid' ? `Счета по грузу ${label}` : `Счета по договору ${label}`;
+      const header = document.getElementById('linkedTransactionsHeader');
+      if (kind === 'acid') {
+        const row = _acidRowsById[id] || {};
+        const contractLinkHtml = row.contract_id
+          ? `<a href="#" class="entity-link" onclick="openLinkedTransactionsModal('contract','${row.contract_id}','${escapeHtml(row.contract_number || '')}'); return false;">${escapeHtml(row.contract_number || '-')}</a>`
+          : '<span style="color:var(--gray-text);">не привязан</span>';
+        header.innerHTML = `
+          <div class="modal-header" style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;">
+            <h2 style="margin:0;">${escapeHtml(label)}</h2>
+            <div style="text-align:right;font-size:13px;">
+              <div style="color:var(--gray-text);font-size:11px;text-transform:uppercase;">Договор</div>
+              ${contractLinkHtml}
+            </div>
+          </div>
+          <div class="card-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px;font-size:13px;">
+            <div><div style="color:var(--gray-text);font-size:11px;">Статус</div><span class="badge ${row.status === 'delivered' ? 'completed' : (row.status === 'cancelled' ? 'danger' : 'pending')}">${ACID_STATUS_LABELS[row.status] || row.status || '-'}</span></div>
+            <div><div style="color:var(--gray-text);font-size:11px;">Груз</div><b>${escapeHtml(row.name || '-')}</b></div>
+            <div><div style="color:var(--gray-text);font-size:11px;">Экспедитор</div><b>${escapeHtml(row.forwarder || '-')}</b></div>
+          </div>
+        `;
+      } else {
+        header.innerHTML = `
+          <div class="modal-header">
+            <h2 style="margin:0;">Договор ${escapeHtml(label)}</h2>
+          </div>
+        `;
+      }
       document.getElementById('linkedTransactionsList').innerHTML = '<div style="font-size:12px;color:var(--gray-text);">Загрузка...</div>';
       document.getElementById('linkedTransactionsModal').classList.add('active');
       try {

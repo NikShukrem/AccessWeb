@@ -59,7 +59,7 @@ const ALLOWED_COLUMNS = {
     'name', 'gw_kg', 'packages_qty', 'containers_qty',
     'transport_type', 'cargo_cost', 'currency', 'shipping_cost',
     'incoterms', 'departure_country', 'departure_port', 'delivery_place', 'arrival_place',
-    'vessel', 'shipping_line', 'bol_number', 'bol_date', 'carrier',
+    'vessel', 'shipping_line', 'bol_number', 'bol_date', 'carrier', 'forwarder',
     'etd', 'eta', 'delivery_date', 'egypt_arrival_date',
     'release_request_date', 'release_curator', 'release_received_date',
     'do_released', 'import_mode',
@@ -297,6 +297,16 @@ async function runMigrations() {
     await db.exec('ALTER TABLE notifications_new RENAME TO notifications');
     await db.exec('PRAGMA foreign_keys=ON');
     console.log('Migration: notifications table rebuilt.');
+  }
+
+  // Add the forwarder (экспедитор) column to acid on installs that predate it
+  const hasAcidTable = await db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='acid'");
+  if (hasAcidTable) {
+    const acidColumns = await db.all('PRAGMA table_info(acid)');
+    if (!acidColumns.some(c => c.name === 'forwarder')) {
+      await db.exec('ALTER TABLE acid ADD COLUMN forwarder TEXT');
+      console.log('Migration: added acid.forwarder column.');
+    }
   }
 }
 
