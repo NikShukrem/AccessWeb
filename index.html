@@ -1692,9 +1692,7 @@
   <div id="transactionDetailModal" class="modal-overlay task-modal">
     <div class="modal-content">
       <button type="button" class="task-modal-close" onclick="closeTransactionDetailModal()" aria-label="Закрыть">✕</button>
-      <div class="modal-header">
-        <h2 id="transactionDetailTitle">Счёт</h2>
-      </div>
+      <div id="transactionDetailHeader"></div>
       <div class="task-detail-section" style="margin-top:0;border-top:none;padding-top:0;">
         <h4>Номенклатура</h4>
         <div id="transactionItemsList"></div>
@@ -2497,6 +2495,7 @@
     function renderTransactionsTable(rows) {
       const tbody = document.querySelector('#transactionsTable tbody');
       const statusLabels = { pending: 'Ожидание', paid: 'Оплачено', overdue: 'Просрочено', cancelled: 'Отменено' };
+      rows.forEach(r => { _txRowsById[r.id] = r; });
       tbody.innerHTML = rows.map(r => `
         <tr>
           <td>${r.date || '-'}</td>
@@ -3420,19 +3419,68 @@
     }
 
     // ============================================================
-    // LINKED TRANSACTIONS (drill-down: ACID / contract -> счета -> nomenclature)
+    // DRILL-DOWN NAVIGATION: ACID <-> договор <-> счёт <-> номенклатура
+    // A single back/forward stack shared by the two modals below, so
+    // "Назад" always returns to wherever the user drilled in from.
     // ============================================================
 
     const TX_STATUS_LABELS = { pending: 'Ожидание', paid: 'Оплачено', overdue: 'Просрочено', cancelled: 'Отменено' };
+    const _txRowsById = {};
 
-    async function openLinkedTransactionsModal(kind, id, label) {
+    let drillStack = []; // [{ kind: 'linked'|'txDetail', args: [...] }, ...]; last = current screen
+
+    function drillStart(kind, args) {
+      drillStack = [{ kind, args }];
+      renderDrillTop();
+    }
+
+    function drillPush(kind, args) {
+      drillStack.push({ kind, args });
+      renderDrillTop();
+    }
+
+    function drillBack() {
+      drillStack.pop();
+      if (!drillStack.length) { drillCloseAll(); return; }
+      renderDrillTop();
+    }
+
+    function drillCloseAll() {
+      drillStack = [];
+      document.getElementById('linkedTransactionsModal').classList.remove('active');
+      document.getElementById('transactionDetailModal').classList.remove('active');
+      currentTxId = null;
+    }
+
+    function backButtonHtml() {
+      return drillStack.length > 1
+        ? `<button type="button" class="btn-filter" style="margin-bottom:10px;" onclick="drillBack()">← Назад</button>`
+        : '';
+    }
+
+    async function renderDrillTop() {
+      const top = drillStack[drillStack.length - 1];
+      if (!top) return;
+      document.getElementById('linkedTransactionsModal').classList.remove('active');
+      document.getElementById('transactionDetailModal').classList.remove('active');
+      if (top.kind === 'linked') await renderLinkedScreen(...top.args);
+      else if (top.kind === 'txDetail') await renderTxDetailScreen(...top.args);
+    }
+
+    // ---- Entry points (called from table rows — start a fresh drill-down) ----
+
+    function openLinkedTransactionsModal(kind, id, label) { drillStart('linked', [kind, id, label]); }
+    function openTransactionDetailModal(txId, label) { drillStart('txDetail', [txId, label]); }
+
+    async function renderLinkedScreen(kind, id, label) {
       const header = document.getElementById('linkedTransactionsHeader');
       if (kind === 'acid') {
         const row = _acidRowsById[id] || {};
         const contractLinkHtml = row.contract_id
-          ? `<a href="#" class="entity-link" onclick="openLinkedTransactionsModal('contract','${row.contract_id}','${escapeHtml(row.contract_number || '')}'); return false;">${escapeHtml(row.contract_number || '-')}</a>`
+          ? `<a href="#" class="entity-link" onclick="drillPush('linked',['contract','${row.contract_id}','${escapeHtml(row.contract_number || '')}']); return false;">${escapeHtml(row.contract_number || '-')}</a>`
           : '<span style="color:var(--gray-text);">не привязан</span>';
         header.innerHTML = `
+          ${backButtonHtml()}
           <div class="modal-header" style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;">
             <h2 style="margin:0;">${escapeHtml(label)}</h2>
             <div style="text-align:right;font-size:13px;">
@@ -3448,6 +3496,7 @@
         `;
       } else {
         header.innerHTML = `
+          ${backButtonHtml()}
           <div class="modal-header">
             <h2 style="margin:0;">Договор ${escapeHtml(label)}</h2>
           </div>
@@ -3458,19 +3507,18 @@
       try {
         const path = kind === 'acid' ? `/acid/${id}/transactions` : `/contracts/${id}/transactions`;
         const rows = await api('GET', path);
+        rows.forEach(r => { _txRowsById[r.id] = r; });
         renderLinkedTransactions(rows);
       } catch (err) {
         showAlert(err.message, 'error');
-        closeLinkedTransactionsModal();
+        drillCloseAll();
       }
     }
 
-    function closeLinkedTransactionsModal() {
-      document.getElementById('linkedTransactionsModal').classList.remove('active');
-    }
+    function closeLinkedTransactionsModal() { drillCloseAll(); }
 
     document.getElementById('linkedTransactionsModal').addEventListener('click', e => {
-      if (e.target.id === 'linkedTransactionsModal') closeLinkedTransactionsModal();
+      if (e.target.id === 'linkedTransactionsModal') drillCloseAll();
     });
 
     function renderLinkedTransactions(rows) {
@@ -3480,18 +3528,13 @@
         return;
       }
       el.innerHTML = rows.map(r => `
-        <div class="comment-item" style="cursor:pointer;" onclick="openLinkedTransaction('${r.id}','${escapeHtml(r.number || '')}')">
+        <div class="comment-item" style="cursor:pointer;" onclick="drillPush('txDetail',['${r.id}','${escapeHtml(r.number || '')}'])">
           <div style="display:flex;justify-content:space-between;align-items:center;">
-            <a href="#" class="entity-link" onclick="event.preventDefault(); openLinkedTransaction('${r.id}','${escapeHtml(r.number || '')}');">${escapeHtml(r.number || '(без номера)')}</a>
+            <a href="#" class="entity-link" onclick="event.preventDefault(); event.stopPropagation(); drillPush('txDetail',['${r.id}','${escapeHtml(r.number || '')}']);">${escapeHtml(r.number || '(без номера)')}</a>
             <span class="badge ${r.status === 'paid' ? 'completed' : (r.status === 'overdue' ? 'danger' : 'pending')}">${TX_STATUS_LABELS[r.status] || r.status || '-'}</span>
           </div>
           <div class="c-meta">${r.date || '-'} · ${escapeHtml(r.counterparty || '-')} · ${fmtNum(r.amount_usd || r.amount)} ${r.currency || ''}</div>
         </div>`).join('');
-    }
-
-    async function openLinkedTransaction(txId, label) {
-      closeLinkedTransactionsModal();
-      await openTransactionDetailModal(txId, label);
     }
 
     // ============================================================
@@ -3625,9 +3668,22 @@
 
     // ---- Transaction detail modal (attachments + nomenclature items) ----
 
-    async function openTransactionDetailModal(txId, label) {
+    async function renderTxDetailScreen(txId, label) {
       currentTxId = txId;
-      document.getElementById('transactionDetailTitle').textContent = `Счёт ${label || ''}`;
+      const row = _txRowsById[txId] || {};
+      const contractLinkHtml = row.contract_id
+        ? `<a href="#" class="entity-link" onclick="drillPush('linked',['contract','${row.contract_id}','${escapeHtml(row.contract_number || '')}']); return false;">${escapeHtml(row.contract_number || '-')}</a>`
+        : (row.contract_number ? escapeHtml(row.contract_number) : '<span style="color:var(--gray-text);">не привязан</span>');
+      document.getElementById('transactionDetailHeader').innerHTML = `
+        ${backButtonHtml()}
+        <div class="modal-header" style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;">
+          <h2 style="margin:0;">Счёт ${escapeHtml(label || '')}</h2>
+          <div style="text-align:right;font-size:13px;">
+            <div style="color:var(--gray-text);font-size:11px;text-transform:uppercase;">Договор</div>
+            ${contractLinkHtml}
+          </div>
+        </div>
+      `;
       document.getElementById('transactionDetailModal').classList.add('active');
       await Promise.all([
         initAttachmentsUI('txAttachmentsList', 'transaction', txId, ['invoice', 'waybill', 'acceptance_act', 'other']),
@@ -3635,20 +3691,17 @@
       ]);
     }
 
-    function closeTransactionDetailModal() {
-      document.getElementById('transactionDetailModal').classList.remove('active');
-      currentTxId = null;
-    }
+    function closeTransactionDetailModal() { drillCloseAll(); }
 
     document.getElementById('transactionDetailModal').addEventListener('click', e => {
-      if (e.target.id === 'transactionDetailModal') closeTransactionDetailModal();
+      if (e.target.id === 'transactionDetailModal') drillCloseAll();
     });
 
     document.addEventListener('keydown', e => {
       if (e.key !== 'Escape') return;
       if (document.getElementById('attachmentsModal').classList.contains('active')) closeAttachmentsModal();
-      else if (document.getElementById('transactionDetailModal').classList.contains('active')) closeTransactionDetailModal();
-      else if (document.getElementById('linkedTransactionsModal').classList.contains('active')) closeLinkedTransactionsModal();
+      else if (document.getElementById('transactionDetailModal').classList.contains('active')) drillCloseAll();
+      else if (document.getElementById('linkedTransactionsModal').classList.contains('active')) drillCloseAll();
     });
 
     async function refreshTransactionItems() {
