@@ -1078,7 +1078,7 @@
             <p>Управление контрактами и сроками</p>
           </div>
 
-          <div class="form-section">
+          <div class="form-section" id="contractFormSection" style="display:none;">
             <h3>Добавить новый договор</h3>
             <form id="contractForm">
               <div style="font-weight:600;color:var(--titan-primary);margin-bottom:8px;font-size:13px;">Основное</div>
@@ -1206,7 +1206,10 @@
           </div>
 
           <div class="table-section">
-            <h3>Все договоры</h3>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+              <h3 style="margin:0">Все договоры</h3>
+              <button class="btn-submit" onclick="toggleFormSection('contractFormSection')">+ Добавить договор</button>
+            </div>
             <div class="search-bar">
               <input type="text" id="contractSearch" placeholder="Поиск по номеру, контрагенту..." onkeyup="filterContractTable()">
             </div>
@@ -1250,7 +1253,7 @@
             <p>Учёт платежей и транзакций</p>
           </div>
 
-          <div class="form-section">
+          <div class="form-section" id="transactionFormSection" style="display:none;">
             <h3>Добавить транзакцию</h3>
             <form id="transactionForm">
               <div style="font-weight:600;color:var(--titan-primary);margin-bottom:8px;font-size:13px;">Идентификация</div>
@@ -1357,7 +1360,10 @@
           </div>
 
           <div class="table-section">
-            <h3>Все транзакции</h3>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+              <h3 style="margin:0">Все транзакции</h3>
+              <button class="btn-submit" onclick="toggleFormSection('transactionFormSection')">+ Добавить транзакцию</button>
+            </div>
             <div class="search-bar">
               <input type="text" id="transactionsSearch" placeholder="Поиск по контрагенту, организации..." onkeyup="filterTransactionsTable()">
             </div>
@@ -1398,7 +1404,7 @@
             <p>Справочник контрагентов</p>
           </div>
 
-          <div class="form-section">
+          <div class="form-section" id="counterpartyFormSection" style="display:none;">
             <h3>Добавить контрагента</h3>
             <form id="counterpartyForm">
               <div class="form-row">
@@ -1465,7 +1471,10 @@
           </div>
 
           <div class="table-section">
-            <h3>Все контрагенты</h3>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+              <h3 style="margin:0">Все контрагенты</h3>
+              <button class="btn-submit" onclick="toggleFormSection('counterpartyFormSection')">+ Добавить контрагента</button>
+            </div>
             <div class="search-bar">
               <input type="text" id="counterpartiesSearch" placeholder="Поиск по названию, стране..." onkeyup="filterCounterpartiesTable()">
             </div>
@@ -1647,6 +1656,43 @@
   <!-- TASK DETAIL MODAL -->
   <div id="taskDetailModal" class="modal-overlay task-modal">
     <div class="modal-content" id="taskDetailContent"></div>
+  </div>
+
+  <!-- ATTACHMENTS MODAL (contracts) -->
+  <div id="attachmentsModal" class="modal-overlay task-modal">
+    <div class="modal-content">
+      <button type="button" class="task-modal-close" onclick="closeAttachmentsModal()" aria-label="Закрыть">✕</button>
+      <div class="modal-header">
+        <h2 id="attachmentsModalTitle">Файлы</h2>
+      </div>
+      <div id="attachmentsModalList"></div>
+    </div>
+  </div>
+
+  <!-- TRANSACTION DETAIL MODAL (attachments + nomenclature) -->
+  <div id="transactionDetailModal" class="modal-overlay task-modal">
+    <div class="modal-content">
+      <button type="button" class="task-modal-close" onclick="closeTransactionDetailModal()" aria-label="Закрыть">✕</button>
+      <div class="modal-header">
+        <h2 id="transactionDetailTitle">Счёт</h2>
+      </div>
+      <div class="task-detail-section" style="margin-top:0;border-top:none;padding-top:0;">
+        <h4>Номенклатура</h4>
+        <div id="transactionItemsList"></div>
+        <div class="checklist-add" style="margin-top:10px;flex-wrap:wrap;">
+          <input type="text" id="newItemName" placeholder="Наименование" style="flex:2;min-width:140px;">
+          <input type="text" id="newItemSku" placeholder="Артикул" style="max-width:100px;">
+          <input type="number" id="newItemQty" placeholder="Кол-во" value="1" style="max-width:80px;">
+          <input type="text" id="newItemUnit" placeholder="Ед." value="шт" style="max-width:70px;">
+          <input type="number" id="newItemPrice" placeholder="Цена" step="0.01" style="max-width:100px;">
+          <button class="btn-filter" onclick="addTransactionItem()">Добавить</button>
+        </div>
+      </div>
+      <div class="task-detail-section">
+        <h4>Файлы (счёт, ТН, акт приёмки)</h4>
+        <div id="txAttachmentsList"></div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -2417,7 +2463,10 @@
           <td>${r.responsible || '-'}</td>
           <td>${r.link ? `<a href="${r.link}" target="_blank">Ссылка</a>` : '-'}</td>
           <td>${r.notes || '-'}</td>
-          <td><button class="btn-delete" onclick="deleteRecord('contracts','${r.id}')">Удалить</button></td>
+          <td style="white-space:nowrap">
+            <button class="btn-filter" onclick="openAttachmentsModal('contract','${r.id}','${escapeHtml(r.contract_number || '')}')">📎 Файлы</button>
+            <button class="btn-delete" onclick="deleteRecord('contracts','${r.id}')">Удалить</button>
+          </td>
         </tr>`).join('');
     }
 
@@ -2443,7 +2492,10 @@
           <td>${r.responsible || '-'}</td>
           <td>${r.urgent ? 'Да' : 'Нет'}</td>
           <td>${r.acid_link || '-'}</td>
-          <td><button class="btn-delete" onclick="deleteRecord('ais_transactions','${r.id}')">Удалить</button></td>
+          <td style="white-space:nowrap">
+            <button class="btn-filter" onclick="openTransactionDetailModal('${r.id}','${escapeHtml(r.number || '')}')">📎 Файлы/позиции</button>
+            <button class="btn-delete" onclick="deleteRecord('ais_transactions','${r.id}')">Удалить</button>
+          </td>
         </tr>`).join('');
     }
 
@@ -2622,6 +2674,7 @@
         await api('POST', '/contracts', Object.fromEntries(new FormData(e.target)));
         showAlert('Договор добавлен');
         e.target.reset();
+        toggleFormSection('contractFormSection', false);
         loadTable('contracts').then(rows => renderContractTable(rows));
       }
       catch (err) { showAlert(err.message, 'error'); }
@@ -2638,6 +2691,7 @@
         await api('POST', '/ais_transactions', data);
         showAlert('Транзакция добавлена');
         e.target.reset();
+        toggleFormSection('transactionFormSection', false);
         loadTable('ais_transactions').then(rows => renderTransactionsTable(rows));
       }
       catch (err) { showAlert(err.message, 'error'); }
@@ -2651,10 +2705,18 @@
         await api('POST', '/counterparties', data);
         showAlert('Контрагент добавлен');
         e.target.reset();
+        toggleFormSection('counterpartyFormSection', false);
         loadTable('counterparties').then(rows => renderCounterpartiesTable(rows));
       }
       catch (err) { showAlert(err.message, 'error'); }
     });
+
+    function toggleFormSection(id, force) {
+      const el = document.getElementById(id);
+      const show = force !== undefined ? force : el.style.display === 'none';
+      el.style.display = show ? '' : 'none';
+      if (show) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
 
     // ============================================================
     // DELETE
@@ -3329,6 +3391,227 @@
       loadNotifications();
       clearInterval(_notifTimer);
       _notifTimer = setInterval(loadNotifications, 45000);
+    }
+
+    // ============================================================
+    // ATTACHMENTS (contracts, transactions) & NOMENCLATURE (transaction items)
+    // ============================================================
+
+    const ATTACHMENT_CATEGORY_LABELS = {
+      contract_scan: 'Скан договора', invoice: 'Счёт', waybill: 'ТН', acceptance_act: 'Акт приёмки', other: 'Другое'
+    };
+
+    let attachmentsCtx = { type: null, id: null };
+    let currentTxId = null;
+
+    async function apiUpload(path, formData) {
+      const res = await fetch(`${API_BASE}${path}`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${authToken}` },
+        body: formData
+      });
+      if (res.status === 401) {
+        authToken = null; currentUser = null;
+        localStorage.removeItem('authToken'); localStorage.removeItem('currentUser');
+        document.getElementById('appScreen').style.display = 'none';
+        document.getElementById('loginScreen').style.display = 'flex';
+        throw new Error('Сессия истекла. Войдите снова.');
+      }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(err.error || res.statusText);
+      }
+      return res.json();
+    }
+
+    function attachmentCategoryOptions(categories) {
+      return categories.map(c => `<option value="${c}">${ATTACHMENT_CATEGORY_LABELS[c]}</option>`).join('');
+    }
+
+    async function initAttachmentsUI(containerId, entityType, entityId, categories) {
+      attachmentsCtx = { type: entityType, id: entityId };
+      const container = document.getElementById(containerId);
+      container.innerHTML = `
+        <div class="checklist-add" style="margin-bottom:10px;">
+          <select id="${containerId}_cat" style="max-width:160px;">${attachmentCategoryOptions(categories)}</select>
+          <input type="file" id="${containerId}_file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" style="flex:1;">
+          <button class="btn-submit" onclick="uploadAttachmentFor('${containerId}')">Загрузить</button>
+        </div>
+        <div id="${containerId}_list"></div>
+      `;
+      await refreshAttachmentsFor(containerId);
+    }
+
+    async function refreshAttachmentsFor(containerId) {
+      try {
+        const rows = await api('GET', `/attachments?entity_type=${attachmentsCtx.type}&entity_id=${attachmentsCtx.id}`);
+        renderAttachmentsList(rows, `#${containerId}_list`, containerId);
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    function renderAttachmentsList(rows, selector, containerId) {
+      const el = document.querySelector(selector);
+      if (!rows.length) { el.innerHTML = '<div style="font-size:12px;color:var(--gray-text);">Файлов пока нет</div>'; return; }
+      el.innerHTML = rows.map(r => `
+        <div class="comment-item">
+          <div class="c-meta">${ATTACHMENT_CATEGORY_LABELS[r.category] || r.category} · ${escapeHtml(r.uploaded_by_name || '-')} · ${new Date(r.created_at.replace(' ', 'T') + 'Z').toLocaleString('ru-RU')}</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+            <a href="#" onclick="downloadAttachment('${r.id}'); return false;">${escapeHtml(r.original_name)}</a>
+            <button class="btn-delete" style="padding:2px 8px;font-size:11px;" onclick="removeAttachment('${r.id}','${containerId}')">Удалить</button>
+          </div>
+        </div>`).join('');
+    }
+
+    async function uploadAttachmentFor(containerId) {
+      const fileInput = document.getElementById(`${containerId}_file`);
+      const categorySelect = document.getElementById(`${containerId}_cat`);
+      const file = fileInput.files[0];
+      if (!file) return showAlert('Выберите файл', 'error');
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('entity_type', attachmentsCtx.type);
+      fd.append('entity_id', attachmentsCtx.id);
+      fd.append('category', categorySelect.value);
+      try {
+        await apiUpload('/attachments', fd);
+        showAlert('Файл загружен');
+        fileInput.value = '';
+        await refreshAttachmentsFor(containerId);
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    async function downloadAttachment(id) {
+      try {
+        const res = await fetch(`${API_BASE}/attachments/${id}/download`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+        if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || 'Ошибка скачивания'); }
+        const blob = await res.blob();
+        const cd = res.headers.get('Content-Disposition') || '';
+        const match = cd.match(/filename="?([^"]+)"?/);
+        const filename = match ? decodeURIComponent(match[1]) : 'file';
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(url);
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    async function removeAttachment(id, containerId) {
+      if (!confirm('Удалить файл?')) return;
+      try {
+        await api('DELETE', `/attachments/${id}`);
+        showAlert('Файл удалён');
+        await refreshAttachmentsFor(containerId);
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    // ---- Contract attachments modal ----
+
+    async function openAttachmentsModal(entityType, entityId, label) {
+      document.getElementById('attachmentsModalTitle').textContent = `Файлы — ${label || ''}`;
+      document.getElementById('attachmentsModal').classList.add('active');
+      await initAttachmentsUI('attachmentsModalList', entityType, entityId,
+        entityType === 'contract' ? ['contract_scan', 'other'] : ['invoice', 'waybill', 'acceptance_act', 'other']);
+    }
+
+    function closeAttachmentsModal() {
+      document.getElementById('attachmentsModal').classList.remove('active');
+    }
+
+    document.getElementById('attachmentsModal').addEventListener('click', e => {
+      if (e.target.id === 'attachmentsModal') closeAttachmentsModal();
+    });
+
+    // ---- Transaction detail modal (attachments + nomenclature items) ----
+
+    async function openTransactionDetailModal(txId, label) {
+      currentTxId = txId;
+      document.getElementById('transactionDetailTitle').textContent = `Счёт ${label || ''}`;
+      document.getElementById('transactionDetailModal').classList.add('active');
+      await Promise.all([
+        initAttachmentsUI('txAttachmentsList', 'transaction', txId, ['invoice', 'waybill', 'acceptance_act', 'other']),
+        refreshTransactionItems()
+      ]);
+    }
+
+    function closeTransactionDetailModal() {
+      document.getElementById('transactionDetailModal').classList.remove('active');
+      currentTxId = null;
+    }
+
+    document.getElementById('transactionDetailModal').addEventListener('click', e => {
+      if (e.target.id === 'transactionDetailModal') closeTransactionDetailModal();
+    });
+
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Escape') return;
+      if (document.getElementById('attachmentsModal').classList.contains('active')) closeAttachmentsModal();
+      else if (document.getElementById('transactionDetailModal').classList.contains('active')) closeTransactionDetailModal();
+    });
+
+    async function refreshTransactionItems() {
+      try {
+        const items = await api('GET', `/ais_transactions/${currentTxId}/items`);
+        renderTransactionItems(items);
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    function renderTransactionItems(items) {
+      const el = document.getElementById('transactionItemsList');
+      if (!items.length) {
+        el.innerHTML = '<div style="font-size:12px;color:var(--gray-text);">Позиций пока нет</div>';
+        return;
+      }
+      const total = items.reduce((s, i) => s + (i.amount || 0), 0);
+      el.innerHTML = `
+        <div class="table-wrapper">
+        <table style="width:100%;font-size:12.5px;border-collapse:collapse;">
+          <thead><tr style="text-align:left;color:var(--gray-text);">
+            <th style="padding:4px 6px;">Наименование</th><th>Артикул</th><th>Кол-во</th><th>Ед.</th><th>Цена</th><th>Сумма</th><th></th>
+          </tr></thead>
+          <tbody>${items.map(i => `
+            <tr>
+              <td style="padding:4px 6px;">${escapeHtml(i.name)}</td>
+              <td>${escapeHtml(i.sku || '-')}</td>
+              <td>${i.quantity}</td>
+              <td>${escapeHtml(i.unit || '')}</td>
+              <td>${fmtNum(i.unit_price)}</td>
+              <td>${fmtNum(i.amount)}</td>
+              <td><button class="btn-delete" style="padding:2px 6px;font-size:11px;" onclick="removeTransactionItem('${i.id}')">✕</button></td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+        </div>
+        <div style="text-align:right;font-weight:600;margin-top:6px;">Итого: ${fmtNum(total)}</div>
+      `;
+    }
+
+    async function addTransactionItem() {
+      const name = document.getElementById('newItemName').value.trim();
+      if (!name) return showAlert('Укажите наименование', 'error');
+      const payload = {
+        name,
+        sku: document.getElementById('newItemSku').value.trim(),
+        quantity: document.getElementById('newItemQty').value,
+        unit: document.getElementById('newItemUnit').value.trim() || 'шт',
+        unit_price: document.getElementById('newItemPrice').value
+      };
+      try {
+        await api('POST', `/ais_transactions/${currentTxId}/items`, payload);
+        document.getElementById('newItemName').value = '';
+        document.getElementById('newItemSku').value = '';
+        document.getElementById('newItemQty').value = '1';
+        document.getElementById('newItemPrice').value = '';
+        await refreshTransactionItems();
+      } catch (err) { showAlert(err.message, 'error'); }
+    }
+
+    async function removeTransactionItem(id) {
+      if (!confirm('Удалить позицию?')) return;
+      try {
+        await api('DELETE', `/ais_transactions/${currentTxId}/items/${id}`);
+        await refreshTransactionItems();
+      } catch (err) { showAlert(err.message, 'error'); }
     }
 
     // ============================================================

@@ -267,6 +267,37 @@ CREATE TABLE IF NOT EXISTS task_checklist (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- ===== ATTACHMENTS (files attached to contracts or transactions) =====
+CREATE TABLE IF NOT EXISTS attachments (
+  id TEXT PRIMARY KEY,
+  entity_type TEXT NOT NULL CHECK(entity_type IN ('contract','transaction')),
+  entity_id TEXT NOT NULL,
+  category TEXT DEFAULT 'other'
+    CHECK(category IN ('contract_scan','invoice','waybill','acceptance_act','other')),
+  stored_name TEXT NOT NULL,                 -- uuid-based filename on disk
+  original_name TEXT NOT NULL,               -- filename to show the user
+  mime_type TEXT,
+  size_bytes INTEGER,
+  uploaded_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+  uploaded_by_name TEXT,                     -- denormalized
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ===== TRANSACTION ITEMS (nomenclature/line items within a счёт) =====
+CREATE TABLE IF NOT EXISTS transaction_items (
+  id TEXT PRIMARY KEY,
+  transaction_id TEXT NOT NULL REFERENCES ais_transactions(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,                        -- nomenclature / item name
+  sku TEXT,                                  -- article / code
+  unit TEXT DEFAULT 'шт',
+  quantity REAL DEFAULT 1,
+  unit_price REAL DEFAULT 0,
+  amount REAL DEFAULT 0,                     -- quantity * unit_price, stored for convenience
+  notes TEXT,
+  sort_order INTEGER DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- ===== INDEXES FOR PERFORMANCE =====
 -- users
 CREATE INDEX IF NOT EXISTS idx_users_login ON users(login);
@@ -329,3 +360,9 @@ CREATE INDEX IF NOT EXISTS idx_task_comments_task ON task_comments(task_id);
 
 -- task_checklist
 CREATE INDEX IF NOT EXISTS idx_task_checklist_task ON task_checklist(task_id);
+
+-- attachments
+CREATE INDEX IF NOT EXISTS idx_attachments_entity ON attachments(entity_type, entity_id);
+
+-- transaction_items
+CREATE INDEX IF NOT EXISTS idx_transaction_items_transaction ON transaction_items(transaction_id);

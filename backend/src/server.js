@@ -11,6 +11,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
+import multer from 'multer';
 import { createRequire } from 'module';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -33,6 +34,7 @@ process.on('uncaughtException', (err) => {
 
 const PORT = process.env.PORT || 8080;
 const DB_PATH = process.env.DB_PATH || join(__dirname, '../data/accessweb.db');
+const UPLOADS_DIR = join(__dirname, '../data/uploads');
 
 let JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -202,6 +204,9 @@ async function initDB() {
   if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
   }
+  if (!fs.existsSync(UPLOADS_DIR)) {
+    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+  }
 
   db = await open({ filename: DB_PATH, driver: sqlite3.Database });
 
@@ -316,19 +321,14 @@ async function seedUsers() {
     console.log('Egypt user created (login: egypt / egypt2024)');
   }
 
-  const defaultUsers = [
+  const coreUsers = [
     { login: 'director',    password: 'director123',  name: 'Соколова Виктория Андреевна', role: 'director' },
     { login: 'logistics',   password: 'logistics123', name: 'Логистическая поддержка',  role: 'logistics_support' },
     { login: 'analytics',   password: 'analytics123', name: 'Информационная аналитика', role: 'info_analytics' },
     { login: 'oplogistics', password: 'oplog123',     name: 'Оперативная логистика',    role: 'operational_logistics' },
-    { login: 'ivanov',      password: 'ivanov123',    name: 'Иванов Сергей Петрович',      role: 'logistics_support' },
-    { login: 'smirnova',    password: 'smirnova123',  name: 'Смирнова Анна Викторовна',    role: 'info_analytics' },
-    { login: 'kuznetsov',   password: 'kuznetsov123', name: 'Кузнецов Дмитрий Олегович',   role: 'operational_logistics' },
-    { login: 'volkova',     password: 'volkova123',   name: 'Волкова Марина Сергеевна',    role: 'logistics_support' },
-    { login: 'popov',       password: 'popov123',     name: 'Попов Игорь Николаевич',      role: 'operational_logistics' },
   ];
 
-  for (const u of defaultUsers) {
+  for (const u of coreUsers) {
     const exists = await db.get('SELECT id FROM users WHERE login = ?', u.login);
     if (!exists) {
       const hash = await bcryptjs.hash(u.password, 10);
@@ -338,6 +338,24 @@ async function seedUsers() {
       );
       console.log(`User created: ${u.login} / ${u.password} (${u.role})`);
     }
+  }
+
+  // Demo/test employees — optional. Delete backend/seed/ to stop provisioning these.
+  try {
+    const { default: demoEmployees } = await import('../seed/demoEmployees.js');
+    for (const u of demoEmployees) {
+      const exists = await db.get('SELECT id FROM users WHERE login = ?', u.login);
+      if (!exists) {
+        const hash = await bcryptjs.hash(u.password, 10);
+        await db.run(
+          `INSERT INTO users (id, login, password_hash, name, role) VALUES (?, ?, ?, ?, ?)`,
+          [uuidv4(), u.login, hash, u.name, u.role]
+        );
+        console.log(`Demo user created: ${u.login} / ${u.password} (${u.role})`);
+      }
+    }
+  } catch {
+    // backend/seed/demoEmployees.js not present — demo employees intentionally skipped
   }
 }
 
@@ -445,6 +463,24 @@ function checkImport(req, res, next) {
   }
 
   next();
+}
+
+function canReadTable(role, table) {
+  const perm = ROLE_PERMISSIONS[role];
+  if (!perm) return false;
+  return perm.tables === '*' || perm.tables.includes(table);
+}
+
+function canWriteTable(role, table) {
+  if (!canReadTable(role, table)) return false;
+  const perm = ROLE_PERMISSIONS[role];
+  return perm.write === true || (Array.isArray(perm.write) && perm.write.includes(table));
+}
+
+function canDeleteTable(role, table) {
+  if (!canReadTable(role, table)) return false;
+  const perm = ROLE_PERMISSIONS[role];
+  return perm.delete === true || (Array.isArray(perm.delete) && perm.delete.includes(table));
 }
 
 function sanitizeColumns(table, data) {
@@ -1023,6 +1059,201 @@ app.delete('/tasks/:id/checklist/:itemId', auth, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('Checklist delete error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// ============== ATTACHMENTS (files on contracts / transactions) ==============
+
+const ENTITY_TABLE_MAP = { contract: 'contracts', transaction: 'ais_transactions' };
+const ATTACHMENT_CATEGORIES = new Set(['contract_scan', 'invoice', 'waybill', 'acceptance_act', 'other']);
+const ALLOWED_ATTACHMENT_EXT = new Set(['.pdf', '.doc', '.docx', '.jpg', '.jpeg', '.png']);
+
+const attachmentStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, UPLOADS_DIR),
+  filename: (req, file, cb) => {
+    const ext = (file.originalname.match(/\.[^.]+$/) || [''])[0].toLowerCase();
+    cb(null, `${uuidv4()}${ext}`);
+  }
+});
+
+const uploadAttachment = multer({
+  storage: attachmentStorage,
+  limits: { fileSize: 15 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ext = (file.originalname.match(/\.[^.]+$/) || [''])[0].toLowerCase();
+    if (!ALLOWED_ATTACHMENT_EXT.has(ext)) {
+      return cb(new Error('Недопустимый тип файла. Разрешены: PDF, DOC, DOCX, JPG, PNG'));
+    }
+    cb(null, true);
+  }
+});
+
+app.get('/attachments', auth, async (req, res) => {
+  try {
+    const { entity_type, entity_id } = req.query;
+    const table = ENTITY_TABLE_MAP[entity_type];
+    if (!table) return res.status(400).json({ error: 'Неверный тип сущности' });
+    if (!entity_id) return res.status(400).json({ error: 'Не указан entity_id' });
+    if (!canReadTable(req.user.role, table)) return res.status(403).json({ error: 'Нет доступа' });
+
+    const rows = await db.all(
+      'SELECT id, entity_type, entity_id, category, original_name, mime_type, size_bytes, uploaded_by_name, created_at FROM attachments WHERE entity_type = ? AND entity_id = ? ORDER BY created_at DESC',
+      [entity_type, entity_id]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Attachments list error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+app.post('/attachments', auth, (req, res) => {
+  uploadAttachment.single('file')(req, res, async (err) => {
+    if (err) return res.status(400).json({ error: err.message || 'Ошибка загрузки файла' });
+    try {
+      const { entity_type, entity_id, category } = req.body;
+      const table = ENTITY_TABLE_MAP[entity_type];
+      const cleanup = () => fs.unlink(req.file?.path || '', () => {});
+
+      if (!req.file) return res.status(400).json({ error: 'Файл не получен' });
+      if (!table) { cleanup(); return res.status(400).json({ error: 'Неверный тип сущности' }); }
+      if (!entity_id) { cleanup(); return res.status(400).json({ error: 'Не указан entity_id' }); }
+      if (!canWriteTable(req.user.role, table)) { cleanup(); return res.status(403).json({ error: 'Нет прав на прикрепление файлов' }); }
+
+      const entityRow = await db.get(`SELECT id FROM ${table} WHERE id = ?`, [entity_id]);
+      if (!entityRow) { cleanup(); return res.status(404).json({ error: 'Запись не найдена' }); }
+
+      const id = uuidv4();
+      const finalCategory = ATTACHMENT_CATEGORIES.has(category) ? category : 'other';
+      await db.run(
+        `INSERT INTO attachments (id, entity_type, entity_id, category, stored_name, original_name, mime_type, size_bytes, uploaded_by, uploaded_by_name)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, entity_type, entity_id, finalCategory, req.file.filename, req.file.originalname, req.file.mimetype, req.file.size, req.user.id, req.user.name]
+      );
+      res.json({ id });
+    } catch (err) {
+      console.error('Attachment upload error:', err);
+      res.status(500).json({ error: 'Ошибка сервера' });
+    }
+  });
+});
+
+app.get('/attachments/:id/download', auth, async (req, res) => {
+  try {
+    const row = await db.get('SELECT * FROM attachments WHERE id = ?', [req.params.id]);
+    if (!row) return res.status(404).json({ error: 'Файл не найден' });
+    const table = ENTITY_TABLE_MAP[row.entity_type];
+    if (!canReadTable(req.user.role, table)) return res.status(403).json({ error: 'Нет доступа' });
+
+    const filePath = join(UPLOADS_DIR, row.stored_name);
+    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Файл отсутствует на диске' });
+    res.download(filePath, row.original_name);
+  } catch (err) {
+    console.error('Attachment download error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+app.delete('/attachments/:id', auth, async (req, res) => {
+  try {
+    const row = await db.get('SELECT * FROM attachments WHERE id = ?', [req.params.id]);
+    if (!row) return res.status(404).json({ error: 'Файл не найден' });
+    const table = ENTITY_TABLE_MAP[row.entity_type];
+    const isOwner = row.uploaded_by === req.user.id;
+    if (!isOwner && !canDeleteTable(req.user.role, table)) {
+      return res.status(403).json({ error: 'Нет прав на удаление этого файла' });
+    }
+
+    await db.run('DELETE FROM attachments WHERE id = ?', [req.params.id]);
+    fs.unlink(join(UPLOADS_DIR, row.stored_name), () => {});
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Attachment delete error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// ============== TRANSACTION ITEMS (nomenclature within a счёт) ==============
+
+app.get('/ais_transactions/:id/items', auth, async (req, res) => {
+  try {
+    if (!canReadTable(req.user.role, 'ais_transactions')) return res.status(403).json({ error: 'Нет доступа' });
+    const rows = await db.all(
+      'SELECT * FROM transaction_items WHERE transaction_id = ? ORDER BY sort_order ASC, created_at ASC',
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Transaction items list error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+app.post('/ais_transactions/:id/items', auth, async (req, res) => {
+  try {
+    if (!canWriteTable(req.user.role, 'ais_transactions')) return res.status(403).json({ error: 'Нет прав' });
+    const tx = await db.get('SELECT id FROM ais_transactions WHERE id = ?', [req.params.id]);
+    if (!tx) return res.status(404).json({ error: 'Транзакция не найдена' });
+
+    const { name, sku, unit, quantity, unit_price, notes } = req.body;
+    if (!name || !String(name).trim()) return res.status(400).json({ error: 'Укажите название позиции' });
+
+    const qty = Number(quantity) || 1;
+    const price = Number(unit_price) || 0;
+    const { maxOrder } = await db.get(
+      'SELECT COALESCE(MAX(sort_order), -1) AS maxOrder FROM transaction_items WHERE transaction_id = ?', [req.params.id]
+    );
+
+    const id = uuidv4();
+    await db.run(
+      `INSERT INTO transaction_items (id, transaction_id, name, sku, unit, quantity, unit_price, amount, notes, sort_order)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, req.params.id, String(name).trim(), sku || null, unit || 'шт', qty, price, qty * price, notes || null, maxOrder + 1]
+    );
+    res.json({ id });
+  } catch (err) {
+    console.error('Transaction item create error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+app.put('/ais_transactions/:id/items/:itemId', auth, async (req, res) => {
+  try {
+    if (!canWriteTable(req.user.role, 'ais_transactions')) return res.status(403).json({ error: 'Нет прав' });
+    const item = await db.get('SELECT * FROM transaction_items WHERE id = ? AND transaction_id = ?', [req.params.itemId, req.params.id]);
+    if (!item) return res.status(404).json({ error: 'Позиция не найдена' });
+
+    const { name, sku, unit, quantity, unit_price, notes } = req.body;
+    const qty = quantity !== undefined ? Number(quantity) || 0 : item.quantity;
+    const price = unit_price !== undefined ? Number(unit_price) || 0 : item.unit_price;
+
+    await db.run(
+      `UPDATE transaction_items SET name = ?, sku = ?, unit = ?, quantity = ?, unit_price = ?, amount = ?, notes = ?
+       WHERE id = ?`,
+      [
+        name ? String(name).trim() : item.name,
+        sku !== undefined ? sku : item.sku,
+        unit || item.unit,
+        qty, price, qty * price,
+        notes !== undefined ? notes : item.notes,
+        req.params.itemId
+      ]
+    );
+    res.json({ id: req.params.itemId });
+  } catch (err) {
+    console.error('Transaction item update error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+app.delete('/ais_transactions/:id/items/:itemId', auth, async (req, res) => {
+  try {
+    if (!canWriteTable(req.user.role, 'ais_transactions')) return res.status(403).json({ error: 'Нет прав' });
+    await db.run('DELETE FROM transaction_items WHERE id = ? AND transaction_id = ?', [req.params.itemId, req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Transaction item delete error:', err);
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });
