@@ -1334,6 +1334,16 @@ app.post('/:table', auth, checkAccess, async (req, res) => {
       data.limit_balance = Math.max(0, base - paid);
     }
 
+    // A счёт linked to an ACID must belong to that ACID's own contract —
+    // otherwise "ACID -> договор -> счета" and "ACID -> счета" disagree.
+    if (table === 'ais_transactions' && data.acid_link) {
+      const acidRow = await db.get('SELECT contract_id, contract_number FROM acid WHERE acid = ?', [data.acid_link]);
+      if (acidRow) {
+        data.contract_id = acidRow.contract_id;
+        data.contract_number = acidRow.contract_number;
+      }
+    }
+
     const columns = Object.keys(data);
     if (columns.length === 0) return res.status(400).json({ error: 'Нет допустимых полей' });
 
@@ -1374,6 +1384,20 @@ app.put('/:table/:id', auth, checkAccess, async (req, res) => {
       const base = parseFloat(data.amount_with_ds ?? current?.amount_with_ds ?? data.amount ?? current?.amount ?? 0) || 0;
       const paid = parseFloat(data.paid_amount ?? current?.paid_amount ?? 0) || 0;
       data.limit_balance = Math.max(0, base - paid);
+    }
+
+    // Keep a счёт's contract in sync with its linked ACID's own contract (see POST handler)
+    if (table === 'ais_transactions') {
+      const acidLink = data.acid_link !== undefined
+        ? data.acid_link
+        : (await db.get('SELECT acid_link FROM ais_transactions WHERE id = ?', [id]))?.acid_link;
+      if (acidLink) {
+        const acidRow = await db.get('SELECT contract_id, contract_number FROM acid WHERE acid = ?', [acidLink]);
+        if (acidRow) {
+          data.contract_id = acidRow.contract_id;
+          data.contract_number = acidRow.contract_number;
+        }
+      }
     }
 
     const columns = Object.keys(data);
