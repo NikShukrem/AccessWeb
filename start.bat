@@ -13,9 +13,9 @@ if errorlevel 1 goto :no_node
 
 for /f %%v in ('node --version') do echo Node.js: %%v
 
-if exist "backend\node_modules" goto :check_env
+if exist "backend\node_modules\multer" goto :check_env
 echo.
-echo [INFO] Installing dependencies - first run...
+echo [INFO] Installing/updating dependencies...
 cd backend
 call npm install
 if errorlevel 1 goto :npm_failed
