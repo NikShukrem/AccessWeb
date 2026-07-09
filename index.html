@@ -838,6 +838,11 @@
     }
     .t-entity-badge:hover { background: #D5E3F0; }
 
+    .entity-link {
+      color: var(--titan-primary); font-weight: 600; text-decoration: none; border-bottom: 1px dashed var(--titan-primary);
+    }
+    .entity-link:hover { color: var(--titan-accent); border-bottom-color: var(--titan-accent); }
+
     .my-tasks-list .task-card { border-left-width: 4px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
     .my-tasks-list .task-card .t-body { flex: 1; }
 
@@ -1658,6 +1663,18 @@
     <div class="modal-content" id="taskDetailContent"></div>
   </div>
 
+  <!-- LINKED TRANSACTIONS MODAL (drill-down from ACID / contract to related счета) -->
+  <div id="linkedTransactionsModal" class="modal-overlay task-modal">
+    <div class="modal-content">
+      <button type="button" class="task-modal-close" onclick="closeLinkedTransactionsModal()" aria-label="Закрыть">✕</button>
+      <div class="modal-header">
+        <h2 id="linkedTransactionsTitle">Связанные счета</h2>
+        <p>Клик по счёту откроет его состав (номенклатуру) и файлы</p>
+      </div>
+      <div id="linkedTransactionsList"></div>
+    </div>
+  </div>
+
   <!-- ATTACHMENTS MODAL (contracts) -->
   <div id="attachmentsModal" class="modal-overlay task-modal">
     <div class="modal-content">
@@ -2379,7 +2396,7 @@
     function buildAcidRow(r) {
       return `
         <tr data-status="${r.status || 'pending'}" data-search="${[r.acid,r.ais_number,r.initial_request_number,r.shipper,r.supplier,r.importer_name,r.name,r.responsible,r.contract_number,r.dt_number,r.registration_number,r.vat_number,ACID_STATUS_LABELS[r.status]].filter(Boolean).join(' ').toLowerCase()}">
-          <td>${r.acid || '-'}</td>
+          <td>${r.acid ? `<a href="#" class="entity-link" onclick="openLinkedTransactionsModal('acid','${r.id}','${escapeHtml(r.acid)}'); return false;">${escapeHtml(r.acid)}</a>` : '-'}</td>
           <td>${r.ais_number || '-'}</td>
           <td>${r.initial_request_number || '-'}</td>
           <td>${r.shipment_type || '-'}</td>
@@ -2443,7 +2460,7 @@
       const statusLabels = { draft: 'Черновик', active: 'Активен', completed: 'Завершён', expired: 'Истёк', suspended: 'Приостановлен' };
       tbody.innerHTML = rows.map(r => `
         <tr>
-          <td>${r.contract_number || '-'}</td>
+          <td>${r.contract_number ? `<a href="#" class="entity-link" onclick="openLinkedTransactionsModal('contract','${r.id}','${escapeHtml(r.contract_number)}'); return false;">${escapeHtml(r.contract_number)}</a>` : '-'}</td>
           <td>${r.type || '-'}</td>
           <td>${r.counterparty || '-'}</td>
           <td>${r.name || '-'}</td>
@@ -3394,6 +3411,56 @@
     }
 
     // ============================================================
+    // LINKED TRANSACTIONS (drill-down: ACID / contract -> счета -> nomenclature)
+    // ============================================================
+
+    const TX_STATUS_LABELS = { pending: 'Ожидание', paid: 'Оплачено', overdue: 'Просрочено', cancelled: 'Отменено' };
+
+    async function openLinkedTransactionsModal(kind, id, label) {
+      document.getElementById('linkedTransactionsTitle').textContent =
+        kind === 'acid' ? `Счета по грузу ${label}` : `Счета по договору ${label}`;
+      document.getElementById('linkedTransactionsList').innerHTML = '<div style="font-size:12px;color:var(--gray-text);">Загрузка...</div>';
+      document.getElementById('linkedTransactionsModal').classList.add('active');
+      try {
+        const path = kind === 'acid' ? `/acid/${id}/transactions` : `/contracts/${id}/transactions`;
+        const rows = await api('GET', path);
+        renderLinkedTransactions(rows);
+      } catch (err) {
+        showAlert(err.message, 'error');
+        closeLinkedTransactionsModal();
+      }
+    }
+
+    function closeLinkedTransactionsModal() {
+      document.getElementById('linkedTransactionsModal').classList.remove('active');
+    }
+
+    document.getElementById('linkedTransactionsModal').addEventListener('click', e => {
+      if (e.target.id === 'linkedTransactionsModal') closeLinkedTransactionsModal();
+    });
+
+    function renderLinkedTransactions(rows) {
+      const el = document.getElementById('linkedTransactionsList');
+      if (!rows.length) {
+        el.innerHTML = '<div style="font-size:12px;color:var(--gray-text);">Связанных счетов пока нет</div>';
+        return;
+      }
+      el.innerHTML = rows.map(r => `
+        <div class="comment-item" style="cursor:pointer;" onclick="openLinkedTransaction('${r.id}','${escapeHtml(r.number || '')}')">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <a href="#" class="entity-link" onclick="event.preventDefault(); openLinkedTransaction('${r.id}','${escapeHtml(r.number || '')}');">${escapeHtml(r.number || '(без номера)')}</a>
+            <span class="badge ${r.status === 'paid' ? 'completed' : (r.status === 'overdue' ? 'danger' : 'pending')}">${TX_STATUS_LABELS[r.status] || r.status || '-'}</span>
+          </div>
+          <div class="c-meta">${r.date || '-'} · ${escapeHtml(r.counterparty || '-')} · ${fmtNum(r.amount_usd || r.amount)} ${r.currency || ''}</div>
+        </div>`).join('');
+    }
+
+    async function openLinkedTransaction(txId, label) {
+      closeLinkedTransactionsModal();
+      await openTransactionDetailModal(txId, label);
+    }
+
+    // ============================================================
     // ATTACHMENTS (contracts, transactions) & NOMENCLATURE (transaction items)
     // ============================================================
 
@@ -3547,6 +3614,7 @@
       if (e.key !== 'Escape') return;
       if (document.getElementById('attachmentsModal').classList.contains('active')) closeAttachmentsModal();
       else if (document.getElementById('transactionDetailModal').classList.contains('active')) closeTransactionDetailModal();
+      else if (document.getElementById('linkedTransactionsModal').classList.contains('active')) closeLinkedTransactionsModal();
     });
 
     async function refreshTransactionItems() {

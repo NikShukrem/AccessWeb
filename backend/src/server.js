@@ -1174,6 +1174,40 @@ app.delete('/attachments/:id', auth, async (req, res) => {
   }
 });
 
+// ============== LINKED TRANSACTIONS (drill-down from ACID / contracts to счета) ==============
+
+app.get('/acid/:id/transactions', auth, async (req, res) => {
+  try {
+    if (!canReadTable(req.user.role, 'ais_transactions')) return res.status(403).json({ error: 'Нет доступа' });
+    const acidRow = await db.get('SELECT acid FROM acid WHERE id = ?', [req.params.id]);
+    if (!acidRow) return res.status(404).json({ error: 'Груз не найден' });
+    const rows = await db.all(
+      'SELECT * FROM ais_transactions WHERE acid_link = ? ORDER BY date DESC',
+      [acidRow.acid]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Acid transactions list error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+app.get('/contracts/:id/transactions', auth, async (req, res) => {
+  try {
+    if (!canReadTable(req.user.role, 'ais_transactions')) return res.status(403).json({ error: 'Нет доступа' });
+    const contractRow = await db.get('SELECT id FROM contracts WHERE id = ?', [req.params.id]);
+    if (!contractRow) return res.status(404).json({ error: 'Договор не найден' });
+    const rows = await db.all(
+      'SELECT * FROM ais_transactions WHERE contract_id = ? ORDER BY date DESC',
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Contract transactions list error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
 // ============== TRANSACTION ITEMS (nomenclature within a счёт) ==============
 
 app.get('/ais_transactions/:id/items', auth, async (req, res) => {
