@@ -1906,7 +1906,10 @@
       } else if (tabId === 'contracts') {
         loadTable('contracts').then(rows => renderContractTable(rows));
       } else if (tabId === 'transactions') {
-        loadTable('ais_transactions').then(rows => renderTransactionsTable(rows));
+        const acidPreload = Object.keys(_acidIdByCode).length === 0
+          ? loadTable('acid').then(rows => rows.forEach(r => { _acidRowsById[r.id] = r; if (r.acid) _acidIdByCode[r.acid] = r.id; }))
+          : Promise.resolve();
+        acidPreload.then(() => loadTable('ais_transactions')).then(rows => renderTransactionsTable(rows));
       } else if (tabId === 'counterparties') {
         loadTable('counterparties').then(rows => renderCounterpartiesTable(rows));
       } else if (tabId === 'tasks') {
@@ -1941,7 +1944,7 @@
       try {
         const rows = await api('GET', `/acid?limit=${limit}&offset=${offset}`);
         _tableOffsets['acid'] = offset + rows.length;
-        rows.forEach(r => { _acidRowsById[r.id] = r; });
+        rows.forEach(r => { _acidRowsById[r.id] = r; if (r.acid) _acidIdByCode[r.acid] = r.id; });
         const tbody = document.querySelector('#acidTable tbody');
         tbody.insertAdjacentHTML('beforeend', rows.map(r => buildAcidRow(r)).join(''));
         const btn = document.getElementById('btnLoadMoreAcid');
@@ -2453,10 +2456,11 @@
     }
 
     const _acidRowsById = {};
+    const _acidIdByCode = {};
 
     function renderAcidTable(rows) {
       const tbody = document.querySelector('#acidTable tbody');
-      rows.forEach(r => { _acidRowsById[r.id] = r; });
+      rows.forEach(r => { _acidRowsById[r.id] = r; if (r.acid) _acidIdByCode[r.acid] = r.id; });
       tbody.innerHTML = rows.map(buildAcidRow).join('');
     }
 
@@ -2508,13 +2512,13 @@
           <td>${r.organization || '-'}</td>
           <td>${r.counterparty || '-'}</td>
           <td>${r.counterparty_short || '-'}</td>
-          <td>${r.contract_number || '-'}</td>
+          <td>${r.contract_number ? `<a href="#" class="entity-link" onclick="drillStart('linked',['contract','${r.contract_id}','${escapeHtml(r.contract_number)}']); return false;">${escapeHtml(r.contract_number)}</a>` : '-'}</td>
           <td>${r.project || '-'}</td>
           <td><span class="badge ${r.status === 'paid' ? 'completed' : (r.status === 'overdue' ? 'danger' : 'pending')}">${statusLabels[r.status] || r.status || '-'}</span></td>
           <td>${r.cfo || '-'}</td>
           <td>${r.responsible || '-'}</td>
           <td>${r.urgent ? 'Да' : 'Нет'}</td>
-          <td>${r.acid_link || '-'}</td>
+          <td>${r.acid_link ? (_acidIdByCode[r.acid_link] ? `<a href="#" class="entity-link" onclick="drillStart('linked',['acid','${_acidIdByCode[r.acid_link]}','${escapeHtml(r.acid_link)}']); return false;">${escapeHtml(r.acid_link)}</a>` : escapeHtml(r.acid_link)) : '-'}</td>
           <td style="white-space:nowrap">
             <button class="btn-delete" onclick="deleteRecord('ais_transactions','${r.id}')">Удалить</button>
           </td>
@@ -2682,6 +2686,7 @@
         showAlert('Груз добавлен');
         row.remove();
         _acidRowsById[id] = { id, ...data };
+        if (data.acid) _acidIdByCode[data.acid] = id;
         // Prepend locally — the record may fall past the first page's LIMIT otherwise
         document.querySelector('#acidTable tbody').insertAdjacentHTML('afterbegin', buildAcidRow({ id, ...data }));
       } catch (err) { showAlert(err.message, 'error'); }

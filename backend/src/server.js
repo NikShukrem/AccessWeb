@@ -497,7 +497,11 @@ function sanitizeColumns(table, data) {
   const allowed = ALLOWED_COLUMNS[table];
   if (!allowed) return {};
   return Object.fromEntries(
-    Object.entries(data).filter(([k]) => allowed.has(k))
+    Object.entries(data)
+      .filter(([k]) => allowed.has(k))
+      // Empty text inputs arrive as '' — treat as "not set" so optional
+      // foreign-key columns (e.g. acid_link) don't fail FK constraints.
+      .map(([k, v]) => [k, v === '' ? null : v])
   );
 }
 
