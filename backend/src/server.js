@@ -195,8 +195,6 @@ app.get(['/egypt.html'], (req, res) => {
   res.sendFile(join(__dirname, '../../egypt.html'));
 });
 
-app.use(express.static(join(__dirname, '../../')));
-
 // ============== DB INIT ==============
 
 async function initDB() {
