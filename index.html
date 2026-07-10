@@ -1561,6 +1561,60 @@
 
           <div id="myTasksView" class="my-tasks-list" style="display:none;"></div>
         </div>
+
+        <!-- AUDIT LOG TAB -->
+        <div id="auditlog" class="content-section" style="display:none;">
+          <div class="header">
+            <h2>Журнал аудита</h2>
+            <p>Кто и когда создавал, изменял или удалял записи</p>
+          </div>
+
+          <div class="form-row" style="margin-bottom:16px;">
+            <div class="form-group">
+              <label>Таблица</label>
+              <select id="auditLogTableFilter" onchange="loadAuditLog()">
+                <option value="">Все</option>
+                <option value="acid">Грузы (ACID)</option>
+                <option value="contracts">Договоры</option>
+                <option value="contract_stages">Этапы договора</option>
+                <option value="counterparties">Контрагенты</option>
+                <option value="ais_transactions">Транзакции (счета)</option>
+                <option value="acid_kti">КТИ</option>
+                <option value="attachments">Вложения</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Действие</label>
+              <select id="auditLogActionFilter" onchange="loadAuditLog()">
+                <option value="">Все</option>
+                <option value="create">Создание</option>
+                <option value="update">Изменение</option>
+                <option value="delete">Удаление</option>
+                <option value="upload">Загрузка файла</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="table-section">
+            <div class="table-wrapper">
+              <table id="auditLogTableEl">
+                <thead>
+                  <tr>
+                    <th>Время</th>
+                    <th>Пользователь</th>
+                    <th>Роль</th>
+                    <th>Действие</th>
+                    <th>Таблица</th>
+                    <th>Запись</th>
+                    <th>Изменения</th>
+                  </tr>
+                </thead>
+                <tbody id="auditLogTable"></tbody>
+              </table>
+            </div>
+            <button class="btn-submit" id="btnLoadMoreAuditLog" style="display:none;margin-top:12px;" onclick="loadMoreAuditLog()">Загрузить ещё</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -1914,6 +1968,8 @@
         loadTable('counterparties').then(rows => renderCounterpartiesTable(rows));
       } else if (tabId === 'tasks') {
         initTasksTab();
+      } else if (tabId === 'auditlog') {
+        loadAuditLog();
       }
     }
 
@@ -1981,6 +2037,7 @@
         items.push({ label: 'Транзакции', tab: 'transactions' });
       }
       items.push({ label: 'Задачи', tab: 'tasks' });
+      if (['admin','director'].includes(role)) items.push({ label: 'Журнал аудита', tab: 'auditlog' });
 
       navMenu.innerHTML = items.map((item, i) =>
         `<button class="nav-btn${i===0?' active':''}" onclick="switchTab(this,'${item.tab}')">${item.label}</button>`
@@ -2542,6 +2599,70 @@
           <td>${r.notes || '-'}</td>
           <td><button class="btn-delete" onclick="deleteRecord('counterparties','${r.id}')">Удалить</button></td>
         </tr>`).join('');
+    }
+
+    // ============================================================
+    // AUDIT LOG (admin/director only)
+    // ============================================================
+
+    const AUDIT_LOG_PAGE_SIZE = 100;
+    let _auditLogOffset = 0;
+    const AUDIT_ACTION_LABELS = { create: 'Создание', update: 'Изменение', delete: 'Удаление', upload: 'Загрузка файла', download: 'Скачивание' };
+    const AUDIT_TABLE_LABELS = {
+      acid: 'Грузы (ACID)', contracts: 'Договоры', contract_stages: 'Этапы договора',
+      counterparties: 'Контрагенты', ais_transactions: 'Транзакции (счета)', acid_kti: 'КТИ',
+      attachments: 'Вложения', ais_imports: 'Импорт'
+    };
+
+    function auditChangesSummary(row) {
+      if (!row.changes) return '-';
+      try {
+        const changes = JSON.parse(row.changes);
+        const fields = Object.keys(changes).filter(k => k !== 'id' && k !== 'created_at' && k !== 'updated_at');
+        return fields.length ? fields.join(', ') : '-';
+      } catch { return '-'; }
+    }
+
+    async function loadAuditLog() {
+      _auditLogOffset = 0;
+      const rows = await fetchAuditLogPage(0);
+      renderAuditLogTable(rows, false);
+    }
+
+    async function loadMoreAuditLog() {
+      _auditLogOffset += AUDIT_LOG_PAGE_SIZE;
+      const rows = await fetchAuditLogPage(_auditLogOffset);
+      renderAuditLogTable(rows, true);
+    }
+
+    async function fetchAuditLogPage(offset) {
+      const table = document.getElementById('auditLogTableFilter').value;
+      const action = document.getElementById('auditLogActionFilter').value;
+      const params = new URLSearchParams({ limit: AUDIT_LOG_PAGE_SIZE, offset });
+      if (table) params.set('table', table);
+      if (action) params.set('action', action);
+      try {
+        return await api('GET', `/audit-log?${params.toString()}`);
+      } catch (err) {
+        showAlert(err.message, 'error');
+        return [];
+      }
+    }
+
+    function renderAuditLogTable(rows, append) {
+      const tbody = document.getElementById('auditLogTable');
+      const html = rows.map(r => `
+        <tr>
+          <td>${new Date(r.created_at).toLocaleString('ru-RU')}</td>
+          <td>${escapeHtml(r.user_name || '-')}</td>
+          <td>${escapeHtml(r.user_role || '-')}</td>
+          <td>${AUDIT_ACTION_LABELS[r.action] || r.action}</td>
+          <td>${AUDIT_TABLE_LABELS[r.table_name] || escapeHtml(r.table_name)}</td>
+          <td>${escapeHtml(r.record_label || r.record_id || '-')}</td>
+          <td style="font-size:12px;color:var(--gray-text);">${escapeHtml(auditChangesSummary(r))}</td>
+        </tr>`).join('');
+      tbody.innerHTML = append ? tbody.innerHTML + html : html;
+      document.getElementById('btnLoadMoreAuditLog').style.display = rows.length === AUDIT_LOG_PAGE_SIZE ? '' : 'none';
     }
 
     // ============================================================

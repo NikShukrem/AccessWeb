@@ -524,6 +524,42 @@ function castNumericFields(table, data) {
   return result;
 }
 
+// The field that best identifies a row to a human reading the audit log
+const RECORD_LABEL_FIELD = {
+  acid: 'acid',
+  contracts: 'contract_number',
+  contract_stages: 'stage_name',
+  counterparties: 'name',
+  ais_transactions: 'number',
+  acid_kti: 'kti_number',
+  ais_imports: 'file_name',
+};
+
+// Records every create/update/delete/upload/download so who-did-what-when can be
+// reconstructed later. Never throws — a logging failure must not block the
+// actual operation it's describing.
+async function logAudit(req, action, table, recordId, { changes, label } = {}) {
+  try {
+    await db.run(
+      `INSERT INTO audit_log (id, user_id, user_name, user_role, action, table_name, record_id, record_label, changes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        uuidv4(),
+        req.user?.id || null,
+        req.user?.name || null,
+        req.user?.role || null,
+        action,
+        table,
+        recordId || null,
+        label || null,
+        changes ? JSON.stringify(changes) : null
+      ]
+    );
+  } catch (err) {
+    console.error('Audit log write failed:', err);
+  }
+}
+
 // ============== AUTH ==============
 
 app.post('/auth/login', async (req, res) => {
@@ -679,6 +715,34 @@ app.get('/users', auth, async (req, res) => {
     res.json(rows);
   } catch (err) {
     console.error('Users list error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// ============== AUDIT LOG ==============
+
+app.get('/audit-log', auth, async (req, res) => {
+  try {
+    if (!isManager(req.user.role)) return res.status(403).json({ error: 'Нет доступа' });
+
+    const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+    const offset = parseInt(req.query.offset) || 0;
+    const { table, user_id, action } = req.query;
+
+    const conditions = [];
+    const params = [];
+    if (table)   { conditions.push('table_name = ?'); params.push(table); }
+    if (user_id) { conditions.push('user_id = ?');    params.push(user_id); }
+    if (action)  { conditions.push('action = ?');     params.push(action); }
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const rows = await db.all(
+      `SELECT * FROM audit_log ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+      [...params, limit, offset]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Audit log list error:', err);
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });
@@ -1143,6 +1207,10 @@ app.post('/attachments', auth, (req, res) => {
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [id, entity_type, entity_id, finalCategory, req.file.filename, req.file.originalname, req.file.mimetype, req.file.size, req.user.id, req.user.name]
       );
+      logAudit(req, 'upload', 'attachments', id, {
+        label: req.file.originalname,
+        changes: { entity_type, entity_id, category: finalCategory, original_name: req.file.originalname }
+      });
       res.json({ id });
     } catch (err) {
       console.error('Attachment upload error:', err);
@@ -1179,6 +1247,10 @@ app.delete('/attachments/:id', auth, async (req, res) => {
 
     await db.run('DELETE FROM attachments WHERE id = ?', [req.params.id]);
     fs.unlink(join(UPLOADS_DIR, row.stored_name), () => {});
+    logAudit(req, 'delete', 'attachments', row.id, {
+      label: row.original_name,
+      changes: { entity_type: row.entity_type, entity_id: row.entity_id, original_name: row.original_name }
+    });
     res.json({ success: true });
   } catch (err) {
     console.error('Attachment delete error:', err);
@@ -1358,6 +1430,8 @@ app.post('/:table', auth, checkAccess, async (req, res) => {
       [id, ...columns.map(k => data[k])]
     );
 
+    logAudit(req, 'create', table, id, { changes: data, label: data[RECORD_LABEL_FIELD[table]] });
+
     res.json({ id });
   } catch (err) {
     if (err.message?.includes('UNIQUE constraint')) {
@@ -1423,6 +1497,12 @@ app.put('/:table/:id', auth, checkAccess, async (req, res) => {
       [...columns.map(k => data[k]), id]
     );
 
+    const labelField = RECORD_LABEL_FIELD[table];
+    const label = labelField
+      ? data[labelField] ?? (await db.get(`SELECT ${labelField} FROM ${table} WHERE id = ?`, [id]))?.[labelField]
+      : null;
+    logAudit(req, 'update', table, id, { changes: data, label });
+
     res.json({ id });
   } catch (err) {
     console.error('PUT error:', err);
@@ -1435,7 +1515,12 @@ app.delete('/:table/:id', auth, checkAccess, async (req, res) => {
     const { table, id } = req.params;
     if (!VALID_TABLES.has(table)) return res.status(400).json({ error: 'Неверная таблица' });
 
+    const before = await db.get(`SELECT * FROM ${table} WHERE id = ?`, [id]);
     await db.run(`DELETE FROM ${table} WHERE id = ?`, [id]);
+
+    const labelField = RECORD_LABEL_FIELD[table];
+    logAudit(req, 'delete', table, id, { changes: before, label: before?.[labelField] });
+
     res.json({ success: true });
   } catch (err) {
     console.error('DELETE error:', err);

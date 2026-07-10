@@ -284,6 +284,20 @@ CREATE TABLE IF NOT EXISTS attachments (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- ===== AUDIT LOG (who changed what, when) =====
+CREATE TABLE IF NOT EXISTS audit_log (
+  id TEXT PRIMARY KEY,
+  user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+  user_name TEXT,                            -- denormalized — kept even if user is later deleted
+  user_role TEXT,
+  action TEXT NOT NULL CHECK(action IN ('create','update','delete','upload','download')),
+  table_name TEXT NOT NULL,
+  record_id TEXT,
+  record_label TEXT,                         -- human-readable identifier (e.g. contract_number, acid code)
+  changes TEXT,                               -- JSON: created/updated fields, or a snapshot of the deleted row
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- ===== TRANSACTION ITEMS (nomenclature/line items within a счёт) =====
 CREATE TABLE IF NOT EXISTS transaction_items (
   id TEXT PRIMARY KEY,
@@ -364,6 +378,11 @@ CREATE INDEX IF NOT EXISTS idx_task_checklist_task ON task_checklist(task_id);
 
 -- attachments
 CREATE INDEX IF NOT EXISTS idx_attachments_entity ON attachments(entity_type, entity_id);
+
+-- audit_log
+CREATE INDEX IF NOT EXISTS idx_audit_log_created ON audit_log(created_at);
+CREATE INDEX IF NOT EXISTS idx_audit_log_user ON audit_log(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_table ON audit_log(table_name, record_id);
 
 -- transaction_items
 CREATE INDEX IF NOT EXISTS idx_transaction_items_transaction ON transaction_items(transaction_id);
