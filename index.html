@@ -1148,8 +1148,18 @@
             <p>Управление контрактами и сроками</p>
           </div>
 
+          <div style="display:flex;gap:10px;margin-bottom:16px;">
+            <button class="btn-filter active" id="contractsSubTabList" onclick="switchContractsSubview('list')">Список договоров</button>
+            <button class="btn-filter" id="contractsSubTabGantt" onclick="switchContractsSubview('gantt')">Этапы (Гант)</button>
+          </div>
+
+          <div id="contractsListView">
+
           <div class="form-section" id="contractFormSection" style="display:none;">
-            <h3>Добавить новый договор</h3>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <h3 style="margin:0;">Добавить новый договор</h3>
+              <button type="button" class="btn-filter" id="contractFormCollapseBtn" onclick="toggleContractFormFields()">Показать все поля</button>
+            </div>
             <form id="contractForm">
               <div style="font-weight:600;color:var(--titan-primary);margin-bottom:8px;font-size:13px;">Основное</div>
               <div class="form-row">
@@ -1176,98 +1186,100 @@
                 </div>
               </div>
 
-              <div style="font-weight:600;color:var(--titan-primary);margin-bottom:8px;font-size:13px;">Сроки</div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Дата договора</label>
-                  <input type="date" name="contract_date">
+              <div id="contractFormExtraFields" style="display:none;">
+                <div style="font-weight:600;color:var(--titan-primary);margin-bottom:8px;font-size:13px;">Сроки</div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Дата договора</label>
+                    <input type="date" name="contract_date">
+                  </div>
+                  <div class="form-group">
+                    <label>Действует до</label>
+                    <input type="date" name="validity_period">
+                  </div>
+                  <div class="form-group">
+                    <label>№ ДС</label>
+                    <input type="text" name="ds_number">
+                  </div>
+                  <div class="form-group">
+                    <label>Дата ДС</label>
+                    <input type="date" name="ds_date">
+                  </div>
                 </div>
-                <div class="form-group">
-                  <label>Действует до</label>
-                  <input type="date" name="validity_period">
-                </div>
-                <div class="form-group">
-                  <label>№ ДС</label>
-                  <input type="text" name="ds_number">
-                </div>
-                <div class="form-group">
-                  <label>Дата ДС</label>
-                  <input type="date" name="ds_date">
-                </div>
-              </div>
 
-              <div style="font-weight:600;color:var(--titan-primary);margin-bottom:8px;font-size:13px;">Финансы</div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Сумма</label>
-                  <input type="number" name="amount" step="0.01" min="0">
+                <div style="font-weight:600;color:var(--titan-primary);margin-bottom:8px;font-size:13px;">Финансы</div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Сумма</label>
+                    <input type="number" name="amount" step="0.01" min="0">
+                  </div>
+                  <div class="form-group">
+                    <label>Сумма с ДС</label>
+                    <input type="number" name="amount_with_ds" step="0.01" min="0">
+                  </div>
+                  <div class="form-group">
+                    <label>Валюта</label>
+                    <select name="currency">
+                      <option value="USD">USD</option>
+                      <option value="EUR">EUR</option>
+                      <option value="RUB">RUB</option>
+                      <option value="EGP">EGP</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label>Оплачено</label>
+                    <input type="number" name="paid_amount" step="0.01" min="0" value="0">
+                  </div>
                 </div>
-                <div class="form-group">
-                  <label>Сумма с ДС</label>
-                  <input type="number" name="amount_with_ds" step="0.01" min="0">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Остаток лимита</label>
+                    <input type="number" name="limit_balance" step="0.01" min="0">
+                  </div>
+                  <div class="form-group">
+                    <label>Вид закупки</label>
+                    <input type="text" name="procurement_type" placeholder="Тендер / Прямая / КП">
+                  </div>
+                  <div class="form-group">
+                    <label>Лот №</label>
+                    <input type="text" name="lot_number">
+                  </div>
+                  <div class="form-group">
+                    <label>Маршрут до</label>
+                    <input type="text" name="route_to">
+                  </div>
                 </div>
-                <div class="form-group">
-                  <label>Валюта</label>
-                  <select name="currency">
-                    <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
-                    <option value="RUB">RUB</option>
-                    <option value="EGP">EGP</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label>Оплачено</label>
-                  <input type="number" name="paid_amount" step="0.01" min="0" value="0">
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Остаток лимита</label>
-                  <input type="number" name="limit_balance" step="0.01" min="0">
-                </div>
-                <div class="form-group">
-                  <label>Вид закупки</label>
-                  <input type="text" name="procurement_type" placeholder="Тендер / Прямая / КП">
-                </div>
-                <div class="form-group">
-                  <label>Лот №</label>
-                  <input type="text" name="lot_number">
-                </div>
-                <div class="form-group">
-                  <label>Маршрут до</label>
-                  <input type="text" name="route_to">
-                </div>
-              </div>
 
-              <div style="font-weight:600;color:var(--titan-primary);margin-bottom:8px;font-size:13px;">Статус и контроль</div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label>Статус</label>
-                  <select name="status">
-                    <option value="active">Активен</option>
-                    <option value="draft">Черновик</option>
-                    <option value="completed">Завершён</option>
-                    <option value="expired">Истёк</option>
-                    <option value="suspended">Приостановлен</option>
-                  </select>
+                <div style="font-weight:600;color:var(--titan-primary);margin-bottom:8px;font-size:13px;">Статус и контроль</div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Статус</label>
+                    <select name="status">
+                      <option value="active">Активен</option>
+                      <option value="draft">Черновик</option>
+                      <option value="completed">Завершён</option>
+                      <option value="expired">Истёк</option>
+                      <option value="suspended">Приостановлен</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label>Валютный контроль</label>
+                    <input type="text" name="currency_control" placeholder="Пройден / В процессе">
+                  </div>
+                  <div class="form-group">
+                    <label>Ответственный</label>
+                    <input type="text" name="responsible">
+                  </div>
+                  <div class="form-group">
+                    <label>Ссылка</label>
+                    <input type="url" name="link" placeholder="https://...">
+                  </div>
                 </div>
-                <div class="form-group">
-                  <label>Валютный контроль</label>
-                  <input type="text" name="currency_control" placeholder="Пройден / В процессе">
-                </div>
-                <div class="form-group">
-                  <label>Ответственный</label>
-                  <input type="text" name="responsible">
-                </div>
-                <div class="form-group">
-                  <label>Ссылка</label>
-                  <input type="url" name="link" placeholder="https://...">
-                </div>
-              </div>
-              <div class="form-row full">
-                <div class="form-group">
-                  <label>Примечания</label>
-                  <input type="text" name="notes">
+                <div class="form-row full">
+                  <div class="form-group">
+                    <label>Примечания</label>
+                    <input type="text" name="notes">
+                  </div>
                 </div>
               </div>
 
@@ -1312,6 +1324,36 @@
                 </thead>
                 <tbody></tbody>
               </table>
+            </div>
+          </div>
+
+          </div>
+
+          <div id="contractsGanttView" style="display:none;">
+            <div class="table-section">
+              <div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px;">
+                <div class="form-group" style="margin:0;min-width:260px;">
+                  <label>Договор</label>
+                  <select id="ganttContractFilter" onchange="renderContractsGantt()">
+                    <option value="">Все незавершённые этапы</option>
+                  </select>
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label style="display:flex;align-items:center;gap:6px;font-weight:400;">
+                    <input type="checkbox" id="ganttShowCompleted" onchange="renderContractsGantt()"> показывать завершённые этапы
+                  </label>
+                </div>
+              </div>
+              <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px;font-size:11px;color:var(--gray-text);">
+                <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#95A5A6;margin-right:4px;"></span>Ожидает</span>
+                <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#2E86C1;margin-right:4px;"></span>В работе</span>
+                <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#27AE60;margin-right:4px;"></span>Завершён</span>
+                <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#C0392B;margin-right:4px;"></span>Просрочен</span>
+              </div>
+              <div id="ganttChartWrap" style="position:relative;height:300px;">
+                <canvas id="contractsGanttChart"></canvas>
+              </div>
+              <div id="ganttEmpty" style="display:none;font-size:12px;color:var(--gray-text);padding:20px 0;">Нет этапов для отображения — у выбранных договоров ещё не заведены этапы с плановой датой</div>
             </div>
           </div>
         </div>
@@ -3476,6 +3518,135 @@
       const show = force !== undefined ? force : el.style.display === 'none';
       el.style.display = show ? '' : 'none';
       if (show) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function toggleContractFormFields() {
+      const el = document.getElementById('contractFormExtraFields');
+      const btn = document.getElementById('contractFormCollapseBtn');
+      const show = el.style.display === 'none';
+      el.style.display = show ? '' : 'none';
+      btn.textContent = show ? 'Свернуть поля' : 'Показать все поля';
+    }
+
+    // ---- Contracts: stage tracking (Gantt) ----
+
+    let _ganttContracts = null;
+    let _ganttStages = null;
+    let _ganttChartInstance = null;
+
+    const GANTT_STATUS_COLORS = { pending: '#95A5A6', in_progress: '#2E86C1', completed: '#27AE60', overdue: '#C0392B' };
+    const GANTT_STATUS_LABELS = { pending: 'Ожидает', in_progress: 'В работе', completed: 'Завершён', overdue: 'Просрочен' };
+
+    async function switchContractsSubview(view) {
+      document.getElementById('contractsSubTabList').classList.toggle('active', view === 'list');
+      document.getElementById('contractsSubTabGantt').classList.toggle('active', view === 'gantt');
+      document.getElementById('contractsListView').style.display = view === 'list' ? '' : 'none';
+      document.getElementById('contractsGanttView').style.display = view === 'gantt' ? '' : 'none';
+      if (view === 'gantt' && !_ganttContracts) {
+        await loadContractsGanttData();
+      }
+    }
+
+    async function loadContractsGanttData() {
+      try {
+        const [contracts, stages] = await Promise.all([
+          api('GET', '/contracts?limit=2000'),
+          api('GET', '/contract_stages?limit=2000'),
+        ]);
+        _ganttContracts = contracts;
+        _ganttStages = stages;
+        const contractIdsWithStages = new Set(stages.map(s => s.contract_id));
+        const sel = document.getElementById('ganttContractFilter');
+        sel.innerHTML = '<option value="">Все незавершённые этапы</option>' +
+          contracts
+            .filter(c => contractIdsWithStages.has(c.id))
+            .sort((a, b) => (a.contract_number || '').localeCompare(b.contract_number || ''))
+            .map(c => `<option value="${c.id}">${escapeHtml(c.contract_number || '-')}</option>`).join('');
+        renderContractsGantt();
+      } catch (err) {
+        showAlert(err.message, 'error');
+      }
+    }
+
+    function renderContractsGantt() {
+      if (!_ganttStages) return;
+      const contractFilter = document.getElementById('ganttContractFilter').value;
+      const showCompleted = document.getElementById('ganttShowCompleted').checked;
+      const contractsById = Object.fromEntries(_ganttContracts.map(c => [c.id, c.contract_number || '-']));
+
+      let stages = _ganttStages.filter(s => s.planned_date);
+      if (contractFilter) stages = stages.filter(s => s.contract_id === contractFilter);
+      if (!showCompleted) stages = stages.filter(s => s.status !== 'completed');
+      stages = stages.slice().sort((a, b) => (a.planned_date || '').localeCompare(b.planned_date || '')).slice(0, 150);
+
+      const empty = document.getElementById('ganttEmpty');
+      const wrap = document.getElementById('ganttChartWrap');
+      if (!stages.length) {
+        wrap.style.display = 'none';
+        empty.style.display = '';
+        if (_ganttChartInstance) { _ganttChartInstance.destroy(); _ganttChartInstance = null; }
+        return;
+      }
+      wrap.style.display = '';
+      empty.style.display = 'none';
+      wrap.style.height = `${Math.max(220, stages.length * 30 + 60)}px`;
+
+      const dates = [];
+      stages.forEach(s => {
+        dates.push(new Date(s.planned_date));
+        if (s.actual_date) dates.push(new Date(s.actual_date));
+      });
+      const minTime = Math.min(...dates.map(d => d.getTime()));
+      const dayMs = 86400000;
+      const toOffset = d => Math.round((new Date(d).getTime() - minTime) / dayMs);
+
+      const labels = stages.map(s => {
+        const stageLabel = [s.stage_name, s.substage_name].filter(Boolean).join(' / ') || 'Этап';
+        return `${contractsById[s.contract_id] || '-'} · ${stageLabel}`;
+      });
+      const data = stages.map(s => {
+        const start = toOffset(s.planned_date);
+        let end = s.actual_date ? toOffset(s.actual_date) : start + 1;
+        if (end <= start) end = start + 1;
+        return [start, end];
+      });
+      const colors = stages.map(s => GANTT_STATUS_COLORS[s.status] || GANTT_STATUS_COLORS.pending);
+
+      if (_ganttChartInstance) _ganttChartInstance.destroy();
+      const ctx = document.getElementById('contractsGanttChart').getContext('2d');
+      _ganttChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: { labels, datasets: [{ data, backgroundColor: colors, borderRadius: 3, barThickness: 16 }] },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: c => {
+                  const s = stages[c.dataIndex];
+                  return [
+                    GANTT_STATUS_LABELS[s.status] || s.status || '-',
+                    `План: ${s.planned_date || '-'}`,
+                    s.actual_date ? `Факт: ${s.actual_date}` : '',
+                    s.responsible ? `Ответственный: ${s.responsible}` : ''
+                  ].filter(Boolean);
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              ticks: { callback: v => new Date(minTime + v * dayMs).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }) }
+            },
+            y: {
+              ticks: { autoSkip: false, font: { size: 11 } }
+            }
+          }
+        }
+      });
     }
 
     // ============================================================
