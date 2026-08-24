@@ -1419,25 +1419,20 @@
 
           <div id="contractsGanttView" style="display:none;">
             <div class="table-section">
-              <div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px;">
-                <div class="form-group" style="margin:0;min-width:260px;">
-                  <label>Договор (пусто — все; Ctrl/Cmd+клик — выбрать несколько)</label>
-                  <select id="ganttContractFilter" multiple size="4" onchange="_ganttHiddenContractIds.clear(); renderContractsGantt();" style="min-height:80px;"></select>
-                </div>
-                <div class="form-group" style="margin:0;white-space:nowrap;">
-                  <label style="display:flex;align-items:center;gap:6px;font-weight:400;white-space:nowrap;cursor:pointer;">
-                    <input type="checkbox" id="ganttShowCompleted" onchange="renderContractsGantt()" style="width:16px;height:16px;flex:none;margin:0;">
-                    показывать завершённые этапы
-                  </label>
-                </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:10px;">
+                <label style="font-size:13px;">Договоры — клик по чипу скрывает/показывает его на графике</label>
+                <label style="display:flex;align-items:center;gap:6px;font-weight:400;font-size:12px;white-space:nowrap;cursor:pointer;">
+                  <input type="checkbox" id="ganttShowCompleted" onchange="renderContractsGantt()" style="width:16px;height:16px;flex:none;margin:0;">
+                  показывать завершённые этапы
+                </label>
               </div>
+              <div id="ganttContractChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;"></div>
               <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px;font-size:11px;color:var(--gray-text);">
                 <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#95A5A6;margin-right:4px;"></span>Ожидает</span>
                 <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#2E86C1;margin-right:4px;"></span>В работе</span>
                 <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#27AE60;margin-right:4px;"></span>Завершён</span>
                 <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#C0392B;margin-right:4px;"></span>Просрочен</span>
               </div>
-              <div id="ganttVisibleContracts" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;"></div>
               <div id="ganttChartWrap" style="position:relative;height:300px;">
                 <canvas id="contractsGanttChart"></canvas>
               </div>
@@ -3873,47 +3868,56 @@
       }
     }
 
+    // Единственный источник правды о том, какие договоры видны на графике.
+    // Пустой Set = показаны все; иначе — только договоры из этого списка.
+    let _ganttVisibleContractIds = new Set();
+
     async function loadContractsGanttData() {
       await ensureContractsAndStagesLoaded();
-      const contractIdsWithStages = new Set(_ganttStages.map(s => s.contract_id));
-      const sel = document.getElementById('ganttContractFilter');
-      const prevSelected = new Set(Array.from(sel.selectedOptions).map(o => o.value));
-      sel.innerHTML = _ganttContracts
-        .filter(c => contractIdsWithStages.has(c.id))
-        .sort((a, b) => (a.contract_number || '').localeCompare(b.contract_number || ''))
-        .map(c => `<option value="${c.id}"${prevSelected.has(c.id) ? ' selected' : ''}>${escapeHtml(c.contract_number || '-')}</option>`).join('');
+      _ganttVisibleContractIds.clear();
       renderContractsGantt();
     }
 
-    // Договоры, временно скрытые с графика кликом по крестику — ничего не удаляется,
-    // просто не отрисовывается; сбрасывается при перезагрузке страницы.
-    let _ganttHiddenContractIds = new Set();
+    function toggleGanttContract(id) {
+      const contractIdsWithStages = new Set(_ganttStages.map(s => s.contract_id));
+      if (_ganttVisibleContractIds.size === 0) {
+        // Сейчас показаны все — клик по одному значит "показать все, кроме этого"
+        contractIdsWithStages.forEach(cid => { if (cid !== id) _ganttVisibleContractIds.add(cid); });
+      } else if (_ganttVisibleContractIds.has(id)) {
+        _ganttVisibleContractIds.delete(id);
+      } else {
+        _ganttVisibleContractIds.add(id);
+      }
+      renderContractsGantt();
+    }
 
-    function hideContractFromGantt(id) {
-      _ganttHiddenContractIds.add(id);
+    function resetGanttContractFilter() {
+      _ganttVisibleContractIds.clear();
       renderContractsGantt();
     }
 
     function renderContractsGantt() {
       if (!_ganttStages) return;
-      const selectedIds = Array.from(document.getElementById('ganttContractFilter').selectedOptions).map(o => o.value);
       const showCompleted = document.getElementById('ganttShowCompleted').checked;
       const contractsById = Object.fromEntries(_ganttContracts.map(c => [c.id, c.contract_number || '-']));
+      const showingAll = _ganttVisibleContractIds.size === 0;
 
-      let filtered = _ganttStages.filter(s => s.planned_date && !_ganttHiddenContractIds.has(s.contract_id));
-      if (selectedIds.length) filtered = filtered.filter(s => selectedIds.includes(s.contract_id));
+      let filtered = _ganttStages.filter(s => s.planned_date);
+      if (!showingAll) filtered = filtered.filter(s => _ganttVisibleContractIds.has(s.contract_id));
       if (!showCompleted) filtered = filtered.filter(s => s.status !== 'completed');
 
-      const visibleContractIds = [...new Set(filtered.map(s => s.contract_id))];
-      const chipsEl = document.getElementById('ganttVisibleContracts');
-      chipsEl.innerHTML = visibleContractIds.map(id => `
-        <span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;background:var(--gray-light);border-radius:12px;padding:3px 6px 3px 10px;">
-          ${escapeHtml(contractsById[id] || '-')}
-          <button type="button" title="Убрать из графика" onclick="hideContractFromGantt('${id}')" style="border:none;background:none;cursor:pointer;color:var(--gray-text);line-height:1;padding:2px;display:inline-flex;">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </span>
-      `).join('');
+      const contractIdsWithStages = [...new Set(_ganttStages.map(s => s.contract_id))]
+        .sort((a, b) => (contractsById[a] || '').localeCompare(contractsById[b] || ''));
+      const chipsEl = document.getElementById('ganttContractChips');
+      chipsEl.innerHTML = contractIdsWithStages.map(id => {
+        const active = showingAll || _ganttVisibleContractIds.has(id);
+        return `<button type="button" onclick="toggleGanttContract('${id}')"
+          style="font-size:11px;padding:5px 12px;border-radius:14px;cursor:pointer;
+                 border:1px solid ${active ? 'var(--titan-accent)' : 'var(--gray-border)'};
+                 background:${active ? 'var(--titan-accent)' : 'white'};
+                 color:${active ? 'white' : 'var(--gray-text)'};">${escapeHtml(contractsById[id] || '-')}</button>`;
+      }).join('') + (showingAll ? '' :
+        `<button type="button" onclick="resetGanttContractFilter()" style="font-size:11px;padding:5px 12px;border-radius:14px;cursor:pointer;border:1px dashed var(--gray-border);background:white;color:var(--gray-text);">Показать все</button>`);
 
       // Bar span per stage: a подэтап runs from the end of the previous подэтап in the same
       // договор (chained — the table has no separate "start date" column) to its own planned_date;
