@@ -1630,12 +1630,52 @@
         <div id="reports" class="content-section" style="display:none;">
           <div class="header">
             <h2>Отчёты</h2>
-            <p>Конструктор отчётов: свой SQL-запрос (только SELECT) — результат сразу таблицей, запрос можно сохранить и запускать повторно</p>
+            <p>Соберите отчёт из готовых блоков (таблица, поля, условия, сортировка) — SQL сформируется сам и его можно доработать вручную. Результат сразу таблицей, запрос можно сохранить и запускать повторно.</p>
+          </div>
+
+          <div class="table-section">
+            <h3 style="margin-bottom:14px;">Конструктор — соберите отчёт из блоков</h3>
+
+            <div class="form-group">
+              <label>1. Таблица</label>
+              <select id="rbTable" onchange="onReportTableChange()" style="padding:10px;border:2px solid var(--gray-border);border-radius:8px;font-size:13px;width:100%;max-width:340px;"></select>
+            </div>
+
+            <div class="form-group" id="rbFieldsBlock" style="display:none;">
+              <label>2. Поля для вывода</label>
+              <div id="rbFieldsList" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+            </div>
+
+            <div class="form-group" id="rbConditionsBlock" style="display:none;">
+              <label>3. Условия отбора (все вместе, через "И")</label>
+              <div id="rbConditionsList"></div>
+              <button type="button" class="btn-filter" onclick="addReportCondition()">+ Добавить условие</button>
+            </div>
+
+            <div id="rbSortLimitBlock" style="display:none;">
+              <div style="display:flex;gap:16px;flex-wrap:wrap;">
+                <div class="form-group" style="flex:1;min-width:220px;">
+                  <label>4. Сортировка</label>
+                  <div style="display:flex;gap:8px;">
+                    <select id="rbSortField" style="flex:1;padding:8px;border:2px solid var(--gray-border);border-radius:6px;font-size:12px;"></select>
+                    <select id="rbSortDir" style="padding:8px;border:2px solid var(--gray-border);border-radius:6px;font-size:12px;">
+                      <option value="DESC">по убыванию</option>
+                      <option value="ASC">по возрастанию</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-group" style="width:140px;">
+                  <label>5. Лимит строк</label>
+                  <input type="number" id="rbLimit" value="100" min="1" max="500" style="width:100%;padding:8px;border:2px solid var(--gray-border);border-radius:6px;font-size:12px;box-sizing:border-box;">
+                </div>
+              </div>
+              <button class="btn-submit" style="padding:10px 24px;" onclick="buildReportFromBlocks()">Собрать и выполнить</button>
+            </div>
           </div>
 
           <div class="table-section">
             <div class="form-group">
-              <label>SQL-запрос</label>
+              <label>SQL-запрос (можно править вручную)</label>
               <textarea id="reportSql" rows="6" style="font-family:'Consolas',monospace;font-size:13px;"
                 placeholder="SELECT contract_number, counterparty, amount_with_ds, paid_amount FROM contracts WHERE status = 'active' ORDER BY amount_with_ds DESC"></textarea>
             </div>
@@ -2083,6 +2123,7 @@
       } else if (tabId === 'auditlog') {
         loadAuditLog();
       } else if (tabId === 'reports') {
+        initReportBuilder();
         loadSavedReports();
       }
     }
@@ -3009,6 +3050,154 @@
       } catch (err) {
         showAlert(err.message, 'error');
       }
+    }
+
+    // ---- Report builder blocks (generates SQL into #reportSql) ----
+
+    const REPORT_TABLES = {
+      acid: { label: 'Грузы (ACID)', columns: {
+        acid: 'ACID (код)', ais_number: 'Номер АИС', initial_request_number: 'Номер заявки',
+        shipment_type: 'Тип отправки', shipper: 'Грузоотправитель', supplier: 'Поставщик',
+        importer_name: 'Импортёр', name: 'Название груза', gw_kg: 'Вес (кг)',
+        packages_qty: 'Кол-во мест', containers_qty: 'Кол-во контейнеров', transport_type: 'Тип транспорта',
+        cargo_cost: 'Стоимость груза', currency: 'Валюта', shipping_cost: 'Стоимость доставки',
+        incoterms: 'Инкотермс', departure_country: 'Страна отправления', departure_port: 'Порт отправления',
+        delivery_place: 'Место доставки', arrival_place: 'Место прибытия', vessel: 'Судно',
+        carrier: 'Перевозчик', forwarder: 'Экспедитор', etd: 'Дата отправления (ETD)', eta: 'Дата прибытия (ETA)',
+        delivery_date: 'Дата доставки', egypt_arrival_date: 'Дата прибытия в Египет', custom_status: 'Таможенный статус',
+        status: 'Статус', responsible: 'Ответственный', contract_number: 'Номер договора',
+        notes: 'Примечания', created_at: 'Дата создания записи'
+      }},
+      contracts: { label: 'Договоры', columns: {
+        contract_number: 'Номер договора', type: 'Тип договора', counterparty: 'Контрагент', name: 'Название',
+        contract_date: 'Дата договора', validity_period: 'Действует до', amount: 'Сумма', amount_with_ds: 'Сумма с ДС',
+        currency: 'Валюта', paid_amount: 'Оплачено', limit_balance: 'Остаток лимита', status: 'Статус',
+        route_to: 'Маршрут', procurement_type: 'Тип закупки', responsible: 'Ответственный', notes: 'Примечания',
+        created_at: 'Дата создания записи'
+      }},
+      ais_transactions: { label: 'Транзакции (счета)', columns: {
+        number: 'Номер счёта', date: 'Дата', expense_date: 'Дата расхода', currency: 'Валюта',
+        amount: 'Сумма', amount_usd: 'Сумма (USD)', organization: 'Организация', counterparty: 'Контрагент',
+        contract_number: 'Номер договора', project: 'Проект', status: 'Статус', cfo: 'ЦФО',
+        responsible: 'Ответственный', urgent: 'Срочно', created_at: 'Дата создания записи'
+      }},
+      counterparties: { label: 'Контрагенты', columns: {
+        name: 'Название', short_name: 'Краткое название', country: 'Страна', type: 'Тип',
+        contact_person: 'Контактное лицо', email: 'Email', phone: 'Телефон', is_active: 'Активен',
+        created_at: 'Дата создания записи'
+      }},
+      transaction_items: { label: 'Позиции счетов', columns: {
+        name: 'Наименование', sku: 'Артикул', unit: 'Ед. изм.', quantity: 'Количество',
+        unit_price: 'Цена за ед.', amount: 'Сумма', created_at: 'Дата создания записи'
+      }},
+    };
+
+    const REPORT_OPERATORS = [
+      ['=', 'равно'], ['!=', 'не равно'], ['>', 'больше'], ['<', 'меньше'],
+      ['>=', 'больше или равно'], ['<=', 'меньше или равно'],
+      ['LIKE', 'содержит'], ['IS NULL', 'пусто'], ['IS NOT NULL', 'не пусто'],
+    ];
+
+    let _rbInitialized = false;
+
+    function initReportBuilder() {
+      if (_rbInitialized) return;
+      _rbInitialized = true;
+      document.getElementById('rbTable').innerHTML = '<option value="">— выберите таблицу —</option>' +
+        Object.entries(REPORT_TABLES).map(([key, t]) => `<option value="${key}">${escapeHtml(t.label)}</option>`).join('');
+    }
+
+    function onReportTableChange() {
+      const key = document.getElementById('rbTable').value;
+      const fieldsBlock = document.getElementById('rbFieldsBlock');
+      const condBlock = document.getElementById('rbConditionsBlock');
+      const sortLimitBlock = document.getElementById('rbSortLimitBlock');
+      if (!key) {
+        fieldsBlock.style.display = 'none';
+        condBlock.style.display = 'none';
+        sortLimitBlock.style.display = 'none';
+        return;
+      }
+      const cols = REPORT_TABLES[key].columns;
+
+      document.getElementById('rbFieldsList').innerHTML = Object.entries(cols).map(([col, label]) => `
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;padding:4px 10px;background:var(--gray-light);border-radius:12px;cursor:pointer;">
+          <input type="checkbox" class="rb-field-cb" value="${col}" checked> ${escapeHtml(label)}
+        </label>
+      `).join('');
+
+      document.getElementById('rbSortField').innerHTML = '<option value="">— без сортировки —</option>' +
+        Object.entries(cols).map(([col, label]) => `<option value="${col}">${escapeHtml(label)}</option>`).join('');
+
+      document.getElementById('rbConditionsList').innerHTML = '';
+
+      fieldsBlock.style.display = '';
+      condBlock.style.display = '';
+      sortLimitBlock.style.display = '';
+    }
+
+    function addReportCondition() {
+      const key = document.getElementById('rbTable').value;
+      if (!key) { showAlert('Сначала выберите таблицу', 'error'); return; }
+      const cols = REPORT_TABLES[key].columns;
+      const row = document.createElement('div');
+      row.className = 'rb-condition-row';
+      row.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:center;';
+      row.innerHTML = `
+        <select class="rb-cond-field" style="flex:1.2;padding:8px;border:2px solid var(--gray-border);border-radius:6px;font-size:12px;">
+          ${Object.entries(cols).map(([col, label]) => `<option value="${col}">${escapeHtml(label)}</option>`).join('')}
+        </select>
+        <select class="rb-cond-op" style="width:160px;padding:8px;border:2px solid var(--gray-border);border-radius:6px;font-size:12px;" onchange="onReportCondOpChange(this)">
+          ${REPORT_OPERATORS.map(([val, label]) => `<option value="${val}">${label}</option>`).join('')}
+        </select>
+        <input type="text" class="rb-cond-value" placeholder="значение" style="flex:1;padding:8px;border:2px solid var(--gray-border);border-radius:6px;font-size:12px;">
+        <button type="button" class="btn-delete" style="padding:6px 10px;display:inline-flex;align-items:center;" onclick="this.closest('.rb-condition-row').remove()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      `;
+      document.getElementById('rbConditionsList').appendChild(row);
+    }
+
+    function onReportCondOpChange(sel) {
+      const row = sel.closest('.rb-condition-row');
+      const valueInput = row.querySelector('.rb-cond-value');
+      const noValue = sel.value === 'IS NULL' || sel.value === 'IS NOT NULL';
+      valueInput.style.display = noValue ? 'none' : '';
+    }
+
+    function sqlEscapeValue(v) {
+      return v.replace(/'/g, "''");
+    }
+
+    function buildReportFromBlocks() {
+      const key = document.getElementById('rbTable').value;
+      if (!key) { showAlert('Выберите таблицу', 'error'); return; }
+
+      const checked = Array.from(document.querySelectorAll('.rb-field-cb:checked')).map(cb => cb.value);
+      const fields = checked.length ? checked.join(', ') : '*';
+
+      const conditions = Array.from(document.querySelectorAll('.rb-condition-row')).map(row => {
+        const field = row.querySelector('.rb-cond-field').value;
+        const op = row.querySelector('.rb-cond-op').value;
+        if (op === 'IS NULL' || op === 'IS NOT NULL') return `${field} ${op}`;
+        const raw = row.querySelector('.rb-cond-value').value.trim();
+        if (!raw) return null;
+        if (op === 'LIKE') return `${field} LIKE '%${sqlEscapeValue(raw)}%'`;
+        const numeric = /^-?\d+(\.\d+)?$/.test(raw);
+        return `${field} ${op} ${numeric ? raw : `'${sqlEscapeValue(raw)}'`}`;
+      }).filter(Boolean);
+
+      const sortField = document.getElementById('rbSortField').value;
+      const sortDir = document.getElementById('rbSortDir').value;
+      const limit = Math.min(parseInt(document.getElementById('rbLimit').value, 10) || 100, 500);
+
+      let sql = `SELECT ${fields} FROM ${key}`;
+      if (conditions.length) sql += `\nWHERE ${conditions.join('\n  AND ')}`;
+      if (sortField) sql += `\nORDER BY ${sortField} ${sortDir}`;
+      sql += `\nLIMIT ${limit}`;
+
+      document.getElementById('reportSql').value = sql;
+      runReportSql();
     }
 
     // ============================================================
