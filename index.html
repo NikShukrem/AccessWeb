@@ -1150,6 +1150,7 @@
 
           <div style="display:flex;gap:10px;margin-bottom:16px;">
             <button class="btn-filter active" id="contractsSubTabList" onclick="switchContractsSubview('list')">Список договоров</button>
+            <button class="btn-filter" id="contractsSubTabStages" onclick="switchContractsSubview('stages')">Стадии договоров</button>
             <button class="btn-filter" id="contractsSubTabGantt" onclick="switchContractsSubview('gantt')">Этапы (Гант)</button>
           </div>
 
@@ -1329,14 +1330,89 @@
 
           </div>
 
+          <div id="contractsStagesView" style="display:none;">
+            <div class="table-section">
+              <div class="form-group" style="max-width:340px;">
+                <label>Договор</label>
+                <select id="stagesContractSelect" onchange="onStagesContractChange()">
+                  <option value="">— выберите договор —</option>
+                </select>
+              </div>
+
+              <div id="stagesAddFormWrap" style="display:none;margin-top:10px;">
+                <button type="button" class="btn-submit" style="margin-bottom:12px;" onclick="toggleFormSection('stageAddForm')">+ Добавить этап</button>
+                <div class="form-section" id="stageAddForm" style="display:none;">
+                  <h3>Новый этап договора</h3>
+                  <form id="stageForm">
+                    <div class="form-row">
+                      <div class="form-group">
+                        <label>№ этапа</label>
+                        <input type="number" name="stage_number" min="1">
+                      </div>
+                      <div class="form-group">
+                        <label>Этап <span class="required">*</span></label>
+                        <input type="text" name="stage_name" required placeholder="Поставка оборудования">
+                      </div>
+                      <div class="form-group">
+                        <label>Подэтап</label>
+                        <input type="text" name="substage_name">
+                      </div>
+                      <div class="form-group">
+                        <label>Ответственный</label>
+                        <input type="text" name="responsible">
+                      </div>
+                    </div>
+                    <div class="form-row">
+                      <div class="form-group">
+                        <label>Плановая дата <span class="required">*</span></label>
+                        <input type="date" name="planned_date" required>
+                      </div>
+                      <div class="form-group">
+                        <label>Фактическая дата</label>
+                        <input type="date" name="actual_date">
+                      </div>
+                      <div class="form-group">
+                        <label>Статус</label>
+                        <select name="status">
+                          <option value="pending">Ожидает</option>
+                          <option value="in_progress">В работе</option>
+                          <option value="completed">Завершён</option>
+                          <option value="overdue">Просрочен</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div class="form-row full">
+                      <div class="form-group">
+                        <label>Примечания</label>
+                        <input type="text" name="notes">
+                      </div>
+                    </div>
+                    <button type="submit" class="btn-submit">Добавить этап</button>
+                  </form>
+                </div>
+              </div>
+
+              <div class="table-wrapper" style="margin-top:16px;">
+                <table id="stagesTable">
+                  <thead>
+                    <tr>
+                      <th>№</th><th>Этап</th><th>Подэтап</th><th>План</th><th>Факт</th>
+                      <th>Ответственный</th><th>Статус</th><th>Примечания</th><th>Действия</th>
+                    </tr>
+                  </thead>
+                  <tbody id="stagesTableBody"></tbody>
+                </table>
+              </div>
+              <div id="stagesEmpty" style="display:none;font-size:12px;color:var(--gray-text);padding:14px 0;">Выберите договор, чтобы увидеть и добавить его этапы</div>
+            </div>
+          </div>
+
           <div id="contractsGanttView" style="display:none;">
             <div class="table-section">
               <div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px;">
                 <div class="form-group" style="margin:0;min-width:260px;">
-                  <label>Договор</label>
-                  <select id="ganttContractFilter" onchange="renderContractsGantt()">
-                    <option value="">Все незавершённые этапы</option>
-                  </select>
+                  <label>Договор (пусто — все; Ctrl/Cmd+клик — выбрать несколько)</label>
+                  <select id="ganttContractFilter" multiple size="4" onchange="renderContractsGantt()" style="min-height:80px;"></select>
                 </div>
                 <div class="form-group" style="margin:0;">
                   <label style="display:flex;align-items:center;gap:6px;font-weight:400;">
@@ -3513,6 +3589,22 @@
       catch (err) { showAlert(err.message, 'error'); }
     });
 
+    document.getElementById('stageForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      if (!_stagesCurrentContractId) { showAlert('Выберите договор', 'error'); return; }
+      try {
+        const data = Object.fromEntries(new FormData(e.target));
+        data.contract_id = _stagesCurrentContractId;
+        if (!data.actual_date) delete data.actual_date;
+        await api('POST', '/contract_stages', data);
+        showAlert('Этап добавлен');
+        e.target.reset();
+        toggleFormSection('stageAddForm', false);
+        await ensureContractsAndStagesLoaded(true);
+        renderStagesTable();
+      } catch (err) { showAlert(err.message, 'error'); }
+    });
+
     function toggleFormSection(id, force) {
       const el = document.getElementById(id);
       const show = force !== undefined ? force : el.style.display === 'none';
@@ -3528,54 +3620,145 @@
       btn.textContent = show ? 'Свернуть поля' : 'Показать все поля';
     }
 
-    // ---- Contracts: stage tracking (Gantt) ----
+    // ---- Contracts: stage tracking (management + Gantt) ----
 
     let _ganttContracts = null;
     let _ganttStages = null;
     let _ganttChartInstance = null;
+    let _stagesCurrentContractId = '';
 
     const GANTT_STATUS_COLORS = { pending: '#95A5A6', in_progress: '#2E86C1', completed: '#27AE60', overdue: '#C0392B' };
     const GANTT_STATUS_LABELS = { pending: 'Ожидает', in_progress: 'В работе', completed: 'Завершён', overdue: 'Просрочен' };
 
-    async function switchContractsSubview(view) {
-      document.getElementById('contractsSubTabList').classList.toggle('active', view === 'list');
-      document.getElementById('contractsSubTabGantt').classList.toggle('active', view === 'gantt');
-      document.getElementById('contractsListView').style.display = view === 'list' ? '' : 'none';
-      document.getElementById('contractsGanttView').style.display = view === 'gantt' ? '' : 'none';
-      if (view === 'gantt' && !_ganttContracts) {
-        await loadContractsGanttData();
-      }
+    async function ensureContractsAndStagesLoaded(force) {
+      if (!force && _ganttContracts && _ganttStages) return;
+      const [contracts, stages] = await Promise.all([
+        api('GET', '/contracts?limit=2000'),
+        api('GET', '/contract_stages?limit=2000'),
+      ]);
+      _ganttContracts = contracts;
+      _ganttStages = stages;
     }
 
-    async function loadContractsGanttData() {
+    async function switchContractsSubview(view) {
+      document.getElementById('contractsSubTabList').classList.toggle('active', view === 'list');
+      document.getElementById('contractsSubTabStages').classList.toggle('active', view === 'stages');
+      document.getElementById('contractsSubTabGantt').classList.toggle('active', view === 'gantt');
+      document.getElementById('contractsListView').style.display = view === 'list' ? '' : 'none';
+      document.getElementById('contractsStagesView').style.display = view === 'stages' ? '' : 'none';
+      document.getElementById('contractsGanttView').style.display = view === 'gantt' ? '' : 'none';
       try {
-        const [contracts, stages] = await Promise.all([
-          api('GET', '/contracts?limit=2000'),
-          api('GET', '/contract_stages?limit=2000'),
-        ]);
-        _ganttContracts = contracts;
-        _ganttStages = stages;
-        const contractIdsWithStages = new Set(stages.map(s => s.contract_id));
-        const sel = document.getElementById('ganttContractFilter');
-        sel.innerHTML = '<option value="">Все незавершённые этапы</option>' +
-          contracts
-            .filter(c => contractIdsWithStages.has(c.id))
-            .sort((a, b) => (a.contract_number || '').localeCompare(b.contract_number || ''))
-            .map(c => `<option value="${c.id}">${escapeHtml(c.contract_number || '-')}</option>`).join('');
-        renderContractsGantt();
+        if (view === 'stages') await loadStagesViewData();
+        if (view === 'gantt') await loadContractsGanttData();
       } catch (err) {
         showAlert(err.message, 'error');
       }
     }
 
+    async function loadStagesViewData() {
+      await ensureContractsAndStagesLoaded();
+      const sel = document.getElementById('stagesContractSelect');
+      const prev = sel.value;
+      sel.innerHTML = '<option value="">— выберите договор —</option>' +
+        _ganttContracts.slice()
+          .sort((a, b) => (a.contract_number || '').localeCompare(b.contract_number || ''))
+          .map(c => `<option value="${c.id}"${c.id === prev ? ' selected' : ''}>${escapeHtml(c.contract_number || '-')}</option>`).join('');
+      _stagesCurrentContractId = sel.value;
+      document.getElementById('stagesAddFormWrap').style.display = _stagesCurrentContractId ? '' : 'none';
+      renderStagesTable();
+    }
+
+    function onStagesContractChange() {
+      _stagesCurrentContractId = document.getElementById('stagesContractSelect').value;
+      document.getElementById('stagesAddFormWrap').style.display = _stagesCurrentContractId ? '' : 'none';
+      toggleFormSection('stageAddForm', false);
+      renderStagesTable();
+    }
+
+    function renderStagesTable() {
+      const tbody = document.getElementById('stagesTableBody');
+      const empty = document.getElementById('stagesEmpty');
+      const table = document.getElementById('stagesTable');
+      if (!_stagesCurrentContractId) {
+        tbody.innerHTML = '';
+        table.style.display = 'none';
+        empty.textContent = 'Выберите договор, чтобы увидеть и добавить его этапы';
+        empty.style.display = '';
+        return;
+      }
+      const stages = (_ganttStages || [])
+        .filter(s => s.contract_id === _stagesCurrentContractId)
+        .slice()
+        .sort((a, b) => (a.stage_number || 0) - (b.stage_number || 0) || (a.planned_date || '').localeCompare(b.planned_date || ''));
+
+      table.style.display = '';
+      if (!stages.length) {
+        tbody.innerHTML = '';
+        empty.textContent = 'У этого договора пока нет этапов — добавьте первый выше';
+        empty.style.display = '';
+        return;
+      }
+      empty.style.display = 'none';
+      tbody.innerHTML = stages.map(s => `
+        <tr>
+          <td>${s.stage_number ?? '-'}</td>
+          <td>${escapeHtml(s.stage_name || '-')}</td>
+          <td>${escapeHtml(s.substage_name || '-')}</td>
+          <td>${s.planned_date || '-'}</td>
+          <td>${s.actual_date || '-'}</td>
+          <td>${escapeHtml(s.responsible || '-')}</td>
+          <td><span class="badge ${s.status === 'completed' ? 'completed' : (s.status === 'overdue' ? 'danger' : 'pending')}">${GANTT_STATUS_LABELS[s.status] || s.status || '-'}</span></td>
+          <td>${escapeHtml(s.notes || '-')}</td>
+          <td style="white-space:nowrap;">
+            ${s.status !== 'completed' ? `<button class="btn-filter" style="padding:4px 8px;font-size:11px;margin-right:4px;" onclick="completeStage('${s.id}')">Завершить</button>` : ''}
+            <button class="btn-delete" style="padding:4px 8px;font-size:11px;" onclick="deleteStage('${s.id}')">Удалить</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function completeStage(id) {
+      try {
+        const today = new Date().toISOString().slice(0, 10);
+        await api('PUT', `/contract_stages/${id}`, { status: 'completed', actual_date: today });
+        await ensureContractsAndStagesLoaded(true);
+        renderStagesTable();
+      } catch (err) {
+        showAlert(err.message, 'error');
+      }
+    }
+
+    async function deleteStage(id) {
+      if (!confirm('Удалить этап договора?')) return;
+      try {
+        await api('DELETE', `/contract_stages/${id}`);
+        await ensureContractsAndStagesLoaded(true);
+        renderStagesTable();
+      } catch (err) {
+        showAlert(err.message, 'error');
+      }
+    }
+
+    async function loadContractsGanttData() {
+      await ensureContractsAndStagesLoaded();
+      const contractIdsWithStages = new Set(_ganttStages.map(s => s.contract_id));
+      const sel = document.getElementById('ganttContractFilter');
+      const prevSelected = new Set(Array.from(sel.selectedOptions).map(o => o.value));
+      sel.innerHTML = _ganttContracts
+        .filter(c => contractIdsWithStages.has(c.id))
+        .sort((a, b) => (a.contract_number || '').localeCompare(b.contract_number || ''))
+        .map(c => `<option value="${c.id}"${prevSelected.has(c.id) ? ' selected' : ''}>${escapeHtml(c.contract_number || '-')}</option>`).join('');
+      renderContractsGantt();
+    }
+
     function renderContractsGantt() {
       if (!_ganttStages) return;
-      const contractFilter = document.getElementById('ganttContractFilter').value;
+      const selectedIds = Array.from(document.getElementById('ganttContractFilter').selectedOptions).map(o => o.value);
       const showCompleted = document.getElementById('ganttShowCompleted').checked;
       const contractsById = Object.fromEntries(_ganttContracts.map(c => [c.id, c.contract_number || '-']));
 
       let stages = _ganttStages.filter(s => s.planned_date);
-      if (contractFilter) stages = stages.filter(s => s.contract_id === contractFilter);
+      if (selectedIds.length) stages = stages.filter(s => selectedIds.includes(s.contract_id));
       if (!showCompleted) stages = stages.filter(s => s.status !== 'completed');
       stages = stages.slice().sort((a, b) => (a.planned_date || '').localeCompare(b.planned_date || '')).slice(0, 150);
 
@@ -3600,9 +3783,10 @@
       const dayMs = 86400000;
       const toOffset = d => Math.round((new Date(d).getTime() - minTime) / dayMs);
 
+      const multipleContracts = new Set(stages.map(s => s.contract_id)).size > 1;
       const labels = stages.map(s => {
         const stageLabel = [s.stage_name, s.substage_name].filter(Boolean).join(' / ') || 'Этап';
-        return `${contractsById[s.contract_id] || '-'} · ${stageLabel}`;
+        return multipleContracts ? `${contractsById[s.contract_id] || '-'} · ${stageLabel}` : stageLabel;
       });
       const data = stages.map(s => {
         const start = toOffset(s.planned_date);
@@ -3642,7 +3826,14 @@
               ticks: { callback: v => new Date(minTime + v * dayMs).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }) }
             },
             y: {
-              ticks: { autoSkip: false, font: { size: 11 } }
+              afterFit: scale => { scale.width = Math.min(scale.width, 230); },
+              ticks: {
+                autoSkip: false, font: { size: 11 },
+                callback: function (value) {
+                  const label = this.getLabelForValue(value);
+                  return label.length > 34 ? label.slice(0, 33) + '…' : label;
+                }
+              }
             }
           }
         }
