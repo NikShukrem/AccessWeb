@@ -3059,41 +3059,43 @@
 
     // ---- Report builder blocks (generates SQL into #reportSql) ----
 
+    // column type: 'text' (строка/дата — сравнение в кавычках), 'number' (сравнение как есть),
+    // 'bool' (хранится как 0/1 — значение выбирается из списка Да/Нет)
     const REPORT_TABLES = {
       acid: { label: 'Грузы (ACID)', columns: {
-        acid: 'ACID (код)', ais_number: 'Номер АИС', initial_request_number: 'Номер заявки',
-        shipment_type: 'Тип отправки', shipper: 'Грузоотправитель', supplier: 'Поставщик',
-        importer_name: 'Импортёр', name: 'Название груза', gw_kg: 'Вес (кг)',
-        packages_qty: 'Кол-во мест', containers_qty: 'Кол-во контейнеров', transport_type: 'Тип транспорта',
-        cargo_cost: 'Стоимость груза', currency: 'Валюта', shipping_cost: 'Стоимость доставки',
-        incoterms: 'Инкотермс', departure_country: 'Страна отправления', departure_port: 'Порт отправления',
-        delivery_place: 'Место доставки', arrival_place: 'Место прибытия', vessel: 'Судно',
-        carrier: 'Перевозчик', forwarder: 'Экспедитор', etd: 'Дата отправления (ETD)', eta: 'Дата прибытия (ETA)',
-        delivery_date: 'Дата доставки', egypt_arrival_date: 'Дата прибытия в Египет', custom_status: 'Таможенный статус',
-        status: 'Статус', responsible: 'Ответственный', contract_number: 'Номер договора',
-        notes: 'Примечания', created_at: 'Дата создания записи'
+        acid: ['ACID (код)','text'], ais_number: ['Номер АИС','text'], initial_request_number: ['Номер заявки','text'],
+        shipment_type: ['Тип отправки','text'], shipper: ['Грузоотправитель','text'], supplier: ['Поставщик','text'],
+        importer_name: ['Импортёр','text'], name: ['Название груза','text'], gw_kg: ['Вес (кг)','number'],
+        packages_qty: ['Кол-во мест','number'], containers_qty: ['Кол-во контейнеров','number'], transport_type: ['Тип транспорта','text'],
+        cargo_cost: ['Стоимость груза','number'], currency: ['Валюта','text'], shipping_cost: ['Стоимость доставки','number'],
+        incoterms: ['Инкотермс','text'], departure_country: ['Страна отправления','text'], departure_port: ['Порт отправления','text'],
+        delivery_place: ['Место доставки','text'], arrival_place: ['Место прибытия','text'], vessel: ['Судно','text'],
+        carrier: ['Перевозчик','text'], forwarder: ['Экспедитор','text'], etd: ['Дата отправления (ETD)','text'], eta: ['Дата прибытия (ETA)','text'],
+        delivery_date: ['Дата доставки','text'], egypt_arrival_date: ['Дата прибытия в Египет','text'], custom_status: ['Таможенный статус','text'],
+        status: ['Статус','text'], responsible: ['Ответственный','text'], contract_number: ['Номер договора','text'],
+        notes: ['Примечания','text'], created_at: ['Дата создания записи','text']
       }},
       contracts: { label: 'Договоры', columns: {
-        contract_number: 'Номер договора', type: 'Тип договора', counterparty: 'Контрагент', name: 'Название',
-        contract_date: 'Дата договора', validity_period: 'Действует до', amount: 'Сумма', amount_with_ds: 'Сумма с ДС',
-        currency: 'Валюта', paid_amount: 'Оплачено', limit_balance: 'Остаток лимита', status: 'Статус',
-        route_to: 'Маршрут', procurement_type: 'Тип закупки', responsible: 'Ответственный', notes: 'Примечания',
-        created_at: 'Дата создания записи'
+        contract_number: ['Номер договора','text'], type: ['Тип договора','text'], counterparty: ['Контрагент','text'], name: ['Название','text'],
+        contract_date: ['Дата договора','text'], validity_period: ['Действует до','text'], amount: ['Сумма','number'], amount_with_ds: ['Сумма с ДС','number'],
+        currency: ['Валюта','text'], paid_amount: ['Оплачено (сумма)','number'], limit_balance: ['Остаток лимита','number'], status: ['Статус','text'],
+        route_to: ['Маршрут','text'], procurement_type: ['Тип закупки','text'], responsible: ['Ответственный','text'], notes: ['Примечания','text'],
+        created_at: ['Дата создания записи','text']
       }},
       ais_transactions: { label: 'Транзакции (счета)', columns: {
-        number: 'Номер счёта', date: 'Дата', expense_date: 'Дата расхода', currency: 'Валюта',
-        amount: 'Сумма', amount_usd: 'Сумма (USD)', organization: 'Организация', counterparty: 'Контрагент',
-        contract_number: 'Номер договора', project: 'Проект', status: 'Статус', cfo: 'ЦФО',
-        responsible: 'Ответственный', urgent: 'Срочно', created_at: 'Дата создания записи'
+        number: ['Номер счёта','text'], date: ['Дата','text'], expense_date: ['Дата расхода','text'], currency: ['Валюта','text'],
+        amount: ['Сумма','number'], amount_usd: ['Сумма (USD)','number'], organization: ['Организация','text'], counterparty: ['Контрагент','text'],
+        contract_number: ['Номер договора','text'], project: ['Проект','text'], status: ['Статус','text'], cfo: ['ЦФО','text'],
+        responsible: ['Ответственный','text'], urgent: ['Срочно (да/нет)','bool'], created_at: ['Дата создания записи','text']
       }},
       counterparties: { label: 'Контрагенты', columns: {
-        name: 'Название', short_name: 'Краткое название', country: 'Страна', type: 'Тип',
-        contact_person: 'Контактное лицо', email: 'Email', phone: 'Телефон', is_active: 'Активен',
-        created_at: 'Дата создания записи'
+        name: ['Название','text'], short_name: ['Краткое название','text'], country: ['Страна','text'], type: ['Тип','text'],
+        contact_person: ['Контактное лицо','text'], email: ['Email','text'], phone: ['Телефон','text'], is_active: ['Активен (да/нет)','bool'],
+        created_at: ['Дата создания записи','text']
       }},
       transaction_items: { label: 'Позиции счетов', columns: {
-        name: 'Наименование', sku: 'Артикул', unit: 'Ед. изм.', quantity: 'Количество',
-        unit_price: 'Цена за ед.', amount: 'Сумма', created_at: 'Дата создания записи'
+        name: ['Наименование','text'], sku: ['Артикул','text'], unit: ['Ед. изм.','text'], quantity: ['Количество','number'],
+        unit_price: ['Цена за ед.','number'], amount: ['Сумма','number'], created_at: ['Дата создания записи','text']
       }},
     };
 
@@ -3125,14 +3127,14 @@
       }
       const cols = REPORT_TABLES[key].columns;
 
-      document.getElementById('rbFieldsList').innerHTML = Object.entries(cols).map(([col, label]) => `
+      document.getElementById('rbFieldsList').innerHTML = Object.entries(cols).map(([col, [label]]) => `
         <label style="display:flex;align-items:center;gap:4px;font-size:12px;padding:4px 10px;background:var(--gray-light);border-radius:12px;cursor:pointer;">
           <input type="checkbox" class="rb-field-cb" value="${col}" checked> ${escapeHtml(label)}
         </label>
       `).join('');
 
       document.getElementById('rbSortField').innerHTML = '<option value="">— без сортировки —</option>' +
-        Object.entries(cols).map(([col, label]) => `<option value="${col}">${escapeHtml(label)}</option>`).join('');
+        Object.entries(cols).map(([col, [label]]) => `<option value="${col}">${escapeHtml(label)}</option>`).join('');
 
       document.getElementById('rbConditionsList').innerHTML = '';
 
@@ -3141,21 +3143,35 @@
       sortLimitBlock.style.display = '';
     }
 
+    function reportCondValueControlHtml(type) {
+      if (type === 'bool') {
+        return `<select class="rb-cond-value" style="flex:1;padding:8px;border:2px solid var(--gray-border);border-radius:6px;font-size:12px;">
+          <option value="1">Да</option>
+          <option value="0">Нет</option>
+        </select>`;
+      }
+      if (type === 'number') {
+        return `<input type="number" step="any" class="rb-cond-value" placeholder="число" style="flex:1;padding:8px;border:2px solid var(--gray-border);border-radius:6px;font-size:12px;">`;
+      }
+      return `<input type="text" class="rb-cond-value" placeholder="значение" style="flex:1;padding:8px;border:2px solid var(--gray-border);border-radius:6px;font-size:12px;">`;
+    }
+
     function addReportCondition() {
       const key = document.getElementById('rbTable').value;
       if (!key) { showAlert('Сначала выберите таблицу', 'error'); return; }
       const cols = REPORT_TABLES[key].columns;
+      const firstType = Object.values(cols)[0][1];
       const row = document.createElement('div');
       row.className = 'rb-condition-row';
       row.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:center;';
       row.innerHTML = `
-        <select class="rb-cond-field" style="flex:1.2;padding:8px;border:2px solid var(--gray-border);border-radius:6px;font-size:12px;">
-          ${Object.entries(cols).map(([col, label]) => `<option value="${col}">${escapeHtml(label)}</option>`).join('')}
+        <select class="rb-cond-field" style="flex:1.2;padding:8px;border:2px solid var(--gray-border);border-radius:6px;font-size:12px;" onchange="onReportCondFieldChange(this)">
+          ${Object.entries(cols).map(([col, [label, type]]) => `<option value="${col}" data-type="${type}">${escapeHtml(label)}</option>`).join('')}
         </select>
         <select class="rb-cond-op" style="width:160px;padding:8px;border:2px solid var(--gray-border);border-radius:6px;font-size:12px;" onchange="onReportCondOpChange(this)">
           ${REPORT_OPERATORS.map(([val, label]) => `<option value="${val}">${label}</option>`).join('')}
         </select>
-        <input type="text" class="rb-cond-value" placeholder="значение" style="flex:1;padding:8px;border:2px solid var(--gray-border);border-radius:6px;font-size:12px;">
+        <span class="rb-cond-value-wrap" style="flex:1;display:flex;">${reportCondValueControlHtml(firstType)}</span>
         <button type="button" class="btn-delete" style="padding:6px 10px;display:inline-flex;align-items:center;" onclick="this.closest('.rb-condition-row').remove()">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
@@ -3163,11 +3179,17 @@
       document.getElementById('rbConditionsList').appendChild(row);
     }
 
+    function onReportCondFieldChange(sel) {
+      const row = sel.closest('.rb-condition-row');
+      const type = sel.selectedOptions[0].dataset.type;
+      row.querySelector('.rb-cond-value-wrap').innerHTML = reportCondValueControlHtml(type);
+    }
+
     function onReportCondOpChange(sel) {
       const row = sel.closest('.rb-condition-row');
-      const valueInput = row.querySelector('.rb-cond-value');
+      const wrap = row.querySelector('.rb-cond-value-wrap');
       const noValue = sel.value === 'IS NULL' || sel.value === 'IS NOT NULL';
-      valueInput.style.display = noValue ? 'none' : '';
+      wrap.style.display = noValue ? 'none' : 'flex';
     }
 
     function sqlEscapeValue(v) {
@@ -3177,19 +3199,21 @@
     function buildReportFromBlocks() {
       const key = document.getElementById('rbTable').value;
       if (!key) { showAlert('Выберите таблицу', 'error'); return; }
+      const cols = REPORT_TABLES[key].columns;
 
       const checked = Array.from(document.querySelectorAll('.rb-field-cb:checked')).map(cb => cb.value);
       const fields = checked.length ? checked.join(', ') : '*';
 
       const conditions = Array.from(document.querySelectorAll('.rb-condition-row')).map(row => {
         const field = row.querySelector('.rb-cond-field').value;
+        const type = cols[field][1];
         const op = row.querySelector('.rb-cond-op').value;
         if (op === 'IS NULL' || op === 'IS NOT NULL') return `${field} ${op}`;
         const raw = row.querySelector('.rb-cond-value').value.trim();
         if (!raw) return null;
         if (op === 'LIKE') return `${field} LIKE '%${sqlEscapeValue(raw)}%'`;
-        const numeric = /^-?\d+(\.\d+)?$/.test(raw);
-        return `${field} ${op} ${numeric ? raw : `'${sqlEscapeValue(raw)}'`}`;
+        const literal = (type === 'number' || type === 'bool') ? raw : `'${sqlEscapeValue(raw)}'`;
+        return `${field} ${op} ${literal}`;
       }).filter(Boolean);
 
       const sortField = document.getElementById('rbSortField').value;
