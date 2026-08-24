@@ -1340,7 +1340,17 @@
               </div>
 
               <div id="stagesAddFormWrap" style="display:none;margin-top:10px;">
-                <button type="button" class="btn-submit" style="margin-bottom:12px;" onclick="toggleFormSection('stageAddForm')">+ Добавить этап</button>
+                <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px;">
+                  <button type="button" class="btn-submit" onclick="toggleFormSection('stageAddForm')">+ Добавить этап</button>
+                  <div class="form-group" style="margin:0;">
+                    <label style="font-weight:400;font-size:11px;">Дата начала процесса</label>
+                    <input type="date" id="stageTemplateStart" style="padding:8px;border:2px solid var(--gray-border);border-radius:6px;font-size:12px;">
+                  </div>
+                  <button type="button" class="btn-filter" onclick="applyStageTemplate()">Загрузить стандартный процесс</button>
+                </div>
+                <div style="font-size:11px;color:var(--gray-text);margin:-6px 0 12px;">
+                  Заполнит 4 этапа и все подэтапы типового процесса (Подготовка → НМЦ → Закупка → Заключение договора) с плановыми датами по максимальной продолжительности от даты начала; фактические даты остаются пустыми — их вносите по мере исполнения.
+                </div>
                 <div class="form-section" id="stageAddForm" style="display:none;">
                   <h3>Новый этап договора</h3>
                   <form id="stageForm">
@@ -3669,12 +3679,16 @@
           .map(c => `<option value="${c.id}"${c.id === prev ? ' selected' : ''}>${escapeHtml(c.contract_number || '-')}</option>`).join('');
       _stagesCurrentContractId = sel.value;
       document.getElementById('stagesAddFormWrap').style.display = _stagesCurrentContractId ? '' : 'none';
+      const startInput = document.getElementById('stageTemplateStart');
+      if (!startInput.value) startInput.value = new Date().toISOString().slice(0, 10);
       renderStagesTable();
     }
 
     function onStagesContractChange() {
       _stagesCurrentContractId = document.getElementById('stagesContractSelect').value;
       document.getElementById('stagesAddFormWrap').style.display = _stagesCurrentContractId ? '' : 'none';
+      const startInput = document.getElementById('stageTemplateStart');
+      if (!startInput.value) startInput.value = new Date().toISOString().slice(0, 10);
       toggleFormSection('stageAddForm', false);
       renderStagesTable();
     }
@@ -3693,7 +3707,11 @@
       const stages = (_ganttStages || [])
         .filter(s => s.contract_id === _stagesCurrentContractId)
         .slice()
-        .sort((a, b) => (a.stage_number || 0) - (b.stage_number || 0) || (a.planned_date || '').localeCompare(b.planned_date || ''));
+        .sort((a, b) =>
+          (a.stage_number || 0) - (b.stage_number || 0) ||
+          (a.sort_order || 0) - (b.sort_order || 0) ||
+          (a.planned_date || '').localeCompare(b.planned_date || '')
+        );
 
       table.style.display = '';
       if (!stages.length) {
@@ -3703,9 +3721,22 @@
         return;
       }
       empty.style.display = 'none';
-      tbody.innerHTML = stages.map(s => `
-        <tr>
-          <td>${s.stage_number ?? '-'}</td>
+
+      const subIndex = {};
+      tbody.innerHTML = stages.map(s => {
+        let displayNo = '-';
+        if (s.stage_number != null) {
+          if (!s.substage_name) {
+            subIndex[s.stage_number] = 0;
+            displayNo = String(s.stage_number);
+          } else {
+            subIndex[s.stage_number] = (subIndex[s.stage_number] || 0) + 1;
+            displayNo = `${s.stage_number}.${subIndex[s.stage_number]}`;
+          }
+        }
+        return `
+        <tr${!s.substage_name ? ' style="background:var(--gray-light);font-weight:600;"' : ''}>
+          <td>${displayNo}</td>
           <td>${escapeHtml(s.stage_name || '-')}</td>
           <td>${escapeHtml(s.substage_name || '-')}</td>
           <td>${s.planned_date || '-'}</td>
@@ -3718,7 +3749,8 @@
             <button class="btn-delete" style="padding:4px 8px;font-size:11px;" onclick="deleteStage('${s.id}')">Удалить</button>
           </td>
         </tr>
-      `).join('');
+      `;
+      }).join('');
     }
 
     async function completeStage(id) {
@@ -3743,6 +3775,103 @@
       }
     }
 
+    // Типовой процесс согласования и заключения договора: [название подэтапа, ответственные, мин раб.дн, макс раб.дн]
+    const CONTRACT_STAGE_TEMPLATE = [
+      { name: 'ПОДГОТОВКА', responsible: 'УЛ', subs: [
+        ['Разработка Технического задания', 'УЛ', 1, 3],
+        ['Разработка проекта договора и приложений к нему совместно с Юридическим подразделением', 'УЛ', 2, 2],
+        ['Получение ЗПДТК и РИО на ТЗ и проект договора', 'УЛ', 3, 5],
+      ]},
+      { name: 'НМЦ', responsible: 'УПЗП', subs: [
+        ['Обработка поручения', 'УПЗП', 2, 3],
+        ['Доработка поручения (при необходимости)', 'УПЗП, УЛ', 2, 3],
+        ['Формирование НМЦ', 'УПЗП', 21, 21],
+        ['Рассмотрение/Согласование НМЦ АСЭ', 'УПЗП, АСЭ', 6, 6],
+        ['Устранение замечаний (при необходимости)', 'УПЗП', 7, 7],
+        ['Рассмотрение/Согласование НМЦ АСЭ', 'УПЗП, АСЭ', 6, 6],
+        ['Получение ЗПДТК и РИО на ЦА', '', 3, 5],
+      ]},
+      { name: 'ЗАКУПКА', responsible: 'ДЗ', subs: [
+        ['Подготовка документов для закупки', 'ДЗ', 2, 10],
+        ['Согласование с АСЭ, Атомкомплект (с учётом замечаний)', 'ДЗ', 14, 14],
+        ['Публикация на ЭТП, приём заявок', 'ДЗ', 8, 11],
+        ['Отборочная стадия (ЭЗ, дозапросы, повторное ЭЗ, решение по всем участникам)', 'ДЗ', 14, 22],
+        ['Переторжка, подведение итогов, передача на договор', 'ДЗ', 8, 8],
+      ]},
+      { name: 'ЗАКЛЮЧЕНИЕ ДОГОВОРА', responsible: 'УЛ', subs: [
+        ['Размещение в ЭДО', 'УЛ, Юристы, Документооборот', 1, 1],
+        ['Согласование Договора Согласующими лицами в ЭДО', 'УЛ, Юристы, Документооборот', 5, 10],
+        ['Устранение замечаний Согласующих лиц', 'УЛ, Юристы, Документооборот', 1, 1],
+        ['Подписание Договора уполномоченным работником Филиала', 'УЛ, Юристы, Документооборот', 3, 3],
+        ['Подписание Договора контрагентом в сканируемом виде', 'УЛ', 3, 8],
+      ]},
+    ];
+
+    function addWorkdays(dateStr, days) {
+      const d = new Date(dateStr + 'T00:00:00');
+      let added = 0;
+      while (added < days) {
+        d.setDate(d.getDate() + 1);
+        const dow = d.getDay();
+        if (dow !== 0 && dow !== 6) added++;
+      }
+      return d.toISOString().slice(0, 10);
+    }
+
+    async function applyStageTemplate() {
+      if (!_stagesCurrentContractId) { showAlert('Выберите договор', 'error'); return; }
+      const start = document.getElementById('stageTemplateStart').value;
+      if (!start) { showAlert('Укажите дату начала процесса', 'error'); return; }
+
+      const existing = (_ganttStages || []).filter(s => s.contract_id === _stagesCurrentContractId);
+      if (existing.length && !confirm(`У договора уже есть ${existing.length} этап(ов)/подэтапов. Добавить стандартный процесс поверх них?`)) return;
+
+      const rows = [];
+      let cursor = start;
+      let stageNum = 0;
+      for (const stage of CONTRACT_STAGE_TEMPLATE) {
+        stageNum++;
+        let sortOrder = 0;
+        const subRows = [];
+        for (const [name, responsible, min, max] of stage.subs) {
+          cursor = addWorkdays(cursor, max);
+          subRows.push({
+            contract_id: _stagesCurrentContractId,
+            stage_number: stageNum,
+            stage_name: stage.name,
+            substage_name: name,
+            responsible,
+            planned_date: cursor,
+            status: 'pending',
+            sort_order: ++sortOrder,
+            notes: min === max ? `План: ${max} раб. дн.` : `План: ${max} раб. дн. (диапазон ${min}-${max})`,
+          });
+        }
+        rows.push({
+          contract_id: _stagesCurrentContractId,
+          stage_number: stageNum,
+          stage_name: stage.name,
+          substage_name: null,
+          responsible: stage.responsible,
+          planned_date: cursor,
+          status: 'pending',
+          sort_order: 0,
+        });
+        rows.push(...subRows);
+      }
+
+      try {
+        for (const row of rows) {
+          await api('POST', '/contract_stages', row);
+        }
+        await ensureContractsAndStagesLoaded(true);
+        renderStagesTable();
+        showAlert(`Загружено этапов: ${rows.length}`);
+      } catch (err) {
+        showAlert(err.message, 'error');
+      }
+    }
+
     async function loadContractsGanttData() {
       await ensureContractsAndStagesLoaded();
       const contractIdsWithStages = new Set(_ganttStages.map(s => s.contract_id));
@@ -3761,10 +3890,40 @@
       const showCompleted = document.getElementById('ganttShowCompleted').checked;
       const contractsById = Object.fromEntries(_ganttContracts.map(c => [c.id, c.contract_number || '-']));
 
-      let stages = _ganttStages.filter(s => s.planned_date);
-      if (selectedIds.length) stages = stages.filter(s => selectedIds.includes(s.contract_id));
-      if (!showCompleted) stages = stages.filter(s => s.status !== 'completed');
-      stages = stages.slice().sort((a, b) => (a.planned_date || '').localeCompare(b.planned_date || '')).slice(0, 150);
+      let filtered = _ganttStages.filter(s => s.planned_date);
+      if (selectedIds.length) filtered = filtered.filter(s => selectedIds.includes(s.contract_id));
+      if (!showCompleted) filtered = filtered.filter(s => s.status !== 'completed');
+
+      // Bar span per stage: a подэтап runs from the end of the previous подэтап in the same
+      // договор (chained — the table has no separate "start date" column) to its own planned_date;
+      // a top-level этап (no подэтап) spans the full range covered by its own подэтапы.
+      const spans = new Map();
+      const byContract = {};
+      filtered.forEach(s => { (byContract[s.contract_id] = byContract[s.contract_id] || []).push(s); });
+      Object.values(byContract).forEach(list => {
+        // Chain подэтапы strictly by planned_date (not stage_number/sort_order — real data isn't
+        // always numbered consistently, and a date-based chain can never produce start > end).
+        const leaves = list.filter(s => s.substage_name)
+          .slice()
+          .sort((a, b) => (a.planned_date || '').localeCompare(b.planned_date || ''));
+        let cursor = null;
+        const bucketRange = {};
+        leaves.forEach(s => {
+          const start = cursor || s.planned_date;
+          spans.set(s.id, [start, s.planned_date]);
+          cursor = s.planned_date;
+          const b = bucketRange[s.stage_number] || [start, s.planned_date];
+          if (start < b[0]) b[0] = start;
+          if (s.planned_date > b[1]) b[1] = s.planned_date;
+          bucketRange[s.stage_number] = b;
+        });
+        list.filter(s => !s.substage_name).forEach(s => {
+          const b = bucketRange[s.stage_number];
+          spans.set(s.id, b ? [b[0], b[1]] : [s.planned_date, s.planned_date]);
+        });
+      });
+
+      const stages = filtered.slice().sort((a, b) => (a.planned_date || '').localeCompare(b.planned_date || '')).slice(0, 150);
 
       const empty = document.getElementById('ganttEmpty');
       const wrap = document.getElementById('ganttChartWrap');
@@ -3778,23 +3937,24 @@
       empty.style.display = 'none';
       wrap.style.height = `${Math.max(220, stages.length * 30 + 60)}px`;
 
-      const dates = [];
+      const allDateStrings = [];
       stages.forEach(s => {
-        dates.push(new Date(s.planned_date));
-        if (s.actual_date) dates.push(new Date(s.actual_date));
+        const [start, end] = spans.get(s.id) || [s.planned_date, s.planned_date];
+        allDateStrings.push(start, end);
       });
-      const minTime = Math.min(...dates.map(d => d.getTime()));
+      const minTime = Math.min(...allDateStrings.map(d => new Date(d).getTime()));
       const dayMs = 86400000;
       const toOffset = d => Math.round((new Date(d).getTime() - minTime) / dayMs);
 
       const multipleContracts = new Set(stages.map(s => s.contract_id)).size > 1;
       const labels = stages.map(s => {
-        const stageLabel = [s.stage_name, s.substage_name].filter(Boolean).join(' / ') || 'Этап';
-        return multipleContracts ? `${contractsById[s.contract_id] || '-'} · ${stageLabel}` : stageLabel;
+        const core = s.substage_name || s.stage_name || 'Этап';
+        return multipleContracts ? `${contractsById[s.contract_id] || '-'} · ${core}` : core;
       });
       const data = stages.map(s => {
-        const start = toOffset(s.planned_date);
-        let end = s.actual_date ? toOffset(s.actual_date) : start + 1;
+        const [startStr, endStr] = spans.get(s.id) || [s.planned_date, s.planned_date];
+        const start = toOffset(startStr);
+        let end = toOffset(endStr);
         if (end <= start) end = start + 1;
         return [start, end];
       });
@@ -3816,6 +3976,7 @@
                 label: c => {
                   const s = stages[c.dataIndex];
                   return [
+                    s.substage_name && s.stage_name ? `Этап: ${s.stage_name}` : '',
                     GANTT_STATUS_LABELS[s.status] || s.status || '-',
                     `План: ${s.planned_date || '-'}`,
                     s.actual_date ? `Факт: ${s.actual_date}` : '',
