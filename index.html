@@ -2995,7 +2995,9 @@
       }
       empty.style.display = 'none';
       const cols = Object.keys(rows[0]);
-      table.querySelector('thead tr').innerHTML = cols.map(c => `<th>${escapeHtml(c)}</th>`).join('');
+      table.querySelector('thead tr').innerHTML = cols.map(c =>
+        `<th title="${escapeHtml(c)}">${escapeHtml(REPORT_COLUMN_LABELS[c] || c)}</th>`
+      ).join('');
       table.querySelector('tbody').innerHTML = rows.map(r => `
         <tr>${cols.map(c => `<td>${escapeHtml(r[c] === null || r[c] === undefined ? '' : String(r[c]))}</td>`).join('')}</tr>
       `).join('');
@@ -3114,6 +3116,13 @@
         unit_price: ['Цена за ед.','number'], amount: ['Сумма','number'], created_at: ['Дата создания записи','text']
       }},
     };
+
+    // Плоский словарь column -> подпись для заголовков результата (объединяет все таблицы,
+    // одноимённые столбцы вроде status/name везде подписаны одинаково)
+    const REPORT_COLUMN_LABELS = Object.values(REPORT_TABLES).reduce((acc, t) => {
+      for (const [col, [label]] of Object.entries(t.columns)) if (!(col in acc)) acc[col] = label;
+      return acc;
+    }, {});
 
     const REPORT_OPERATORS = [
       ['=', 'равно'], ['!=', 'не равно'], ['>', 'больше'], ['<', 'меньше'],
