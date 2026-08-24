@@ -1422,8 +1422,7 @@
               <div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px;">
                 <div class="form-group" style="margin:0;min-width:260px;">
                   <label>Договор (пусто — все; Ctrl/Cmd+клик — выбрать несколько)</label>
-                  <select id="ganttContractFilter" multiple size="4" onchange="onGanttContractFilterChange()" style="min-height:80px;"></select>
-                  <button type="button" class="btn-delete" id="ganttDeleteContractBtn" style="display:none;margin-top:6px;font-size:11px;padding:5px 10px;" onclick="deleteContractFromGantt()">Удалить выбранный договор</button>
+                  <select id="ganttContractFilter" multiple size="4" onchange="_ganttHiddenContractIds.clear(); renderContractsGantt();" style="min-height:80px;"></select>
                 </div>
                 <div class="form-group" style="margin:0;white-space:nowrap;">
                   <label style="display:flex;align-items:center;gap:6px;font-weight:400;white-space:nowrap;cursor:pointer;">
@@ -1438,6 +1437,7 @@
                 <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#27AE60;margin-right:4px;"></span>Завершён</span>
                 <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#C0392B;margin-right:4px;"></span>Просрочен</span>
               </div>
+              <div id="ganttVisibleContracts" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;"></div>
               <div id="ganttChartWrap" style="position:relative;height:300px;">
                 <canvas id="contractsGanttChart"></canvas>
               </div>
@@ -3885,34 +3885,13 @@
       renderContractsGantt();
     }
 
-    function onGanttContractFilterChange() {
-      const selected = Array.from(document.getElementById('ganttContractFilter').selectedOptions);
-      const btn = document.getElementById('ganttDeleteContractBtn');
-      if (selected.length === 1) {
-        btn.textContent = `Удалить договор ${selected[0].textContent}`;
-        btn.style.display = '';
-      } else {
-        btn.style.display = 'none';
-      }
-      renderContractsGantt();
-    }
+    // Договоры, временно скрытые с графика кликом по крестику — ничего не удаляется,
+    // просто не отрисовывается; сбрасывается при перезагрузке страницы.
+    let _ganttHiddenContractIds = new Set();
 
-    async function deleteContractFromGantt() {
-      const selected = Array.from(document.getElementById('ganttContractFilter').selectedOptions);
-      if (selected.length !== 1) return;
-      const id = selected[0].value;
-      const label = selected[0].textContent;
-      if (!confirm(`Удалить договор ${label}? Все его этапы удалятся вместе с ним; привязанные грузы и счета останутся, но потеряют связь с этим договором.`)) return;
-      try {
-        await api('DELETE', `/contracts/${id}`);
-        showAlert('Договор удалён');
-        await ensureContractsAndStagesLoaded(true);
-        await loadContractsGanttData();
-        document.getElementById('ganttDeleteContractBtn').style.display = 'none';
-        loadTable('contracts').then(rows => renderContractTable(rows));
-      } catch (err) {
-        showAlert(err.message, 'error');
-      }
+    function hideContractFromGantt(id) {
+      _ganttHiddenContractIds.add(id);
+      renderContractsGantt();
     }
 
     function renderContractsGantt() {
@@ -3921,9 +3900,20 @@
       const showCompleted = document.getElementById('ganttShowCompleted').checked;
       const contractsById = Object.fromEntries(_ganttContracts.map(c => [c.id, c.contract_number || '-']));
 
-      let filtered = _ganttStages.filter(s => s.planned_date);
+      let filtered = _ganttStages.filter(s => s.planned_date && !_ganttHiddenContractIds.has(s.contract_id));
       if (selectedIds.length) filtered = filtered.filter(s => selectedIds.includes(s.contract_id));
       if (!showCompleted) filtered = filtered.filter(s => s.status !== 'completed');
+
+      const visibleContractIds = [...new Set(filtered.map(s => s.contract_id))];
+      const chipsEl = document.getElementById('ganttVisibleContracts');
+      chipsEl.innerHTML = visibleContractIds.map(id => `
+        <span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;background:var(--gray-light);border-radius:12px;padding:3px 6px 3px 10px;">
+          ${escapeHtml(contractsById[id] || '-')}
+          <button type="button" title="Убрать из графика" onclick="hideContractFromGantt('${id}')" style="border:none;background:none;cursor:pointer;color:var(--gray-text);line-height:1;padding:2px;display:inline-flex;">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </span>
+      `).join('');
 
       // Bar span per stage: a подэтап runs from the end of the previous подэтап in the same
       // договор (chained — the table has no separate "start date" column) to its own planned_date;
