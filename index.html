@@ -871,6 +871,49 @@
     }
 
     /* NOTIFICATIONS */
+    .global-search {
+      position: fixed; top: 16px; right: 76px; z-index: 1001;
+      width: 260px;
+    }
+    .gs-input-row { display: flex; align-items: center; gap: 6px; }
+    .global-search input {
+      flex: 1; height: 42px; box-sizing: border-box; min-width: 0;
+      padding: 0 14px; border-radius: 21px; border: 1px solid var(--gray-border);
+      background: white; box-shadow: 0 2px 8px rgba(0,0,0,.1);
+      font-size: 13px; outline: none;
+    }
+    .global-search input:focus { border-color: var(--titan-accent); }
+    .gs-mode-btn {
+      flex: none; width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--gray-border);
+      background: white; box-shadow: 0 2px 8px rgba(0,0,0,.1); cursor: pointer; font-size: 14px;
+      color: var(--gray-text);
+    }
+    .gs-mode-btn.active { background: var(--titan-accent); border-color: var(--titan-accent); color: white; }
+    .gs-filters {
+      display: none; flex-wrap: wrap; gap: 6px; margin-top: 8px;
+      background: white; border-radius: 10px; padding: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.1);
+    }
+    .gs-filters label {
+      font-size: 11px; display: flex; align-items: center; gap: 4px; cursor: pointer;
+      padding: 3px 8px; border-radius: 12px; background: var(--gray-light);
+    }
+    .gs-filters input[type="checkbox"] { margin: 0; }
+    .global-search-results {
+      display: none; position: fixed; right: 76px; width: 360px; max-height: 480px;
+      overflow-y: auto; background: white; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.25);
+    }
+    .global-search-results.active { display: block; }
+    .gs-group-title {
+      padding: 8px 14px 4px; font-size: 11px; text-transform: uppercase;
+      color: var(--gray-text); font-weight: 700;
+    }
+    .gs-item {
+      padding: 8px 14px; font-size: 13px; cursor: pointer; border-bottom: 1px solid var(--gray-light);
+    }
+    .gs-item:hover { background: var(--gray-light); }
+    .gs-item small { display: block; color: var(--gray-text); font-size: 11px; margin-top: 2px; }
+    .gs-empty { padding: 14px; font-size: 12px; color: var(--gray-text); text-align: center; }
+
     .notif-bell {
       position: fixed; top: 16px; right: 24px; z-index: 1001;
       width: 42px; height: 42px; border-radius: 50%; border: none;
@@ -939,6 +982,21 @@
 
   <!-- APP -->
   <div id="appScreen" style="display: none;">
+    <div class="global-search" id="globalSearch" style="display:none;">
+      <div class="gs-input-row">
+        <input type="text" id="globalSearchInput" placeholder="Поиск по всей системе..."
+               oninput="onGlobalSearchInput()" onfocus="onGlobalSearchInput()">
+        <button type="button" class="gs-mode-btn" id="gsModeBtn" onclick="toggleGlobalSearchMode()"
+                title="Переключить: везде / по фильтру">⚙</button>
+      </div>
+      <div class="gs-filters" id="gsFilters">
+        <label><input type="checkbox" class="gs-filter-cb" value="acid" checked> ACID</label>
+        <label><input type="checkbox" class="gs-filter-cb" value="contracts" checked> Договоры</label>
+        <label><input type="checkbox" class="gs-filter-cb" value="transactions" checked> Счета</label>
+        <label><input type="checkbox" class="gs-filter-cb" value="items" checked> Позиции (арт.)</label>
+      </div>
+      <div class="global-search-results" id="globalSearchResults"></div>
+    </div>
     <button class="notif-bell" onclick="toggleNotifPanel()" aria-label="Уведомления">
       🔔<span class="notif-badge" id="notifBadge">0</span>
     </button>
@@ -1562,6 +1620,14 @@
           <div id="myTasksView" class="my-tasks-list" style="display:none;"></div>
         </div>
 
+        <!-- REPORTS TAB -->
+        <div id="reports" class="content-section" style="display:none;">
+          <div class="header">
+            <h2>Отчёты</h2>
+            <p>Раздел в разработке</p>
+          </div>
+        </div>
+
         <!-- AUDIT LOG TAB -->
         <div id="auditlog" class="content-section" style="display:none;">
           <div class="header">
@@ -2037,10 +2103,11 @@
         items.push({ label: 'Транзакции', tab: 'transactions' });
       }
       items.push({ label: 'Задачи', tab: 'tasks' });
+      if (['admin','director'].includes(role)) items.push({ label: 'Отчёты', tab: 'reports' });
       if (['admin','director'].includes(role)) items.push({ label: 'Журнал аудита', tab: 'auditlog' });
 
       navMenu.innerHTML = items.map((item, i) =>
-        `<button class="nav-btn${i===0?' active':''}" onclick="switchTab(this,'${item.tab}')">${item.label}</button>`
+        `<button class="nav-btn${i===0?' active':''}" data-tab="${item.tab}" onclick="switchTab(this,'${item.tab}')">${item.label}</button>`
       ).join('');
 
       // Import button visibility
@@ -2071,7 +2138,135 @@
       };
       document.getElementById('userRole').textContent = roleLabels[user.role] || user.role;
       buildNav(user.role);
+      document.getElementById('globalSearch').style.display = ['admin', 'director'].includes(user.role) ? '' : 'none';
     }
+
+    // ============================================================
+    // GLOBAL SEARCH (admin/director only)
+    // ============================================================
+
+    let _gsMode = 'global'; // 'global' | 'filter'
+
+    function toggleGlobalSearchMode() {
+      _gsMode = _gsMode === 'global' ? 'filter' : 'global';
+      document.getElementById('gsFilters').style.display = _gsMode === 'filter' ? 'flex' : 'none';
+      document.getElementById('gsModeBtn').classList.toggle('active', _gsMode === 'filter');
+      if (document.getElementById('globalSearchInput').value.trim().length >= 2) _doGlobalSearch();
+    }
+
+    document.addEventListener('change', e => {
+      if (e.target.classList.contains('gs-filter-cb')) _doGlobalSearch();
+    });
+
+    function onGlobalSearchInput() {
+      _debounce('global', _doGlobalSearch, 200);
+    }
+
+    function _positionGsResults() {
+      const container = document.getElementById('globalSearch');
+      const results = document.getElementById('globalSearchResults');
+      results.style.top = `${container.getBoundingClientRect().bottom + 8}px`;
+    }
+
+    async function _doGlobalSearch() {
+      const q = document.getElementById('globalSearchInput').value.trim();
+      const results = document.getElementById('globalSearchResults');
+      if (q.length < 2) { results.classList.remove('active'); results.innerHTML = ''; return; }
+
+      let typesParam = '';
+      if (_gsMode === 'filter') {
+        const selected = Array.from(document.querySelectorAll('.gs-filter-cb:checked')).map(cb => cb.value);
+        if (!selected.length) {
+          results.innerHTML = '<div class="gs-empty">Выберите хотя бы один фильтр</div>';
+          _positionGsResults();
+          results.classList.add('active');
+          return;
+        }
+        typesParam = `&types=${selected.join(',')}`;
+      }
+
+      let data;
+      try {
+        data = await api('GET', `/search?q=${encodeURIComponent(q)}${typesParam}`);
+      } catch (err) {
+        results.innerHTML = `<div class="gs-empty">${escapeHtml(err.message)}</div>`;
+        _positionGsResults();
+        results.classList.add('active');
+        return;
+      }
+      renderGlobalSearchResults(data);
+    }
+
+    const _gsData = {};
+
+    function renderGlobalSearchResults(data) {
+      const results = document.getElementById('globalSearchResults');
+      Object.assign(_gsData, data);
+      const groups = [
+        { key: 'acid', title: 'Грузы (ACID)', items: data.acid || [], render: r =>
+          [`${escapeHtml(r.acid || '-')} — ${escapeHtml(r.name || '')}`, escapeHtml(r.shipper || r.supplier || '')] },
+        { key: 'contracts', title: 'Договоры', items: data.contracts || [], render: r =>
+          [`${escapeHtml(r.contract_number || '-')} — ${escapeHtml(r.name || '')}`, escapeHtml(r.counterparty || '')] },
+        { key: 'transactions', title: 'Транзакции (счета)', items: data.transactions || [], render: r =>
+          [`Счёт ${escapeHtml(r.number || '-')}`, escapeHtml(r.counterparty || r.organization || '')] },
+        { key: 'counterparties', title: 'Контрагенты', items: data.counterparties || [], render: r =>
+          [escapeHtml(r.name || '-'), escapeHtml(r.country || '')] },
+        { key: 'items', title: 'Позиции в счетах', items: data.items || [], render: r =>
+          [escapeHtml(r.name || '-'), `Счёт ${escapeHtml(r.tx_number || '-')}${r.sku ? ' · арт. ' + escapeHtml(r.sku) : ''}`] },
+      ];
+
+      const hasAny = groups.some(g => g.items.length);
+      if (!hasAny) {
+        results.innerHTML = '<div class="gs-empty">Ничего не найдено</div>';
+        _positionGsResults();
+        results.classList.add('active');
+        return;
+      }
+
+      results.innerHTML = groups.filter(g => g.items.length).map(g => `
+        <div class="gs-group-title">${g.title}</div>
+        ${g.items.map(r => {
+          const [title, sub] = g.render(r);
+          return `<div class="gs-item" onclick="globalSearchGoById('${g.key}','${r.id}')">${title}<small>${sub}</small></div>`;
+        }).join('')}
+      `).join('');
+      _positionGsResults();
+      results.classList.add('active');
+    }
+
+    function globalSearchGoById(kind, id) {
+      const r = (_gsData[kind] || []).find(x => String(x.id) === id);
+      if (r) globalSearchGo(kind, r);
+    }
+
+    function globalSearchGo(kind, r) {
+      document.getElementById('globalSearchResults').classList.remove('active');
+      document.getElementById('globalSearchInput').value = '';
+
+      if (kind === 'acid') {
+        openLinkedTransactionsModal('acid', r.id, r.acid || '');
+      } else if (kind === 'contracts') {
+        openLinkedTransactionsModal('contract', r.id, r.contract_number || '');
+      } else if (kind === 'transactions') {
+        openTransactionDetailModal(r.id, r.number || '');
+      } else if (kind === 'items') {
+        openTransactionDetailModal(r.transaction_id, r.tx_number || '');
+      } else if (kind === 'counterparties') {
+        const btn = Array.from(document.querySelectorAll('#navMenu .nav-btn')).find(b => b.dataset.tab === 'counterparties');
+        switchTab(btn, 'counterparties');
+        setTimeout(() => {
+          const input = document.getElementById('counterpartiesSearch');
+          if (input) { input.value = r.name || ''; filterCounterpartiesTable(); }
+        }, 300);
+      }
+    }
+
+    document.addEventListener('click', e => {
+      const box = document.getElementById('globalSearch');
+      if (box && !box.contains(e.target)) {
+        document.getElementById('globalSearchResults').classList.remove('active');
+      }
+    });
 
     // ============================================================
     // AUTH

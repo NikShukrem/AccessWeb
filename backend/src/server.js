@@ -1376,6 +1376,63 @@ app.delete('/ais_transactions/:id/items/:itemId', auth, async (req, res) => {
   }
 });
 
+// ============== GLOBAL SEARCH ==============
+
+const SEARCH_TYPES = ['acid', 'contracts', 'transactions', 'counterparties', 'items'];
+
+app.get('/search', auth, async (req, res) => {
+  if (!['admin', 'director'].includes(req.user.role)) {
+    return res.status(403).json({ error: 'Поиск доступен только администратору и руководителю' });
+  }
+  const q = (req.query.q || '').trim();
+  if (q.length < 2) {
+    return res.json({ acid: [], contracts: [], transactions: [], counterparties: [], items: [] });
+  }
+  const requested = (req.query.types || '').split(',').map(t => t.trim()).filter(Boolean);
+  const wanted = requested.length ? SEARCH_TYPES.filter(t => requested.includes(t)) : SEARCH_TYPES;
+  const like = `%${q.replace(/[%_\\]/g, ch => '\\' + ch)}%`;
+  try {
+    const [acid, contracts, transactions, counterparties, items] = await Promise.all([
+      wanted.includes('acid') ? db.all(
+        `SELECT id, acid, name, shipper, supplier, status FROM acid
+         WHERE acid LIKE ? ESCAPE '\\' OR name LIKE ? ESCAPE '\\' OR shipper LIKE ? ESCAPE '\\'
+            OR supplier LIKE ? ESCAPE '\\' OR ais_number LIKE ? ESCAPE '\\'
+         LIMIT 8`,
+        [like, like, like, like, like]
+      ) : [],
+      wanted.includes('contracts') ? db.all(
+        `SELECT id, contract_number, name, counterparty, status FROM contracts
+         WHERE contract_number LIKE ? ESCAPE '\\' OR name LIKE ? ESCAPE '\\' OR counterparty LIKE ? ESCAPE '\\'
+         LIMIT 8`,
+        [like, like, like]
+      ) : [],
+      wanted.includes('transactions') ? db.all(
+        `SELECT id, number, counterparty, organization, contract_number, status FROM ais_transactions
+         WHERE number LIKE ? ESCAPE '\\' OR counterparty LIKE ? ESCAPE '\\' OR organization LIKE ? ESCAPE '\\'
+         LIMIT 8`,
+        [like, like, like]
+      ) : [],
+      wanted.includes('counterparties') ? db.all(
+        `SELECT id, name, short_name, country FROM counterparties
+         WHERE name LIKE ? ESCAPE '\\' OR short_name LIKE ? ESCAPE '\\'
+         LIMIT 8`,
+        [like, like]
+      ) : [],
+      wanted.includes('items') ? db.all(
+        `SELECT ti.id, ti.name, ti.sku, ti.transaction_id, t.number AS tx_number
+         FROM transaction_items ti JOIN ais_transactions t ON t.id = ti.transaction_id
+         WHERE ti.name LIKE ? ESCAPE '\\' OR ti.sku LIKE ? ESCAPE '\\'
+         LIMIT 8`,
+        [like, like]
+      ) : [],
+    ]);
+    res.json({ acid, contracts, transactions, counterparties, items });
+  } catch (err) {
+    console.error('Search error:', err);
+    res.status(500).json({ error: 'Ошибка поиска' });
+  }
+});
+
 // ============== CRUD ==============
 
 app.get('/:table', auth, checkAccess, async (req, res) => {
