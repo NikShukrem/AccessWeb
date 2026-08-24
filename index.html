@@ -1648,6 +1648,11 @@
 
             <div class="form-group" id="rbConditionsBlock" style="display:none;">
               <label>3. Условия отбора (все вместе, через "И")</label>
+              <div style="font-size:11px;color:var(--gray-text);margin-bottom:8px;">
+                Каждое условие сузит список строк. Оставите поле значения пустым — условие просто не применится.
+                «Содержит» ищет подстроку внутри текста, «пусто» / «не пусто» — заполнено ли поле, значение для них не нужно.
+                Для полей со статусом/типом значение выбирается из готового списка — так нельзя ошибиться в написании.
+              </div>
               <div id="rbConditionsList"></div>
               <button type="button" class="btn-filter" onclick="addReportCondition()">+ Добавить условие</button>
             </div>
@@ -3059,8 +3064,19 @@
 
     // ---- Report builder blocks (generates SQL into #reportSql) ----
 
-    // column type: 'text' (строка/дата — сравнение в кавычках), 'number' (сравнение как есть),
-    // 'bool' (хранится как 0/1 — значение выбирается из списка Да/Нет)
+    // Реальные допустимые значения полей со статусом/типом (см. CHECK-ограничения в schema.sql) —
+    // чтобы нельзя было ввести значение, которого просто не существует в базе.
+    const REPORT_ENUMS = {
+      acid_status: [['pending','В работе'],['in_transit','В пути'],['customs','Таможня'],['delivered','Доставлено'],['cancelled','Отменено']],
+      contract_type: [['supply','Поставка'],['main_construction','Генподряд'],['invoice','Инвойс'],['service','Услуги']],
+      contract_status: [['draft','Черновик'],['active','Активен'],['completed','Завершён'],['expired','Истёк'],['suspended','Приостановлен']],
+      tx_status: [['pending','Ожидает'],['paid','Оплачен'],['overdue','Просрочен'],['cancelled','Отменён']],
+      cp_type: [['supplier','Поставщик'],['carrier','Перевозчик'],['importer','Импортёр'],['contractor','Подрядчик'],['other','Другое']],
+    };
+
+    // column: [подпись, тип, ключ-справочник(для enum)]
+    // тип: 'text' (строка/дата — сравнение в кавычках), 'number' (сравнение как есть),
+    // 'bool' (хранится как 0/1 — выбор из списка Да/Нет), 'enum' (ограниченный набор значений — выбор из списка)
     const REPORT_TABLES = {
       acid: { label: 'Грузы (ACID)', columns: {
         acid: ['ACID (код)','text'], ais_number: ['Номер АИС','text'], initial_request_number: ['Номер заявки','text'],
@@ -3072,24 +3088,24 @@
         delivery_place: ['Место доставки','text'], arrival_place: ['Место прибытия','text'], vessel: ['Судно','text'],
         carrier: ['Перевозчик','text'], forwarder: ['Экспедитор','text'], etd: ['Дата отправления (ETD)','text'], eta: ['Дата прибытия (ETA)','text'],
         delivery_date: ['Дата доставки','text'], egypt_arrival_date: ['Дата прибытия в Египет','text'], custom_status: ['Таможенный статус','text'],
-        status: ['Статус','text'], responsible: ['Ответственный','text'], contract_number: ['Номер договора','text'],
+        status: ['Статус','enum','acid_status'], responsible: ['Ответственный','text'], contract_number: ['Номер договора','text'],
         notes: ['Примечания','text'], created_at: ['Дата создания записи','text']
       }},
       contracts: { label: 'Договоры', columns: {
-        contract_number: ['Номер договора','text'], type: ['Тип договора','text'], counterparty: ['Контрагент','text'], name: ['Название','text'],
+        contract_number: ['Номер договора','text'], type: ['Тип договора','enum','contract_type'], counterparty: ['Контрагент','text'], name: ['Название','text'],
         contract_date: ['Дата договора','text'], validity_period: ['Действует до','text'], amount: ['Сумма','number'], amount_with_ds: ['Сумма с ДС','number'],
-        currency: ['Валюта','text'], paid_amount: ['Оплачено (сумма)','number'], limit_balance: ['Остаток лимита','number'], status: ['Статус','text'],
+        currency: ['Валюта','text'], paid_amount: ['Оплачено (сумма)','number'], limit_balance: ['Остаток лимита','number'], status: ['Статус','enum','contract_status'],
         route_to: ['Маршрут','text'], procurement_type: ['Тип закупки','text'], responsible: ['Ответственный','text'], notes: ['Примечания','text'],
         created_at: ['Дата создания записи','text']
       }},
       ais_transactions: { label: 'Транзакции (счета)', columns: {
         number: ['Номер счёта','text'], date: ['Дата','text'], expense_date: ['Дата расхода','text'], currency: ['Валюта','text'],
         amount: ['Сумма','number'], amount_usd: ['Сумма (USD)','number'], organization: ['Организация','text'], counterparty: ['Контрагент','text'],
-        contract_number: ['Номер договора','text'], project: ['Проект','text'], status: ['Статус','text'], cfo: ['ЦФО','text'],
+        contract_number: ['Номер договора','text'], project: ['Проект','text'], status: ['Статус','enum','tx_status'], cfo: ['ЦФО','text'],
         responsible: ['Ответственный','text'], urgent: ['Срочно (да/нет)','bool'], created_at: ['Дата создания записи','text']
       }},
       counterparties: { label: 'Контрагенты', columns: {
-        name: ['Название','text'], short_name: ['Краткое название','text'], country: ['Страна','text'], type: ['Тип','text'],
+        name: ['Название','text'], short_name: ['Краткое название','text'], country: ['Страна','text'], type: ['Тип','enum','cp_type'],
         contact_person: ['Контактное лицо','text'], email: ['Email','text'], phone: ['Телефон','text'], is_active: ['Активен (да/нет)','bool'],
         created_at: ['Дата создания записи','text']
       }},
@@ -3143,7 +3159,12 @@
       sortLimitBlock.style.display = '';
     }
 
-    function reportCondValueControlHtml(type) {
+    function reportCondValueControlHtml(type, enumKey) {
+      if (type === 'enum' && REPORT_ENUMS[enumKey]) {
+        return `<select class="rb-cond-value" style="flex:1;padding:8px;border:2px solid var(--gray-border);border-radius:6px;font-size:12px;">
+          ${REPORT_ENUMS[enumKey].map(([val, label]) => `<option value="${val}">${escapeHtml(label)}</option>`).join('')}
+        </select>`;
+      }
       if (type === 'bool') {
         return `<select class="rb-cond-value" style="flex:1;padding:8px;border:2px solid var(--gray-border);border-radius:6px;font-size:12px;">
           <option value="1">Да</option>
@@ -3151,38 +3172,53 @@
         </select>`;
       }
       if (type === 'number') {
-        return `<input type="number" step="any" class="rb-cond-value" placeholder="число" style="flex:1;padding:8px;border:2px solid var(--gray-border);border-radius:6px;font-size:12px;">`;
+        return `<input type="number" step="any" class="rb-cond-value" placeholder="число, например 50000" style="flex:1;padding:8px;border:2px solid var(--gray-border);border-radius:6px;font-size:12px;">`;
       }
-      return `<input type="text" class="rb-cond-value" placeholder="значение" style="flex:1;padding:8px;border:2px solid var(--gray-border);border-radius:6px;font-size:12px;">`;
+      return `<input type="text" class="rb-cond-value" placeholder="текст для сравнения" style="flex:1;padding:8px;border:2px solid var(--gray-border);border-radius:6px;font-size:12px;">`;
+    }
+
+    function reportCondHintHtml(type) {
+      const hints = {
+        enum: 'выберите значение из списка — вписать своё нельзя',
+        bool: 'да — значение установлено, нет — не установлено',
+        number: 'сравнение чисел: сумма, вес, количество и т.п.',
+        text: 'сравнение текста как есть — учитывайте точное написание (кавычки, регистр значения не важен)',
+      };
+      return hints[type] || hints.text;
     }
 
     function addReportCondition() {
       const key = document.getElementById('rbTable').value;
       if (!key) { showAlert('Сначала выберите таблицу', 'error'); return; }
       const cols = REPORT_TABLES[key].columns;
-      const firstType = Object.values(cols)[0][1];
+      const [, firstType, firstEnum] = Object.values(cols)[0];
       const row = document.createElement('div');
       row.className = 'rb-condition-row';
-      row.style.cssText = 'display:flex;gap:8px;margin-bottom:8px;align-items:center;';
+      row.style.cssText = 'display:flex;flex-direction:column;gap:4px;margin-bottom:10px;';
       row.innerHTML = `
-        <select class="rb-cond-field" style="flex:1.2;padding:8px;border:2px solid var(--gray-border);border-radius:6px;font-size:12px;" onchange="onReportCondFieldChange(this)">
-          ${Object.entries(cols).map(([col, [label, type]]) => `<option value="${col}" data-type="${type}">${escapeHtml(label)}</option>`).join('')}
-        </select>
-        <select class="rb-cond-op" style="width:160px;padding:8px;border:2px solid var(--gray-border);border-radius:6px;font-size:12px;" onchange="onReportCondOpChange(this)">
-          ${REPORT_OPERATORS.map(([val, label]) => `<option value="${val}">${label}</option>`).join('')}
-        </select>
-        <span class="rb-cond-value-wrap" style="flex:1;display:flex;">${reportCondValueControlHtml(firstType)}</span>
-        <button type="button" class="btn-delete" style="padding:6px 10px;display:inline-flex;align-items:center;" onclick="this.closest('.rb-condition-row').remove()">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <select class="rb-cond-field" style="flex:1.2;padding:8px;border:2px solid var(--gray-border);border-radius:6px;font-size:12px;" onchange="onReportCondFieldChange(this)">
+            ${Object.entries(cols).map(([col, [label, type, enumKey]]) => `<option value="${col}" data-type="${type}" data-enum="${enumKey || ''}">${escapeHtml(label)}</option>`).join('')}
+          </select>
+          <select class="rb-cond-op" style="width:160px;padding:8px;border:2px solid var(--gray-border);border-radius:6px;font-size:12px;" onchange="onReportCondOpChange(this)">
+            ${REPORT_OPERATORS.map(([val, label]) => `<option value="${val}">${label}</option>`).join('')}
+          </select>
+          <span class="rb-cond-value-wrap" style="flex:1;display:flex;">${reportCondValueControlHtml(firstType, firstEnum)}</span>
+          <button type="button" class="btn-delete" style="padding:6px 10px;display:inline-flex;align-items:center;" onclick="this.closest('.rb-condition-row').remove()">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="rb-cond-hint" style="font-size:11px;color:var(--gray-text);padding-left:2px;">${reportCondHintHtml(firstType)}</div>
       `;
       document.getElementById('rbConditionsList').appendChild(row);
     }
 
     function onReportCondFieldChange(sel) {
       const row = sel.closest('.rb-condition-row');
-      const type = sel.selectedOptions[0].dataset.type;
-      row.querySelector('.rb-cond-value-wrap').innerHTML = reportCondValueControlHtml(type);
+      const opt = sel.selectedOptions[0];
+      const type = opt.dataset.type;
+      row.querySelector('.rb-cond-value-wrap').innerHTML = reportCondValueControlHtml(type, opt.dataset.enum);
+      row.querySelector('.rb-cond-hint').textContent = reportCondHintHtml(type);
     }
 
     function onReportCondOpChange(sel) {
@@ -3190,6 +3226,7 @@
       const wrap = row.querySelector('.rb-cond-value-wrap');
       const noValue = sel.value === 'IS NULL' || sel.value === 'IS NOT NULL';
       wrap.style.display = noValue ? 'none' : 'flex';
+      row.querySelector('.rb-cond-hint').style.display = noValue ? 'none' : '';
     }
 
     function sqlEscapeValue(v) {
