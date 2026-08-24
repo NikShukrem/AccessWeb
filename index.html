@@ -851,6 +851,7 @@
       position: sticky; top: 0; float: right; margin-top: -12px; margin-right: -16px;
       width: 32px; height: 32px; border-radius: 50%; border: none; background: var(--gray-light);
       color: var(--titan-primary); font-size: 18px; line-height: 1; cursor: pointer; z-index: 1;
+      display: flex; align-items: center; justify-content: center;
     }
     .task-modal-close:hover { background: var(--gray-border); }
     .task-detail-section { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--gray-border); }
@@ -887,6 +888,7 @@
       flex: none; width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--gray-border);
       background: white; box-shadow: 0 2px 8px rgba(0,0,0,.1); cursor: pointer; font-size: 14px;
       color: var(--gray-text);
+      display: flex; align-items: center; justify-content: center;
     }
     .gs-mode-btn.active { background: var(--titan-accent); border-color: var(--titan-accent); color: white; }
     .gs-filters {
@@ -918,6 +920,7 @@
       position: fixed; top: 16px; right: 24px; z-index: 1001;
       width: 42px; height: 42px; border-radius: 50%; border: none;
       background: white; box-shadow: 0 2px 8px rgba(0,0,0,.15);
+      display: flex; align-items: center; justify-content: center;
       font-size: 18px; cursor: pointer; color: var(--titan-primary);
     }
     .notif-bell:hover { background: var(--gray-light); }
@@ -962,7 +965,7 @@
         <label style="display:block; font-weight:600; margin-bottom:6px; color:#1A3D5C;">Адрес сервера</label>
         <div style="display:flex; gap:6px;">
           <input id="serverUrlInput" type="url" placeholder="http://localhost:8080" style="flex:1; padding:6px 10px; border:1px solid #ccc; border-radius:6px; font-size:13px;">
-          <button type="button" onclick="saveServerUrl()" style="padding:6px 12px; background:#1A3D5C; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:13px;">✓</button>
+          <button type="button" onclick="saveServerUrl()" style="padding:6px 12px; background:#1A3D5C; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:13px;display:inline-flex;align-items:center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>
         </div>
         <p style="margin:4px 0 0; color:#666; font-size:11px;">URL туннеля (cloudflare/ngrok) или IP сервера</p>
       </div>
@@ -987,7 +990,9 @@
         <input type="text" id="globalSearchInput" placeholder="Поиск по всей системе..."
                oninput="onGlobalSearchInput()" onfocus="onGlobalSearchInput()">
         <button type="button" class="gs-mode-btn" id="gsModeBtn" onclick="toggleGlobalSearchMode()"
-                title="Переключить: везде / по фильтру">⚙</button>
+                title="Переключить: везде / по фильтру">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        </button>
       </div>
       <div class="gs-filters" id="gsFilters">
         <label><input type="checkbox" class="gs-filter-cb" value="acid" checked> ACID</label>
@@ -998,7 +1003,8 @@
       <div class="global-search-results" id="globalSearchResults"></div>
     </div>
     <button class="notif-bell" onclick="toggleNotifPanel()" aria-label="Уведомления">
-      🔔<span class="notif-badge" id="notifBadge">0</span>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span class="notif-badge" id="notifBadge">0</span>
     </button>
     <div class="notif-panel" id="notifPanel">
       <div class="notif-panel-head">
@@ -1624,7 +1630,47 @@
         <div id="reports" class="content-section" style="display:none;">
           <div class="header">
             <h2>Отчёты</h2>
-            <p>Раздел в разработке</p>
+            <p>Конструктор отчётов: свой SQL-запрос (только SELECT) — результат сразу таблицей, запрос можно сохранить и запускать повторно</p>
+          </div>
+
+          <div class="table-section">
+            <div class="form-group">
+              <label>SQL-запрос</label>
+              <textarea id="reportSql" rows="6" style="font-family:'Consolas',monospace;font-size:13px;"
+                placeholder="SELECT contract_number, counterparty, amount_with_ds, paid_amount FROM contracts WHERE status = 'active' ORDER BY amount_with_ds DESC"></textarea>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <button class="btn-submit" style="padding:10px 24px;display:inline-flex;align-items:center;gap:6px;" onclick="runReportSql()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+                Выполнить
+              </button>
+              <input type="text" id="reportSaveName" placeholder="Название для сохранения..." style="flex:1;min-width:200px;padding:10px;border:2px solid var(--gray-border);border-radius:8px;font-size:13px;">
+              <button class="btn-filter" style="display:inline-flex;align-items:center;gap:6px;" onclick="saveReportSql()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                Сохранить
+              </button>
+            </div>
+            <div id="reportRunError" style="display:none;margin-top:12px;padding:10px 14px;border-radius:8px;background:#FDEDEC;color:var(--titan-danger);font-size:13px;"></div>
+          </div>
+
+          <div class="table-section">
+            <h3 style="margin-bottom:14px;">Результат</h3>
+            <div class="table-wrapper">
+              <table id="reportResultTable"><thead><tr></tr></thead><tbody></tbody></table>
+            </div>
+            <div id="reportResultEmpty" style="font-size:12px;color:var(--gray-text);padding:14px 0;">Выполните запрос, чтобы увидеть результат</div>
+          </div>
+
+          <div class="table-section">
+            <h3 style="margin-bottom:14px;">Сохранённые отчёты</h3>
+            <div class="table-wrapper">
+              <table id="savedReportsTable">
+                <thead>
+                  <tr><th>Название</th><th>Автор</th><th>Создан</th><th></th></tr>
+                </thead>
+                <tbody id="savedReportsBody"></tbody>
+              </table>
+            </div>
           </div>
         </div>
 
@@ -1709,7 +1755,7 @@
       </div>
 
       <div class="drag-drop-zone" id="dragDropZone">
-        <div class="drag-drop-icon">📁</div>
+        <div class="drag-drop-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
         <div class="drag-drop-text">Перетащите файл сюда</div>
         <div class="drag-drop-subtext">или нажмите для выбора (CSV, XLSX)</div>
       </div>
@@ -1726,7 +1772,7 @@
   <!-- CREATE TASK MODAL -->
   <div id="taskCreateModal" class="modal-overlay task-modal">
     <div class="modal-content">
-      <button type="button" class="task-modal-close" onclick="closeTaskCreateModal()" aria-label="Закрыть">✕</button>
+      <button type="button" class="task-modal-close" onclick="closeTaskCreateModal()" aria-label="Закрыть"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       <div class="modal-header">
         <h2>Новая задача</h2>
         <p>Назначьте задачу сотруднику</p>
@@ -1787,7 +1833,7 @@
   <!-- LINKED TRANSACTIONS MODAL (drill-down from ACID / contract to related счета) -->
   <div id="linkedTransactionsModal" class="modal-overlay task-modal">
     <div class="modal-content">
-      <button type="button" class="task-modal-close" onclick="closeLinkedTransactionsModal()" aria-label="Закрыть">✕</button>
+      <button type="button" class="task-modal-close" onclick="closeLinkedTransactionsModal()" aria-label="Закрыть"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       <div id="linkedTransactionsHeader"></div>
       <div class="task-detail-section" style="margin-top:14px;">
         <h4>Счета</h4>
@@ -1800,7 +1846,7 @@
   <!-- ATTACHMENTS MODAL (contracts) -->
   <div id="attachmentsModal" class="modal-overlay task-modal">
     <div class="modal-content">
-      <button type="button" class="task-modal-close" onclick="closeAttachmentsModal()" aria-label="Закрыть">✕</button>
+      <button type="button" class="task-modal-close" onclick="closeAttachmentsModal()" aria-label="Закрыть"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       <div class="modal-header">
         <h2 id="attachmentsModalTitle">Файлы</h2>
       </div>
@@ -1811,7 +1857,7 @@
   <!-- TRANSACTION DETAIL MODAL (attachments + nomenclature) -->
   <div id="transactionDetailModal" class="modal-overlay task-modal">
     <div class="modal-content">
-      <button type="button" class="task-modal-close" onclick="closeTransactionDetailModal()" aria-label="Закрыть">✕</button>
+      <button type="button" class="task-modal-close" onclick="closeTransactionDetailModal()" aria-label="Закрыть"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       <div id="transactionDetailHeader"></div>
       <div class="task-detail-section" style="margin-top:0;border-top:none;padding-top:0;">
         <h4>Номенклатура</h4>
@@ -2036,6 +2082,8 @@
         initTasksTab();
       } else if (tabId === 'auditlog') {
         loadAuditLog();
+      } else if (tabId === 'reports') {
+        loadSavedReports();
       }
     }
 
@@ -2363,7 +2411,7 @@
 
     function showSelectedFile(file) {
       const el = document.getElementById('fileName');
-      el.textContent = `✓ Файл выбран: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+      el.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px;"><polyline points="20 6 9 17 4 12"/></svg>Файл выбран: ${escapeHtml(file.name)} (${(file.size / 1024).toFixed(1)} KB)`;
       el.classList.add('show');
       document.getElementById('btnImport').disabled = false;
     }
@@ -2742,7 +2790,10 @@
           <td>${r.link ? `<a href="${r.link}" target="_blank">Ссылка</a>` : '-'}</td>
           <td>${r.notes || '-'}</td>
           <td style="white-space:nowrap">
-            <button class="btn-filter" onclick="openAttachmentsModal('contract','${r.id}','${escapeHtml(r.contract_number || '')}')">📎 Файлы</button>
+            <button class="btn-filter" style="display:inline-flex;align-items:center;gap:6px;" onclick="openAttachmentsModal('contract','${r.id}','${escapeHtml(r.contract_number || '')}')">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+              Файлы
+            </button>
             <button class="btn-delete" onclick="deleteRecord('contracts','${r.id}')">Удалить</button>
           </td>
         </tr>`).join('');
@@ -2858,6 +2909,106 @@
         </tr>`).join('');
       tbody.innerHTML = append ? tbody.innerHTML + html : html;
       document.getElementById('btnLoadMoreAuditLog').style.display = rows.length === AUDIT_LOG_PAGE_SIZE ? '' : 'none';
+    }
+
+    // ============================================================
+    // REPORT BUILDER (admin/director)
+    // ============================================================
+
+    let _savedReports = [];
+
+    async function runReportSql() {
+      const sql = document.getElementById('reportSql').value.trim();
+      const errBox = document.getElementById('reportRunError');
+      errBox.style.display = 'none';
+      if (!sql) { showAlert('Введите SQL-запрос', 'error'); return; }
+      try {
+        const { rows } = await api('POST', '/reports/run', { sql });
+        renderReportResult(rows);
+      } catch (err) {
+        errBox.textContent = err.message;
+        errBox.style.display = '';
+        renderReportResult([]);
+      }
+    }
+
+    function renderReportResult(rows) {
+      const table = document.getElementById('reportResultTable');
+      const empty = document.getElementById('reportResultEmpty');
+      if (!rows.length) {
+        table.querySelector('thead tr').innerHTML = '';
+        table.querySelector('tbody').innerHTML = '';
+        empty.textContent = 'Пустой результат';
+        empty.style.display = '';
+        return;
+      }
+      empty.style.display = 'none';
+      const cols = Object.keys(rows[0]);
+      table.querySelector('thead tr').innerHTML = cols.map(c => `<th>${escapeHtml(c)}</th>`).join('');
+      table.querySelector('tbody').innerHTML = rows.map(r => `
+        <tr>${cols.map(c => `<td>${escapeHtml(r[c] === null || r[c] === undefined ? '' : String(r[c]))}</td>`).join('')}</tr>
+      `).join('');
+    }
+
+    async function saveReportSql() {
+      const sql = document.getElementById('reportSql').value.trim();
+      const name = document.getElementById('reportSaveName').value.trim();
+      if (!sql) { showAlert('Введите SQL-запрос', 'error'); return; }
+      if (!name) { showAlert('Укажите название отчёта', 'error'); return; }
+      try {
+        await api('POST', '/reports/saved', { name, sql });
+        document.getElementById('reportSaveName').value = '';
+        showAlert('Отчёт сохранён', 'success');
+        loadSavedReports();
+      } catch (err) {
+        showAlert(err.message, 'error');
+      }
+    }
+
+    async function loadSavedReports() {
+      try {
+        _savedReports = await api('GET', '/reports/saved');
+        renderSavedReports();
+      } catch (err) {
+        showAlert(err.message, 'error');
+      }
+    }
+
+    function renderSavedReports() {
+      const tbody = document.getElementById('savedReportsBody');
+      if (!_savedReports.length) {
+        tbody.innerHTML = '<tr><td colspan="4" style="color:var(--gray-text);font-size:12px;">Сохранённых отчётов пока нет</td></tr>';
+        return;
+      }
+      tbody.innerHTML = _savedReports.map(r => `
+        <tr>
+          <td><a href="#" class="entity-link" onclick="loadSavedReportIntoEditor('${r.id}'); return false;">${escapeHtml(r.name)}</a></td>
+          <td>${escapeHtml(r.created_by_name || '-')}</td>
+          <td>${new Date(r.created_at).toLocaleString('ru-RU')}</td>
+          <td><button class="btn-delete" style="display:inline-flex;align-items:center;gap:4px;" onclick="deleteSavedReport('${r.id}')">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            Удалить
+          </button></td>
+        </tr>
+      `).join('');
+    }
+
+    function loadSavedReportIntoEditor(id) {
+      const r = _savedReports.find(x => x.id === id);
+      if (!r) return;
+      document.getElementById('reportSql').value = r.sql_query;
+      document.getElementById('reportSaveName').value = r.name;
+      runReportSql();
+    }
+
+    async function deleteSavedReport(id) {
+      if (!confirm('Удалить сохранённый отчёт?')) return;
+      try {
+        await api('DELETE', `/reports/saved/${id}`);
+        loadSavedReports();
+      } catch (err) {
+        showAlert(err.message, 'error');
+      }
     }
 
     // ============================================================
@@ -3398,7 +3549,9 @@
       await loadEntityOptions(type);
     }
 
-    function entityTypeLabel(type) { return type === 'cargo' ? '📦' : (type === 'contract' ? '📄' : ''); }
+    const ICON_PACKAGE = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;"><path d="M16.5 9.4 7.5 4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>';
+    const ICON_FILE_TEXT = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
+    function entityTypeLabel(type) { return type === 'cargo' ? ICON_PACKAGE : (type === 'contract' ? ICON_FILE_TEXT : ''); }
 
     function goToEntity(type, code) {
       if (!type || !code) return;
@@ -3487,7 +3640,7 @@
         : '';
 
       document.getElementById('taskDetailContent').innerHTML = `
-        <button type="button" class="task-modal-close" onclick="closeTaskDetail()" aria-label="Закрыть">✕</button>
+        <button type="button" class="task-modal-close" onclick="closeTaskDetail()" aria-label="Закрыть"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
         <div class="modal-header">
           <h2>${escapeHtml(t.title)}</h2>
           <p>Исполнитель: ${escapeHtml(t.assigned_to_name || '-')} · Поставил: ${escapeHtml(t.assigned_by_name || '-')}</p>
@@ -4052,7 +4205,7 @@
               <td>${escapeHtml(i.unit || '')}</td>
               <td>${fmtNum(i.unit_price)}</td>
               <td>${fmtNum(i.amount)}</td>
-              <td><button class="btn-delete" style="padding:2px 6px;font-size:11px;" onclick="removeTransactionItem('${i.id}')">✕</button></td>
+              <td><button class="btn-delete" style="padding:2px 6px;font-size:11px;display:inline-flex;align-items:center;" onclick="removeTransactionItem('${i.id}')"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></td>
             </tr>`).join('')}
           </tbody>
         </table>

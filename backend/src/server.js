@@ -1376,6 +1376,92 @@ app.delete('/ais_transactions/:id/items/:itemId', auth, async (req, res) => {
   }
 });
 
+// ============== REPORT BUILDER (admin/director only, read-only SQL) ==============
+
+const SQL_BLOCKLIST = /\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|REPLACE|VACUUM|ATTACH|DETACH|PRAGMA|TRIGGER)\b/i;
+
+function assertSafeSelect(sql) {
+  const stripped = (sql || '').trim().replace(/;+\s*$/, '');
+  if (!stripped) throw new Error('Пустой запрос');
+  if (stripped.includes(';')) throw new Error('Разрешён только один SQL-запрос за раз');
+  if (!/^(SELECT|WITH)\b/i.test(stripped)) throw new Error('Разрешены только запросы SELECT');
+  if (SQL_BLOCKLIST.test(stripped)) throw new Error('Запрос содержит запрещённые операторы');
+  return stripped;
+}
+
+function checkReportsAccess(req, res) {
+  if (!['admin', 'director'].includes(req.user.role)) {
+    res.status(403).json({ error: 'Конструктор отчётов доступен только администратору и руководителю' });
+    return false;
+  }
+  return true;
+}
+
+app.post('/reports/run', auth, async (req, res) => {
+  if (!checkReportsAccess(req, res)) return;
+  try {
+    const stripped = assertSafeSelect(req.body.sql);
+    const rows = await db.all(`SELECT * FROM (${stripped}) LIMIT 500`);
+    res.json({ rows });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.get('/reports/saved', auth, async (req, res) => {
+  if (!checkReportsAccess(req, res)) return;
+  try {
+    const rows = await db.all(
+      'SELECT id, name, sql_query, created_by, created_by_name, created_at FROM saved_reports ORDER BY created_at DESC'
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Saved reports list error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+app.post('/reports/saved', auth, async (req, res) => {
+  if (!checkReportsAccess(req, res)) return;
+  const name = (req.body.name || '').trim();
+  if (!name) return res.status(400).json({ error: 'Укажите название отчёта' });
+  let stripped;
+  try {
+    stripped = assertSafeSelect(req.body.sql);
+  } catch (err) {
+    return res.status(400).json({ error: err.message });
+  }
+  try {
+    const id = uuidv4();
+    await db.run(
+      'INSERT INTO saved_reports (id, name, sql_query, created_by, created_by_name) VALUES (?, ?, ?, ?, ?)',
+      [id, name, stripped, req.user.id, req.user.name]
+    );
+    await logAudit(req, 'create', 'saved_reports', id, { label: name, changes: { name, sql_query: stripped } });
+    res.json({ id, name, sql_query: stripped, created_by: req.user.id, created_by_name: req.user.name });
+  } catch (err) {
+    console.error('Saved report create error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+app.delete('/reports/saved/:id', auth, async (req, res) => {
+  if (!checkReportsAccess(req, res)) return;
+  try {
+    const row = await db.get('SELECT created_by, name FROM saved_reports WHERE id = ?', [req.params.id]);
+    if (!row) return res.status(404).json({ error: 'Отчёт не найден' });
+    if (req.user.role !== 'admin' && row.created_by !== req.user.id) {
+      return res.status(403).json({ error: 'Можно удалять только свои отчёты' });
+    }
+    await db.run('DELETE FROM saved_reports WHERE id = ?', [req.params.id]);
+    await logAudit(req, 'delete', 'saved_reports', req.params.id, { label: row.name });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Saved report delete error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
 // ============== GLOBAL SEARCH ==============
 
 const SEARCH_TYPES = ['acid', 'contracts', 'transactions', 'counterparties', 'items'];

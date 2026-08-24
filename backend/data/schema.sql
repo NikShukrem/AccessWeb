@@ -313,6 +313,17 @@ CREATE TABLE IF NOT EXISTS transaction_items (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- ===== SAVED REPORTS (report builder: named, reusable read-only SQL queries) =====
+CREATE TABLE IF NOT EXISTS saved_reports (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  sql_query TEXT NOT NULL,
+  created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+  created_by_name TEXT,                      -- denormalized
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- ===== INDEXES FOR PERFORMANCE =====
 -- users
 CREATE INDEX IF NOT EXISTS idx_users_login ON users(login);
@@ -386,3 +397,6 @@ CREATE INDEX IF NOT EXISTS idx_audit_log_table ON audit_log(table_name, record_i
 
 -- transaction_items
 CREATE INDEX IF NOT EXISTS idx_transaction_items_transaction ON transaction_items(transaction_id);
+
+-- saved_reports
+CREATE INDEX IF NOT EXISTS idx_saved_reports_created_by ON saved_reports(created_by);
