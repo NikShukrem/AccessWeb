@@ -1422,7 +1422,8 @@
               <div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px;">
                 <div class="form-group" style="margin:0;min-width:260px;">
                   <label>Договор (пусто — все; Ctrl/Cmd+клик — выбрать несколько)</label>
-                  <select id="ganttContractFilter" multiple size="4" onchange="renderContractsGantt()" style="min-height:80px;"></select>
+                  <select id="ganttContractFilter" multiple size="4" onchange="onGanttContractFilterChange()" style="min-height:80px;"></select>
+                  <button type="button" class="btn-delete" id="ganttDeleteContractBtn" style="display:none;margin-top:6px;font-size:11px;padding:5px 10px;" onclick="deleteContractFromGantt()">Удалить выбранный договор</button>
                 </div>
                 <div class="form-group" style="margin:0;white-space:nowrap;">
                   <label style="display:flex;align-items:center;gap:6px;font-weight:400;white-space:nowrap;cursor:pointer;">
@@ -3882,6 +3883,36 @@
         .sort((a, b) => (a.contract_number || '').localeCompare(b.contract_number || ''))
         .map(c => `<option value="${c.id}"${prevSelected.has(c.id) ? ' selected' : ''}>${escapeHtml(c.contract_number || '-')}</option>`).join('');
       renderContractsGantt();
+    }
+
+    function onGanttContractFilterChange() {
+      const selected = Array.from(document.getElementById('ganttContractFilter').selectedOptions);
+      const btn = document.getElementById('ganttDeleteContractBtn');
+      if (selected.length === 1) {
+        btn.textContent = `Удалить договор ${selected[0].textContent}`;
+        btn.style.display = '';
+      } else {
+        btn.style.display = 'none';
+      }
+      renderContractsGantt();
+    }
+
+    async function deleteContractFromGantt() {
+      const selected = Array.from(document.getElementById('ganttContractFilter').selectedOptions);
+      if (selected.length !== 1) return;
+      const id = selected[0].value;
+      const label = selected[0].textContent;
+      if (!confirm(`Удалить договор ${label}? Все его этапы удалятся вместе с ним; привязанные грузы и счета останутся, но потеряют связь с этим договором.`)) return;
+      try {
+        await api('DELETE', `/contracts/${id}`);
+        showAlert('Договор удалён');
+        await ensureContractsAndStagesLoaded(true);
+        await loadContractsGanttData();
+        document.getElementById('ganttDeleteContractBtn').style.display = 'none';
+        loadTable('contracts').then(rows => renderContractTable(rows));
+      } catch (err) {
+        showAlert(err.message, 'error');
+      }
     }
 
     function renderContractsGantt() {
