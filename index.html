@@ -503,19 +503,6 @@
       color: var(--titan-danger);
     }
 
-    .btn-action {
-      padding: 6px 12px;
-      background: var(--titan-primary);
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 12px;
-      margin-right: 6px;
-    }
-
-    .btn-action:hover { background: var(--titan-dark); }
-
     .btn-delete {
       padding: 6px 12px;
       background: var(--titan-danger);
@@ -564,36 +551,6 @@
       color: var(--titan-primary);
       margin-bottom: 12px;
       font-size: 16px;
-    }
-
-    .metric-big {
-      font-size: 28px;
-      font-weight: 700;
-      color: var(--titan-primary);
-      margin-bottom: 12px;
-    }
-
-    .text-danger {
-      color: var(--titan-danger);
-      font-weight: 600;
-    }
-
-    .section-card {
-      background: white;
-      border-radius: 12px;
-      padding: 24px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-      margin-bottom: 24px;
-    }
-
-    .section-card h3 {
-      color: var(--titan-primary);
-      margin-bottom: 16px;
-      font-size: 16px;
-    }
-
-    .row-danger {
-      background: rgba(192, 57, 43, 0.07);
     }
 
     /* IMPORT MODAL */
@@ -4050,40 +4007,6 @@
         else loadDashboard();
       }
       catch (err) { showAlert(err.message, 'error'); }
-    }
-
-    // ============================================================
-    // EXPORT
-    // ============================================================
-
-    function downloadTemplate(tableName) {
-      const templates = {
-        acid:             { headers: ['acid*','name','shipper','supplier','importer_name','gw_kg','cargo_cost','currency','status','etd','eta','contract_number','dt_number','dt_date','custom_status','notes'], example: [['ACID-2026-001','Электроника','OOO Export','Supplier A','Importer Ltd','1500','50000','USD','pending','2026-04-15','2026-05-20','CONTRACT-001','DT-001','2026-04-01','cleared','Пример']] },
-        contracts:        { headers: ['contract_number*','counterparty','name','contract_date','validity_period','amount','currency','status','procurement_type','lot_number','notes'], example: [['CONTRACT-001','TransCargo Ltd','Поставка оборудования','2026-01-15','2026-12-31','100000','USD','active','open','1','']] },
-        ais_transactions: { headers: ['date*','counterparty*','currency*','amount*','amount_usd','status','organization','contract_number','kti_date','responsible'], example: [['2026-04-20','TransCargo Ltd','USD','5000','5000','pending','ООО Логистика','CONTRACT-001','2026-04-01','Иванов']] },
-        counterparties:   { headers: ['name*','short_name','country','type','vat_number','contact_person','email','phone','notes'], example: [['TransCargo Ltd','TransCargo','RU','supplier','1234567890','Иван Иванов','ivan@example.com','+7999000000','Основной поставщик']] },
-        acid_kti:         { headers: ['acid*','kti_date*','kti_number','amount_usd','ais_number','notes'], example: [['ACID-2026-001','2026','KTI-001','5000','AIS-001','']] }
-      };
-      const t = templates[tableName];
-      if (!t) return showAlert('Неизвестная таблица', 'error');
-      const csv = [t.headers, ...t.example].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
-      const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })), download: `template_${tableName}_${new Date().toISOString().split('T')[0]}.csv` });
-      a.click(); showAlert('Шаблон загружен');
-    }
-
-    function exportCurrentTable() {
-      const activeTab = document.querySelector('.content-section.active')?.id;
-      const tableId   = ({ acid: 'acidTable', contracts: 'contractTable', transactions: 'transactionsTable', counterparties: 'counterpartiesTable' })[activeTab];
-      if (!tableId) return showAlert('Выберите раздел для экспорта', 'error');
-      const table   = document.getElementById(tableId);
-      const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim()).slice(0, -1);
-      const dataRows = Array.from(table.querySelectorAll('tbody tr'))
-        .filter(r => r.style.display !== 'none')
-        .map(r => Array.from(r.querySelectorAll('td')).slice(0, headers.length).map(td => `"${td.textContent.trim().replace(/"/g, '""')}"`));
-      if (!dataRows.length) return showAlert('Нет данных для экспорта', 'error');
-      const csv = [headers.map(h => `"${h}"`), ...dataRows].map(r => r.join(',')).join('\n');
-      const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })), download: `${activeTab}_export_${new Date().toISOString().split('T')[0]}.csv` });
-      a.click(); showAlert('Экспорт завершён');
     }
 
     async function importFile(evt) {
