@@ -719,6 +719,74 @@ app.get('/users', auth, async (req, res) => {
   }
 });
 
+const USER_ROLES = new Set(['admin', 'director', 'logistics_support', 'info_analytics', 'operational_logistics', 'egypt']);
+
+app.post('/users', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Только администратор может добавлять пользователей' });
+    const { login, password, name, role, department } = req.body;
+    if (!login || !password || !name || !role) {
+      return res.status(400).json({ error: 'Заполните логин, пароль, имя и роль' });
+    }
+    if (String(password).length < 6) return res.status(400).json({ error: 'Пароль должен быть не короче 6 символов' });
+    if (!USER_ROLES.has(role)) return res.status(400).json({ error: 'Неизвестная роль' });
+
+    const existing = await db.get('SELECT id FROM users WHERE login = ?', [login]);
+    if (existing) return res.status(400).json({ error: 'Такой логин уже занят' });
+
+    const id = uuidv4();
+    const hash = await bcryptjs.hash(password, 10);
+    await db.run(
+      'INSERT INTO users (id, login, password_hash, name, role, department, is_egypt_mode) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [id, login, hash, name, role, department || null, role === 'egypt' ? 1 : 0]
+    );
+    await logAudit(req, 'create', 'users', id, { label: login, changes: { login, name, role, department } });
+    res.json({ id, login, name, role, department });
+  } catch (err) {
+    console.error('User create error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+app.delete('/users/:id', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Только администратор может удалять пользователей' });
+    if (req.params.id === req.user.id) return res.status(400).json({ error: 'Нельзя удалить самого себя' });
+
+    const user = await db.get('SELECT id, login FROM users WHERE id = ?', [req.params.id]);
+    if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
+
+    await db.run('DELETE FROM users WHERE id = ?', [user.id]);
+    await logAudit(req, 'delete', 'users', user.id, { label: user.login });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('User delete error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// Only admin can set another user's password — there is no self-service password change yet,
+// so this is the one way to recover a locked-out account or rotate a demo password.
+app.put('/users/:id/password', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Только администратор может менять пароли' });
+    const { password } = req.body;
+    if (!password || String(password).length < 6) {
+      return res.status(400).json({ error: 'Пароль должен быть не короче 6 символов' });
+    }
+    const user = await db.get('SELECT id, login, name FROM users WHERE id = ?', [req.params.id]);
+    if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
+
+    const hash = await bcryptjs.hash(password, 10);
+    await db.run('UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [hash, user.id]);
+    await logAudit(req, 'update', 'users', user.id, { label: user.login, changes: { password: '(изменён администратором)' } });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Password reset error:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
 // ============== AUDIT LOG ==============
 
 app.get('/audit-log', auth, async (req, res) => {
@@ -865,7 +933,6 @@ app.get('/tasks/stats', auth, async (req, res) => {
       FROM users u
       LEFT JOIN tasks t ON t.assigned_to = u.id
       GROUP BY u.id
-      HAVING total > 0
       ORDER BY overdue_count DESC, total DESC
     `, [today]);
 
@@ -1030,23 +1097,6 @@ app.delete('/tasks/:id', auth, async (req, res) => {
 });
 
 // Comments
-app.get('/tasks/:id/comments', auth, async (req, res) => {
-  try {
-    const task = await db.get('SELECT id, assigned_to, assigned_by FROM tasks WHERE id = ?', [req.params.id]);
-    if (!task) return res.status(404).json({ error: 'Задача не найдена' });
-    if (!(await canAccessTask(req.user.id, req.user.role, task))) {
-      return res.status(403).json({ error: 'Нет доступа к этой задаче' });
-    }
-    const comments = await db.all(
-      'SELECT * FROM task_comments WHERE task_id = ? ORDER BY created_at ASC', [req.params.id]
-    );
-    res.json(comments);
-  } catch (err) {
-    console.error('Comments list error:', err);
-    res.status(500).json({ error: 'Ошибка сервера' });
-  }
-});
-
 app.post('/tasks/:id/comments', auth, async (req, res) => {
   try {
     const task = await db.get('SELECT * FROM tasks WHERE id = ?', [req.params.id]);
@@ -1120,21 +1170,6 @@ app.put('/tasks/:id/checklist/:itemId', auth, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('Checklist update error:', err);
-    res.status(500).json({ error: 'Ошибка сервера' });
-  }
-});
-
-app.delete('/tasks/:id/checklist/:itemId', auth, async (req, res) => {
-  try {
-    const task = await db.get('SELECT * FROM tasks WHERE id = ?', [req.params.id]);
-    if (!task) return res.status(404).json({ error: 'Задача не найдена' });
-    if (!(await canAccessTask(req.user.id, req.user.role, task))) {
-      return res.status(403).json({ error: 'Нет доступа к этой задаче' });
-    }
-    await db.run('DELETE FROM task_checklist WHERE id = ? AND task_id = ?', [req.params.itemId, req.params.id]);
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Checklist delete error:', err);
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });
@@ -1332,35 +1367,6 @@ app.post('/ais_transactions/:id/items', auth, async (req, res) => {
     res.json({ id });
   } catch (err) {
     console.error('Transaction item create error:', err);
-    res.status(500).json({ error: 'Ошибка сервера' });
-  }
-});
-
-app.put('/ais_transactions/:id/items/:itemId', auth, async (req, res) => {
-  try {
-    if (!canWriteTable(req.user.role, 'ais_transactions')) return res.status(403).json({ error: 'Нет прав' });
-    const item = await db.get('SELECT * FROM transaction_items WHERE id = ? AND transaction_id = ?', [req.params.itemId, req.params.id]);
-    if (!item) return res.status(404).json({ error: 'Позиция не найдена' });
-
-    const { name, sku, unit, quantity, unit_price, notes } = req.body;
-    const qty = quantity !== undefined ? Number(quantity) || 0 : item.quantity;
-    const price = unit_price !== undefined ? Number(unit_price) || 0 : item.unit_price;
-
-    await db.run(
-      `UPDATE transaction_items SET name = ?, sku = ?, unit = ?, quantity = ?, unit_price = ?, amount = ?, notes = ?
-       WHERE id = ?`,
-      [
-        name ? String(name).trim() : item.name,
-        sku !== undefined ? sku : item.sku,
-        unit || item.unit,
-        qty, price, qty * price,
-        notes !== undefined ? notes : item.notes,
-        req.params.itemId
-      ]
-    );
-    res.json({ id: req.params.itemId });
-  } catch (err) {
-    console.error('Transaction item update error:', err);
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });

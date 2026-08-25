@@ -539,20 +539,6 @@
       .dashboard-grid { grid-template-columns: 1fr; }
     }
 
-    /* METRIC CARDS (dashboard) */
-    .metric-card {
-      background: white;
-      border-radius: 12px;
-      padding: 24px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    }
-
-    .metric-card h3 {
-      color: var(--titan-primary);
-      margin-bottom: 12px;
-      font-size: 16px;
-    }
-
     /* IMPORT MODAL */
     .modal-overlay {
       display: none;
@@ -1309,7 +1295,7 @@
                   Заполнит 4 этапа и все подэтапы типового процесса (Подготовка → НМЦ → Закупка → Заключение договора) с плановыми датами по максимальной продолжительности от даты начала; фактические даты остаются пустыми — их вносите по мере исполнения.
                 </div>
                 <div class="form-section" id="stageAddForm" style="display:none;">
-                  <h3>Новый этап договора</h3>
+                  <h3 id="stageFormTitle">Новый этап договора</h3>
                   <form id="stageForm">
                     <div class="form-row">
                       <div class="form-group">
@@ -1354,7 +1340,8 @@
                         <input type="text" name="notes">
                       </div>
                     </div>
-                    <button type="submit" class="btn-submit">Добавить этап</button>
+                    <button type="submit" class="btn-submit" id="stageFormSubmitBtn">Добавить этап</button>
+                    <button type="button" class="btn-filter" id="stageFormCancelBtn" style="display:none;" onclick="cancelEditStage()">Отмена</button>
                   </form>
                 </div>
               </div>
@@ -1857,6 +1844,82 @@
             <button class="btn-submit" id="btnLoadMoreAuditLog" style="display:none;margin-top:12px;" onclick="loadMoreAuditLog()">Загрузить ещё</button>
           </div>
         </div>
+
+        <!-- USERS ADMIN TAB (admin only) -->
+        <div id="usersadmin" class="content-section" style="display:none;">
+          <div class="header">
+            <h2>Пользователи</h2>
+            <p>Самостоятельной смены пароля пока нет — учётные записи и пароли назначает администратор</p>
+          </div>
+
+          <div class="form-section" id="userAddForm" style="display:none;max-width:520px;">
+            <h3>Новый пользователь</h3>
+            <form id="userAddFormEl">
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Логин <span class="required">*</span></label>
+                  <input type="text" name="login" required placeholder="ivanov">
+                </div>
+                <div class="form-group">
+                  <label>Пароль <span class="required">*</span></label>
+                  <input type="text" name="password" required minlength="6" placeholder="минимум 6 символов">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Имя <span class="required">*</span></label>
+                  <input type="text" name="name" required placeholder="Иванов И.И.">
+                </div>
+                <div class="form-group">
+                  <label>Роль <span class="required">*</span></label>
+                  <select name="role" required>
+                    <option value="admin">Администратор</option>
+                    <option value="director">Руководитель</option>
+                    <option value="logistics_support">Логистика</option>
+                    <option value="info_analytics">Аналитика</option>
+                    <option value="operational_logistics">Оперативная логистика</option>
+                    <option value="egypt">Египет</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Отдел</label>
+                  <input type="text" name="department">
+                </div>
+              </div>
+              <button type="submit" class="btn-submit">Добавить пользователя</button>
+              <button type="button" class="btn-filter" onclick="toggleFormSection('userAddForm', false)">Отмена</button>
+            </form>
+          </div>
+
+          <div class="table-section">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+              <h3 style="margin:0">Все пользователи</h3>
+              <button class="btn-submit" onclick="toggleFormSection('userAddForm')">+ Добавить пользователя</button>
+            </div>
+            <div class="table-wrapper">
+              <table id="usersAdminTable">
+                <thead>
+                  <tr><th>Логин</th><th>Имя</th><th>Роль</th><th>Отдел</th><th>Действия</th></tr>
+                </thead>
+                <tbody id="usersAdminTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="form-section" id="passwordResetForm" style="display:none;max-width:420px;">
+            <h3>Новый пароль для <span id="passwordResetLogin"></span></h3>
+            <form id="passwordResetFormEl">
+              <div class="form-row full">
+                <div class="form-group">
+                  <label>Новый пароль <span class="required">*</span></label>
+                  <input type="text" name="password" required minlength="6" placeholder="минимум 6 символов">
+                </div>
+              </div>
+              <button type="submit" class="btn-submit">Сохранить пароль</button>
+              <button type="button" class="btn-filter" onclick="toggleFormSection('passwordResetForm', false)">Отмена</button>
+            </form>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -2220,6 +2283,10 @@
       } else if (tabId === 'reports') {
         initReportBuilder();
         loadSavedReports();
+      } else if (tabId === 'usersadmin') {
+        toggleFormSection('passwordResetForm', false);
+        toggleFormSection('userAddForm', false);
+        loadUsersAdmin();
       }
     }
 
@@ -2289,6 +2356,7 @@
       items.push({ label: 'Задачи', tab: 'tasks' });
       if (['admin','director'].includes(role)) items.push({ label: 'Отчёты', tab: 'reports' });
       if (['admin','director'].includes(role)) items.push({ label: 'Журнал аудита', tab: 'auditlog' });
+      if (role === 'admin') items.push({ label: 'Пользователи', tab: 'usersadmin' });
 
       navMenu.innerHTML = items.map((item, i) =>
         `<button class="nav-btn${i===0?' active':''}" data-tab="${item.tab}" onclick="switchTab(this,'${item.tab}')">${item.label}</button>`
@@ -2993,7 +3061,7 @@
     const AUDIT_TABLE_LABELS = {
       acid: 'Грузы (ACID)', contracts: 'Договоры', contract_stages: 'Этапы договора',
       counterparties: 'Контрагенты', ais_transactions: 'Транзакции (счета)', acid_kti: 'КТИ',
-      attachments: 'Вложения', ais_imports: 'Импорт'
+      attachments: 'Вложения', ais_imports: 'Импорт', users: 'Пользователи', saved_reports: 'Сохранённые отчёты'
     };
 
     function auditChangesSummary(row) {
@@ -3004,6 +3072,84 @@
         return fields.length ? fields.join(', ') : '-';
       } catch { return '-'; }
     }
+
+    const USER_ROLE_LABELS = {
+      admin: 'Администратор', director: 'Руководитель', logistics_support: 'Логистика',
+      info_analytics: 'Аналитика', operational_logistics: 'Оперативная логистика', egypt: 'Египет'
+    };
+
+    let _usersAdminCache = [];
+
+    async function loadUsersAdmin() {
+      try {
+        _usersAdminCache = await api('GET', '/users');
+        renderUsersAdmin();
+      } catch (err) {
+        showAlert(err.message, 'error');
+      }
+    }
+
+    function renderUsersAdmin() {
+      document.getElementById('usersAdminTableBody').innerHTML = _usersAdminCache.map(u => `
+        <tr>
+          <td>${escapeHtml(u.login)}</td>
+          <td>${escapeHtml(u.name || '-')}</td>
+          <td>${USER_ROLE_LABELS[u.role] || escapeHtml(u.role)}</td>
+          <td>${escapeHtml(u.department || '-')}</td>
+          <td style="white-space:nowrap;">
+            <button class="btn-filter" style="padding:4px 10px;font-size:11px;margin-right:4px;" onclick="openPasswordReset('${u.id}','${escapeHtml(u.login)}')">Сменить пароль</button>
+            <button class="btn-delete" style="padding:4px 10px;font-size:11px;" onclick="deleteUser('${u.id}','${escapeHtml(u.login)}')">Удалить</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    document.getElementById('userAddFormEl').addEventListener('submit', async e => {
+      e.preventDefault();
+      try {
+        const data = Object.fromEntries(new FormData(e.target));
+        await api('POST', '/users', data);
+        showAlert('Пользователь добавлен');
+        e.target.reset();
+        toggleFormSection('userAddForm', false);
+        tasksUsersCache = null; // список сотрудников в "Задачи" закэширован — сбрасываем, чтобы новый юзер сразу появился в фильтрах/назначении
+        loadUsersAdmin();
+      } catch (err) {
+        showAlert(err.message, 'error');
+      }
+    });
+
+    async function deleteUser(id, login) {
+      if (!confirm(`Удалить пользователя ${login}?`)) return;
+      try {
+        await api('DELETE', `/users/${id}`);
+        showAlert('Пользователь удалён');
+        tasksUsersCache = null; // тот же кэш, что и при добавлении — сбрасываем
+        loadUsersAdmin();
+      } catch (err) {
+        showAlert(err.message, 'error');
+      }
+    }
+
+    function openPasswordReset(id, login) {
+      document.getElementById('passwordResetLogin').textContent = login;
+      document.getElementById('passwordResetFormEl').dataset.userId = id;
+      document.getElementById('passwordResetFormEl').reset();
+      toggleFormSection('passwordResetForm', true);
+    }
+
+    document.getElementById('passwordResetFormEl').addEventListener('submit', async e => {
+      e.preventDefault();
+      const id = e.target.dataset.userId;
+      const password = e.target.password.value;
+      try {
+        await api('PUT', `/users/${id}/password`, { password });
+        showAlert('Пароль обновлён');
+        toggleFormSection('passwordResetForm', false);
+      } catch (err) {
+        showAlert(err.message, 'error');
+      }
+    });
 
     async function loadAuditLog() {
       _auditLogOffset = 0;
@@ -3556,6 +3702,8 @@
       catch (err) { showAlert(err.message, 'error'); }
     });
 
+    let _editingStageId = null;
+
     document.getElementById('stageForm').addEventListener('submit', async e => {
       e.preventDefault();
       if (!_stagesCurrentContractId) { showAlert('Выберите договор', 'error'); return; }
@@ -3563,14 +3711,46 @@
         const data = Object.fromEntries(new FormData(e.target));
         data.contract_id = _stagesCurrentContractId;
         if (!data.actual_date) delete data.actual_date;
-        await api('POST', '/contract_stages', data);
-        showAlert('Этап добавлен');
-        e.target.reset();
+        if (_editingStageId) {
+          await api('PUT', `/contract_stages/${_editingStageId}`, data);
+          showAlert('Этап сохранён');
+        } else {
+          await api('POST', '/contract_stages', data);
+          showAlert('Этап добавлен');
+        }
+        cancelEditStage();
         toggleFormSection('stageAddForm', false);
         await ensureContractsAndStagesLoaded(true);
         renderStagesTable();
       } catch (err) { showAlert(err.message, 'error'); }
     });
+
+    function editStage(id) {
+      const s = (_ganttStages || []).find(x => x.id === id);
+      if (!s) return;
+      _editingStageId = id;
+      const form = document.getElementById('stageForm');
+      form.stage_number.value = s.stage_number ?? '';
+      form.stage_name.value = s.stage_name ?? '';
+      form.substage_name.value = s.substage_name ?? '';
+      form.responsible.value = s.responsible ?? '';
+      form.planned_date.value = s.planned_date ?? '';
+      form.actual_date.value = s.actual_date ?? '';
+      form.status.value = s.status ?? 'pending';
+      form.notes.value = s.notes ?? '';
+      document.getElementById('stageFormTitle').textContent = 'Редактировать этап';
+      document.getElementById('stageFormSubmitBtn').textContent = 'Сохранить изменения';
+      document.getElementById('stageFormCancelBtn').style.display = '';
+      toggleFormSection('stageAddForm', true);
+    }
+
+    function cancelEditStage() {
+      _editingStageId = null;
+      document.getElementById('stageForm').reset();
+      document.getElementById('stageFormTitle').textContent = 'Новый этап договора';
+      document.getElementById('stageFormSubmitBtn').textContent = 'Добавить этап';
+      document.getElementById('stageFormCancelBtn').style.display = 'none';
+    }
 
     function toggleFormSection(id, force) {
       const el = document.getElementById(id);
@@ -3642,6 +3822,7 @@
       document.getElementById('stagesAddFormWrap').style.display = _stagesCurrentContractId ? '' : 'none';
       const startInput = document.getElementById('stageTemplateStart');
       if (!startInput.value) startInput.value = new Date().toISOString().slice(0, 10);
+      cancelEditStage();
       toggleFormSection('stageAddForm', false);
       renderStagesTable();
     }
@@ -3698,6 +3879,7 @@
           <td><span class="badge ${s.status === 'completed' ? 'completed' : (s.status === 'overdue' ? 'danger' : 'pending')}">${GANTT_STATUS_LABELS[s.status] || s.status || '-'}</span></td>
           <td>${escapeHtml(s.notes || '-')}</td>
           <td style="white-space:nowrap;">
+            <button class="btn-filter" style="padding:4px 8px;font-size:11px;margin-right:4px;" onclick="editStage('${s.id}')">Редактировать</button>
             ${s.status !== 'completed' ? `<button class="btn-filter" style="padding:4px 8px;font-size:11px;margin-right:4px;" onclick="completeStage('${s.id}')">Завершить</button>` : ''}
             <button class="btn-delete" style="padding:4px 8px;font-size:11px;" onclick="deleteStage('${s.id}')">Удалить</button>
           </td>
