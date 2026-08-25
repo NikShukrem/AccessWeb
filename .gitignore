@@ -17,3 +17,7 @@ backend/data/*.bak-*
 backend/data/uploads/
 backend/seed.js
 server.log
+
+# Local Claude Code session files (CLAUDE.md/AGENTS.md at repo root stay tracked)
+.claude/
+cloudflared-windows-amd64.exe
