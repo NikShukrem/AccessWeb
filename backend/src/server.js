@@ -142,6 +142,15 @@ app.use(helmet({
       connectSrc: ["'self'"],
       fontSrc: ["'self'"],
       objectSrc: ["'none'"],
+      // helmet includes this by default; explicitly removed (null) because it silently breaks
+      // the app when accessed over plain http:// from anywhere but localhost/127.0.0.1 — the
+      // browser treats those two as trustworthy and leaves them alone, but a LAN IP (e.g. a
+      // phone hitting the laptop's http://192.168.x.x:8080) gets every fetch() call upgraded
+      // to https:// before it's even sent. This server never speaks TLS itself (see README —
+      // that's delegated to an external reverse proxy/tunnel), so the upgraded request just
+      // hangs against a port with no TLS listener. Symptom: login button shows "Вход..." and
+      // never resolves, no error, because fetch() itself never gets a response to reject on.
+      upgradeInsecureRequests: null,
     }
   }
 }));
