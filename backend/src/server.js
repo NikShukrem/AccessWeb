@@ -50,6 +50,15 @@ const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
       'https://nikshukrem.github.io'    // GitHub Pages frontend
     ];
 
+// Any private-LAN address (192.168.x.x, 10.x.x.x, 172.16-31.x.x) is always allowed regardless
+// of ALLOWED_ORIGINS — this app is already only trusted within the local network (no TLS on the
+// Express server itself, see README), and the laptop's LAN IP changes with every network/hotspot,
+// so hardcoding one in .env would break the next time someone tests from a phone.
+const PRIVATE_IP_ORIGIN_RE = /^https?:\/\/(10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3})(:\d+)?$/;
+function isAllowedOrigin(origin) {
+  return ALLOWED_ORIGINS.includes(origin) || PRIVATE_IP_ORIGIN_RE.test(origin);
+}
+
 // Column whitelist per table — prevents SQL injection via column names from request body
 const ALLOWED_COLUMNS = {
   acid: new Set([
@@ -142,7 +151,7 @@ app.use(compression());
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (same-origin, mobile apps, curl)
-    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+    if (!origin || isAllowedOrigin(origin)) {
       callback(null, true);
     } else {
       callback(new Error('CORS: origin not allowed'));
