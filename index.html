@@ -2005,6 +2005,7 @@
               <option value="">Нет</option>
               <option value="cargo">Груз (ACID)</option>
               <option value="contract">Договор</option>
+              <option value="transaction">Счёт</option>
             </select>
             <input type="text" id="taskEntityCodeInput" list="dl-task-entities" placeholder="Введите код..." style="flex:1;" disabled>
           </div>
@@ -4458,6 +4459,10 @@
           const rows = await api('GET', '/contracts?limit=2000');
           rows.forEach(r => { taskEntityMap[r.contract_number] = r.id; });
           dl.innerHTML = rows.map(r => `<option value="${escapeHtml(r.contract_number)}">`).join('');
+        } else if (type === 'transaction') {
+          const rows = await api('GET', '/ais_transactions?limit=2000');
+          rows.forEach(r => { taskEntityMap[r.number] = r.id; });
+          dl.innerHTML = rows.map(r => `<option value="${escapeHtml(r.number)}">`).join('');
         }
       } catch (err) { showAlert(err.message, 'error'); }
     }
@@ -4472,18 +4477,25 @@
 
     const ICON_PACKAGE = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;"><path d="M16.5 9.4 7.5 4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>';
     const ICON_FILE_TEXT = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
-    function entityTypeLabel(type) { return type === 'cargo' ? ICON_PACKAGE : (type === 'contract' ? ICON_FILE_TEXT : ''); }
+    const ICON_CREDIT_CARD = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>';
+    const ENTITY_TYPE_ICONS = { cargo: ICON_PACKAGE, contract: ICON_FILE_TEXT, transaction: ICON_CREDIT_CARD };
+    function entityTypeLabel(type) { return ENTITY_TYPE_ICONS[type] || ''; }
+
+    const TASK_ENTITY_NAV = {
+      cargo:       { tabId: 'acid',         label: 'Грузы (ACID)', searchId: 'acidSearch' },
+      contract:    { tabId: 'contracts',    label: 'Договоры',     searchId: 'contractSearch' },
+      transaction: { tabId: 'transactions', label: 'Транзакции',   searchId: 'transactionsSearch' },
+    };
 
     function goToEntity(type, code) {
       if (!type || !code) return;
-      const tabId = type === 'cargo' ? 'acid' : 'contracts';
-      const label = tabId === 'acid' ? 'Грузы (ACID)' : 'Договоры';
-      const btn = Array.from(document.querySelectorAll('#navMenu .nav-btn')).find(b => b.textContent.trim() === label);
+      const nav = TASK_ENTITY_NAV[type];
+      if (!nav) return;
+      const btn = Array.from(document.querySelectorAll('#navMenu .nav-btn')).find(b => b.textContent.trim() === nav.label);
       closeTaskDetail();
-      switchTab(btn || null, tabId);
+      switchTab(btn || null, nav.tabId);
       setTimeout(() => {
-        const searchId = tabId === 'acid' ? 'acidSearch' : 'contractSearch';
-        const input = document.getElementById(searchId);
+        const input = document.getElementById(nav.searchId);
         if (input) { input.value = code; input.dispatchEvent(new Event('keyup')); }
       }, 400);
     }
@@ -4599,6 +4611,7 @@
               <option value="" ${!t.entity_type ? 'selected' : ''}>Нет</option>
               <option value="cargo" ${t.entity_type === 'cargo' ? 'selected' : ''}>Груз (ACID)</option>
               <option value="contract" ${t.entity_type === 'contract' ? 'selected' : ''}>Договор</option>
+              <option value="transaction" ${t.entity_type === 'transaction' ? 'selected' : ''}>Счёт</option>
             </select>
             <input type="text" id="taskEntityCodeEditInput" list="dl-task-entities" placeholder="Введите код..." style="flex:1;" value="${escapeHtml(t.entity_label || '')}" ${t.entity_type ? '' : 'disabled'}>
           </div>

@@ -240,7 +240,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   status TEXT DEFAULT 'new'
     CHECK(status IN ('new','in_progress','review','done','cancelled')),
   due_date TEXT,
-  entity_type TEXT CHECK(entity_type IS NULL OR entity_type IN ('contract','cargo','counterparty')),
+  entity_type TEXT CHECK(entity_type IS NULL OR entity_type IN ('contract','cargo','counterparty','transaction')),
   entity_id TEXT,
   entity_label TEXT,                         -- denormalized display (e.g. contract number)
   completed_at TIMESTAMP,

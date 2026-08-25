@@ -297,6 +297,41 @@ async function runMigrations() {
     console.log('Migration: notifications table rebuilt.');
   }
 
+  // Tasks predate счёт-linking — its entity_type CHECK doesn't allow 'transaction' on installs
+  // that already had the table, so linking a task to a счёт would silently fail on insert.
+  const tasksTable = await db.get("SELECT sql FROM sqlite_master WHERE type='table' AND name='tasks'");
+  if (tasksTable && !tasksTable.sql.includes("'transaction'")) {
+    console.log('Migration: rebuilding tasks table to allow entity_type=transaction...');
+    await db.exec('PRAGMA foreign_keys=OFF');
+    await db.exec(`
+      CREATE TABLE tasks_new (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT,
+        assigned_to TEXT REFERENCES users(id) ON DELETE SET NULL,
+        assigned_to_name TEXT,
+        assigned_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+        assigned_by_name TEXT,
+        priority TEXT DEFAULT 'medium'
+          CHECK(priority IN ('low','medium','high','urgent')),
+        status TEXT DEFAULT 'new'
+          CHECK(status IN ('new','in_progress','review','done','cancelled')),
+        due_date TEXT,
+        entity_type TEXT CHECK(entity_type IS NULL OR entity_type IN ('contract','cargo','counterparty','transaction')),
+        entity_id TEXT,
+        entity_label TEXT,
+        completed_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await db.exec('INSERT INTO tasks_new SELECT * FROM tasks');
+    await db.exec('DROP TABLE tasks');
+    await db.exec('ALTER TABLE tasks_new RENAME TO tasks');
+    await db.exec('PRAGMA foreign_keys=ON');
+    console.log('Migration: tasks table rebuilt.');
+  }
+
   // Add the forwarder (экспедитор) column to acid on installs that predate it
   const hasAcidTable = await db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='acid'");
   if (hasAcidTable) {
