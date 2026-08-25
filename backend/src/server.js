@@ -1476,42 +1476,32 @@ app.get('/search', auth, async (req, res) => {
   }
   const requested = (req.query.types || '').split(',').map(t => t.trim()).filter(Boolean);
   const wanted = requested.length ? SEARCH_TYPES.filter(t => requested.includes(t)) : SEARCH_TYPES;
-  const like = `%${q.replace(/[%_\\]/g, ch => '\\' + ch)}%`;
+
+  // The installed sqlite3 build has no custom-function support (no db.function()), and SQLite's
+  // own LIKE/LOWER only case-fold ASCII — 'болт' would never match 'Болт' via SQL LIKE. Tables here
+  // are small (hundreds to a few thousand rows), so fetch the searchable columns and match with
+  // JS's toLowerCase(), which handles Cyrillic correctly.
+  const needle = q.toLowerCase();
+  const matches = (row, fields) => fields.some(f => row[f] != null && String(row[f]).toLowerCase().includes(needle));
+
   try {
-    const [acid, contracts, transactions, counterparties, items] = await Promise.all([
-      wanted.includes('acid') ? db.all(
-        `SELECT id, acid, name, shipper, supplier, status FROM acid
-         WHERE acid LIKE ? ESCAPE '\\' OR name LIKE ? ESCAPE '\\' OR shipper LIKE ? ESCAPE '\\'
-            OR supplier LIKE ? ESCAPE '\\' OR ais_number LIKE ? ESCAPE '\\'
-         LIMIT 8`,
-        [like, like, like, like, like]
-      ) : [],
-      wanted.includes('contracts') ? db.all(
-        `SELECT id, contract_number, name, counterparty, status FROM contracts
-         WHERE contract_number LIKE ? ESCAPE '\\' OR name LIKE ? ESCAPE '\\' OR counterparty LIKE ? ESCAPE '\\'
-         LIMIT 8`,
-        [like, like, like]
-      ) : [],
-      wanted.includes('transactions') ? db.all(
-        `SELECT id, number, counterparty, organization, contract_number, status FROM ais_transactions
-         WHERE number LIKE ? ESCAPE '\\' OR counterparty LIKE ? ESCAPE '\\' OR organization LIKE ? ESCAPE '\\'
-         LIMIT 8`,
-        [like, like, like]
-      ) : [],
-      wanted.includes('counterparties') ? db.all(
-        `SELECT id, name, short_name, country FROM counterparties
-         WHERE name LIKE ? ESCAPE '\\' OR short_name LIKE ? ESCAPE '\\'
-         LIMIT 8`,
-        [like, like]
-      ) : [],
+    const [acidRows, contractRows, txRows, cpRows, itemRows] = await Promise.all([
+      wanted.includes('acid') ? db.all(`SELECT id, acid, name, shipper, supplier, status, ais_number FROM acid`) : [],
+      wanted.includes('contracts') ? db.all(`SELECT id, contract_number, name, counterparty, status FROM contracts`) : [],
+      wanted.includes('transactions') ? db.all(`SELECT id, number, counterparty, organization, contract_number, status FROM ais_transactions`) : [],
+      wanted.includes('counterparties') ? db.all(`SELECT id, name, short_name, country FROM counterparties`) : [],
       wanted.includes('items') ? db.all(
         `SELECT ti.id, ti.name, ti.sku, ti.transaction_id, t.number AS tx_number
-         FROM transaction_items ti JOIN ais_transactions t ON t.id = ti.transaction_id
-         WHERE ti.name LIKE ? ESCAPE '\\' OR ti.sku LIKE ? ESCAPE '\\'
-         LIMIT 8`,
-        [like, like]
+         FROM transaction_items ti JOIN ais_transactions t ON t.id = ti.transaction_id`
       ) : [],
     ]);
+
+    const acid = acidRows.filter(r => matches(r, ['acid', 'name', 'shipper', 'supplier', 'ais_number'])).slice(0, 8);
+    const contracts = contractRows.filter(r => matches(r, ['contract_number', 'name', 'counterparty'])).slice(0, 8);
+    const transactions = txRows.filter(r => matches(r, ['number', 'counterparty', 'organization'])).slice(0, 8);
+    const counterparties = cpRows.filter(r => matches(r, ['name', 'short_name'])).slice(0, 8);
+    const items = itemRows.filter(r => matches(r, ['name', 'sku'])).slice(0, 8);
+
     res.json({ acid, contracts, transactions, counterparties, items });
   } catch (err) {
     console.error('Search error:', err);
