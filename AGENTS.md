@@ -20,7 +20,7 @@ Stack:
 - `backend/src/server.js` — the entire Express API: auth, generic CRUD, task/CRM routes, attachments, audit log, migrations
 - `backend/data/schema.sql` — base SQLite schema; the server also applies idempotent migrations on startup
 - `backend/data/accessweb.db` — the runtime database file (not committed; gitignored)
-- `backend/seed/` — standalone maintenance/backfill scripts, not imported by the server; run manually with `node <file>` when needed
+- `backend/seed/` — mixed: `backfill_demo_data.js`/`fix_transaction_contract_links.js` are standalone maintenance scripts run manually with `node <file>`; `demoEmployees.js` is dynamically `import()`-ed by `seedUsers()` in `server.js` on every startup (try/catch-wrapped, optional) to provision demo accounts
 - `backend/.env.example` — template for the backend's `.env` file
 - No root `package.json` exists; the only Node project lives under `backend/`.
 
@@ -63,7 +63,7 @@ On Windows, the scripts in the repo root (`run.bat`, `start.bat`, `tunnel.bat`) 
 13. **Frontend has no module system**: `index.html` is one file with global JS functions and inline event handlers by design, for a small team and simple deployment — don't introduce a bundler or module split unless asked. `egypt.html` must stay free of the heavier libraries (Chart.js, PapaParse, XLSX) that `index.html` loads from CDN.
 14. **Frontend cache-busting**: bump the `APP_VERSION` constant near the top of `index.html` when shipping changes that should invalidate old service-worker caches (`sw.js` reacts to this).
 15. **`meta[name="api-base"]` in `index.html`** determines the API origin the frontend targets; leave empty for same-origin deployment, set it when the frontend is hosted separately (e.g. GitHub Pages) from the backend.
-16. **One-off scripts in `backend/seed/`** are not wired into the running server — they're manual, re-runnable maintenance/backfill tools, run directly with `node backend/seed/<file>.js`.
+16. **`backend/seed/` scripts are not all standalone**: `backfill_demo_data.js`/`fix_transaction_contract_links.js` are manual, re-runnable maintenance tools (`node backend/seed/<file>.js`); `demoEmployees.js` is dynamically imported by `server.js`'s `seedUsers()` on every startup — don't delete it assuming it's inert.
 17. UI text and log/audit messages throughout the app are in Russian — match that for any new user-facing strings unless directed otherwise.
 
 ## Known issues / gotchas (documented in the repo's own README audit)
